@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { gamesFromSearch, isAllowedReferenceUrl, nameTokens, pickReference } from './roblox.mjs'
+import { closestTitleMatch, gamesFromSearch, isAllowedReferenceUrl, nameTokens, parseGameUrl, pickReference } from './roblox.mjs'
 
 const game = (name, playing) => ({ name, playing })
 
@@ -54,6 +54,28 @@ test('with no near result there is no Roblox reference, however popular the hits
 
 test('a CCU tie keeps Roblox relevance order', () => {
   assert.equal(pickReference('Rob a Bank', [game('Rob It', 50), game('Bank Heist', 50)]).game.name, 'Rob It')
+})
+
+test('a roblox.com game link yields its place id, other text does not', () => {
+  assert.equal(parseGameUrl('Make a thumbnail for my game https://www.roblox.com/games/114326934417838/Break-and-Steal-an-Egg'), '114326934417838')
+  assert.equal(parseGameUrl('roblox.com/games/920587237'), '920587237')
+  assert.equal(parseGameUrl('https://www.roblox.com/de/games/606849621/Jailbreak'), '606849621')
+  assert.equal(parseGameUrl('https://www.roblox.com/games/start?placeId=2753915549'), '2753915549')
+  assert.equal(parseGameUrl('Rob a Bank'), null)
+  assert.equal(parseGameUrl('https://example.com/games/123'), null)
+})
+
+test('the game the user means is the closest title, not the most played', () => {
+  // Real "Break and Steal an Egg" search results, 2026-10-18.
+  const results = [game('Break and Steal an Egg', 104045), game('Steal An Egg', 913663), game('[🧟EVENT] Break a Brainrot Egg!', 5022)]
+  assert.equal(closestTitleMatch('Break and Steal an Egg', results).name, 'Break and Steal an Egg')
+  assert.equal(closestTitleMatch('Rob a Bank', [game('Rob A Jewellery Store Obby', 112), game('[🎃] Rob a Bank💰', 7)]).name, '[🎃] Rob a Bank💰')
+})
+
+test('a title sharing too few words is a different game, so none is matched', () => {
+  assert.equal(closestTitleMatch('Lava Leap', [game('The Floor Is LAVA!🔥', 2365)]), null)
+  assert.equal(closestTitleMatch('surf giant waves with sharks', [game('SharkBite 2', 5000), game('Surf', 10)]), null)
+  assert.equal(closestTitleMatch('Rob a Bank', []), null)
 })
 
 test('only https Roblox CDN references are allowed', () => {

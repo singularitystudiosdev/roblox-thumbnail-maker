@@ -60,7 +60,7 @@ export function ResultStage({ phase, result, gameName, modelName, elapsed, error
         />
       )}
 
-      {phase === 'planning' && <Working label="Finding the most-played matching Roblox game" elapsed={elapsed} />}
+      {phase === 'planning' && <Working label="Finding your game on Roblox and describing it" elapsed={elapsed} />}
       {phase === 'generating' && <Working label={`${modelName} is drawing ${gameName}`} elapsed={elapsed} />}
 
       {phase === 'error' && (

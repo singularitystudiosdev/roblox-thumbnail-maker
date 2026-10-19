@@ -1,14 +1,16 @@
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import { buildPrompt } from '../../server/prompt.mjs'
+import { formatCount, type DescribedFrom } from '../lib/api'
 
 interface PromptPanelProps {
   modelName: string
   gameName: string
   onGameName: (value: string) => void
+  describedFrom: DescribedFrom | null
 }
 
-export function PromptPanel({ modelName, gameName, onGameName }: PromptPanelProps) {
+export function PromptPanel({ modelName, gameName, onGameName, describedFrom }: PromptPanelProps) {
   const [copied, setCopied] = useState(false)
   const prompt = gameName.trim().replace(/^["“”']+|["“”']+$/g, '').trim() ? buildPrompt(gameName) : ''
 
@@ -34,6 +36,18 @@ export function PromptPanel({ modelName, gameName, onGameName }: PromptPanelProp
           onChange={(e) => onGameName(e.target.value)}
           className="focus-ring w-full rounded-8 border border-border-default bg-bg-canvas px-12 py-8 text-body text-text-primary sm:text-label"
         />
+        {describedFrom ? (
+          <p className="flex flex-wrap items-center gap-4 text-caption text-text-secondary">
+            Written from the description of
+            <a href={describedFrom.url} target="_blank" rel="noreferrer" className="focus-ring inline-flex items-center gap-4 rounded-8 font-medium text-text-primary hover:underline">
+              {describedFrom.name}
+              <ExternalLink className="size-12" aria-hidden="true" />
+            </a>
+            <span>({formatCount(describedFrom.playing)} playing)</span>
+          </p>
+        ) : (
+          <p className="text-caption text-text-secondary">Edit it and Regenerate to send your own wording as is.</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">

@@ -6,6 +6,11 @@ import { randomUUID } from 'node:crypto'
 
 const SEARCH_URL = 'https://apis.roblox.com/search-api/omni-search'
 const THUMBS_URL = 'https://thumbnails.roblox.com/v1/games/multiget/thumbnails'
+const GAMES_URL = 'https://games.roblox.com/v1/games'
+const PLACE_UNIVERSE_URL = 'https://apis.roblox.com/universes/v1/places'
+
+/** A Roblox link that does not lead to a game: the user's input, not a server fault. */
+export class GameNotFound extends Error {}
 const HEADERS = { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 roblox-thumbnail-maker' }
 
 // Relevance-ordered results considered at all; Roblox mixes unrelated hits
@@ -98,10 +103,70 @@ export function pickReference(query, games) {
   return game ? { game, nearCount: near.length } : null
 }
 
+/** The top search results for a name, each with its 16:9 thumbnail. */
+export async function searchNear(gameName) {
+  return withThumbnails((await searchGames(gameName)).slice(0, SEARCH_DEPTH))
+}
+
 /** Searches Roblox for the game name and returns the reference game, or null when nothing usable comes back. */
 export async function findReference(gameName) {
-  const games = await withThumbnails((await searchGames(gameName)).slice(0, SEARCH_DEPTH))
-  return pickReference(gameName, games)
+  return pickReference(gameName, await searchNear(gameName))
+}
+
+// Below this share of words in common, a search hit is a different game, not the one the user means.
+export const TITLE_MATCH_MIN = 0.6
+
+/** Shared words over all words of both titles (Jaccard), with the same stem rule as `isNear`. */
+export function titleSimilarity(a, b) {
+  const ta = nameTokens(a)
+  const tb = nameTokens(b)
+  if (!ta.length || !tb.length) return 0
+  const shared = ta.filter((x) => tb.some((y) => sameWord(x, y))).length
+  return shared / (ta.length + tb.length - shared)
+}
+
+/** The search hit whose title is closest to what the user typed (ties keep Roblox's order), or null when none is close. */
+export function closestTitleMatch(query, games) {
+  let best = null
+  let bestScore = 0
+  for (const game of games) {
+    const score = titleSimilarity(query, game.name)
+    if (score >= TITLE_MATCH_MIN && score > bestScore) {
+      best = game
+      bestScore = score
+    }
+  }
+  return best
+}
+
+/** The place id in a roblox.com game link ("/games/114326934417838/..." or "?placeId=..."), or null. */
+export function parseGameUrl(text) {
+  const match = text.match(/roblox\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?games\/(\d+)/i) ?? text.match(/roblox\.com\/\S*[?&]placeId=(\d+)/i)
+  return match ? match[1] : null
+}
+
+/** Name, description and live player count for each universe id. */
+export async function gameDetails(universeIds) {
+  if (universeIds.length === 0) return []
+  const payload = await getJson(`${GAMES_URL}?universeIds=${universeIds.join(',')}`)
+  return (payload?.data ?? []).map((d) => ({
+    universeId: d.id,
+    placeId: d.rootPlaceId,
+    name: d.name ?? '',
+    description: d.description ?? '',
+    playing: d.playing ?? 0,
+    url: `https://www.roblox.com/games/${d.rootPlaceId}`
+  }))
+}
+
+/** The game a roblox.com link points at. */
+export async function gameFromPlace(placeId) {
+  const res = await fetch(`${PLACE_UNIVERSE_URL}/${placeId}/universe`, { headers: HEADERS, signal: AbortSignal.timeout(15000) })
+  const universeId = res.ok ? (await res.json())?.universeId : null
+  if (!universeId) throw new GameNotFound(`That Roblox link (place ${placeId}) does not lead to a game. Check the link or type the game's name.`)
+  const [game] = await gameDetails([universeId])
+  if (!game) throw new GameNotFound(`Roblox has no details for the game at place ${placeId}.`)
+  return game
 }
 
 const REFERENCE_HOST = /(^|\.)rbxcdn\.com$/

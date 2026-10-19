@@ -6,9 +6,9 @@ import { PromptBox } from './components/PromptBox'
 import { PromptPanel } from './components/PromptPanel'
 import { ReferenceCard } from './components/ReferenceCard'
 import { ResultStage, type Phase } from './components/ResultStage'
-import { api, modelLabel, providerLabel, referenceOf, type Generation, type Reference, type Status } from './lib/api'
+import { api, modelLabel, providerLabel, referenceOf, type DescribedFrom, type Generation, type Reference, type Status } from './lib/api'
 
-const EXAMPLES = ['Rob a Bank', 'Make me a roblox thumbnail for my game Lava Leap', 'Grow a Garden']
+const EXAMPLES = ['https://www.roblox.com/games/114326934417838/Break-and-Steal-an-Egg', 'Rob a Bank', 'Grow a Garden']
 const MODEL_NAME = 'Nano Banana 2'
 
 function useElapsed(running: boolean) {
@@ -32,6 +32,7 @@ export function App() {
   const [gameName, setGameName] = useState('')
   // The reference and the name it was looked up for: a changed name needs a fresh lookup.
   const [reference, setReference] = useState<{ forName: string; ref: Reference } | null>(null)
+  const [describedFrom, setDescribedFrom] = useState<DescribedFrom | null>(null)
   const [result, setResult] = useState<Generation | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -50,11 +51,11 @@ export function App() {
     api.status().then(setStatus).catch((err) => console.error('Status load failed', err))
   }, [refreshHistory])
 
-  const generate = async (name: string, ref: Reference) => {
+  const generate = async (name: string, ref: Reference, from: DescribedFrom | null) => {
     setPhase('generating')
     setError(null)
     try {
-      const generation = await api.generate({ gameName: name, reference: ref })
+      const generation = await api.generate({ gameName: name, reference: ref, describedFrom: from })
       setResult(generation)
       setPhase('done')
       refreshHistory()
@@ -65,14 +66,16 @@ export function App() {
     }
   }
 
-  const run = async (text = prompt) => {
+  // keepName: an edited Game name goes into the prompt as typed; only the reference is looked up again.
+  const run = async (text = prompt, keepName = false) => {
     setPhase('planning')
     setError(null)
     try {
-      const plan = await api.plan(text)
+      const plan = await api.plan(text, keepName)
       setGameName(plan.gameName)
       setReference({ forName: plan.gameName, ref: plan.reference })
-      await generate(plan.gameName, plan.reference)
+      setDescribedFrom(plan.describedFrom)
+      await generate(plan.gameName, plan.reference, plan.describedFrom)
     } catch (err) {
       console.error('Reference lookup failed', err)
       setError((err as Error).message)
@@ -89,13 +92,14 @@ export function App() {
   const retry = () => {
     const name = gameName.trim()
     if (!name) return run()
-    return reference?.forName === name ? generate(name, reference.ref) : run(name)
+    return reference?.forName === name ? generate(name, reference.ref, describedFrom) : run(name, true)
   }
 
   const openHistory = (item: Generation) => {
     setResult(item)
     setGameName(item.gameName)
     setReference({ forName: item.gameName, ref: referenceOf(item) })
+    setDescribedFrom(item.describedFrom ?? null)
     setPhase('done')
   }
 
@@ -117,7 +121,7 @@ export function App() {
       <main className="mx-auto grid max-w-7xl grid-cols-1 gap-24 px-16 py-24 sm:px-24 lg:grid-cols-12 lg:px-32">
         <div className="flex min-w-0 flex-col gap-24 lg:col-span-4">
           <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => run()} busy={busy} />
-          <ReferenceCard reference={reference?.ref ?? null} gameName={reference?.forName ?? ''} loading={phase === 'planning'} />
+          <ReferenceCard reference={reference?.ref ?? null} gameName={reference?.ref.query ?? reference?.forName ?? ''} loading={phase === 'planning'} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-24 lg:col-span-8">
@@ -157,7 +161,12 @@ export function App() {
           </div>
 
           {(gameName || result) && phase !== 'planning' && (
-            <PromptPanel modelName={MODEL_NAME} gameName={gameName} onGameName={setGameName} />
+            <PromptPanel
+              modelName={MODEL_NAME}
+              gameName={gameName}
+              onGameName={setGameName}
+              describedFrom={gameName.trim() === reference?.forName ? describedFrom : null}
+            />
           )}
           <HistoryList items={history} currentId={result?.id ?? null} onOpen={openHistory} />
         </div>

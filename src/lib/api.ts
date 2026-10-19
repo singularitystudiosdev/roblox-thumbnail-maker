@@ -8,12 +8,23 @@ export interface Reference {
   playing?: number
   url?: string
   nearCount?: number
+  /** The name Roblox was searched for. */
+  query?: string
+}
+
+/** The Roblox game whose description the title was written from. */
+export interface DescribedFrom {
+  name: string
+  url: string
+  playing: number
 }
 
 export interface Plan {
   gameName: string
   prompt: string
   reference: Reference
+  describedFrom: DescribedFrom | null
+  namedBy: 'gemini' | 'fal' | 'fallback' | 'typed'
 }
 
 export interface Generation {
@@ -24,6 +35,7 @@ export interface Generation {
   prompt: string
   resolution: string
   reference: Partial<Reference> & { name: string }
+  describedFrom?: DescribedFrom | null
   provider: 'gemini' | 'fal'
   model: string
   ms: number
@@ -35,6 +47,8 @@ export interface Status {
   imageProvider: string
   imageModel: string
   falModel: string
+  textModel: string
+  falTextModel: string
   fallbackReferenceName: string
 }
 
@@ -49,8 +63,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  plan: (prompt: string) => request<Plan>('/api/plan', { method: 'POST', body: JSON.stringify({ prompt }) }),
-  generate: (input: { gameName: string; reference: Reference }) =>
+  plan: (prompt: string, keepName = false) => request<Plan>('/api/plan', { method: 'POST', body: JSON.stringify({ prompt, keepName }) }),
+  generate: (input: { gameName: string; reference: Reference; describedFrom: DescribedFrom | null }) =>
     request<Generation>('/api/generate', { method: 'POST', body: JSON.stringify(input) }),
   history: () => request<{ items: Generation[] }>('/api/history'),
   status: () => request<Status>('/api/status')

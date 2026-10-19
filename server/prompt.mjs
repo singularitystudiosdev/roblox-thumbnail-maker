@@ -3,7 +3,7 @@
 export const PROMPT_TEMPLATE =
   'Make me a Roblox thumbnail for my game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
 
-const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
+export const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 
 export function buildPrompt(gameName) {
   const name = stripQuotes(gameName)

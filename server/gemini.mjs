@@ -44,3 +44,15 @@ export async function generateContent(model, request, timeoutMs = 60000) {
   }
   throw new ProviderUnavailable(`Gemini ${model} unavailable on every key: ${failures.join(' | ')}`)
 }
+
+/** Plain text answer from the text model. */
+export async function generateText(systemText, userText) {
+  const body = await generateContent(config().textModel, {
+    systemInstruction: { parts: [{ text: systemText }] },
+    contents: [{ role: 'user', parts: [{ text: userText }] }],
+    generationConfig: { temperature: 0 }
+  })
+  const text = body?.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text ?? '').join('').trim()
+  if (!text) throw new Error(`Gemini ${config().textModel} returned no text (finish: ${body?.candidates?.[0]?.finishReason})`)
+  return text
+}

@@ -4,8 +4,9 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, wri
 import { basename, extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { generateThumbnail, OUTPUT_RESOLUTION } from './imagegen.mjs'
-import { buildPrompt, extractGameName } from './prompt.mjs'
-import { downloadThumbnail, findReference, isAllowedReferenceUrl } from './roblox.mjs'
+import { fallbackReference, planThumbnail, referenceFor } from './planner.mjs'
+import { buildPrompt } from './prompt.mjs'
+import { downloadThumbnail, GameNotFound, isAllowedReferenceUrl } from './roblox.mjs'
 
 const MAX_BODY = 64 * 1024
 const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' }
@@ -40,23 +41,6 @@ function referenceFile(root) {
   return { file, mimeType: MIME[extname(file).toLowerCase()] ?? 'image/png' }
 }
 
-const fallbackReference = () => ({ source: 'fallback', name: config().referenceName, thumbnailUrl: '/api/reference' })
-
-/** The most-played Roblox game near the name, or the bundled reference when search fails or finds nothing. */
-async function referenceFor(gameName) {
-  try {
-    const found = await findReference(gameName)
-    if (found) {
-      const { game, nearCount } = found
-      return { source: 'roblox', nearCount, ...game }
-    }
-    console.warn(`No Roblox game found for "${gameName}", using the bundled reference.`)
-  } catch (err) {
-    console.error(`Roblox reference lookup for "${gameName}" failed, using the bundled reference:`, err)
-  }
-  return fallbackReference()
-}
-
 async function referenceImage(root, reference) {
   if (reference.source === 'roblox') return downloadThumbnail(reference.thumbnailUrl)
   const { file, mimeType } = referenceFile(root)
@@ -66,8 +50,24 @@ async function referenceImage(root, reference) {
 /** A reference the page sends back is reused only when it is a Roblox CDN thumbnail; anything else is looked up again. */
 function trustedReference(value) {
   if (value?.source !== 'roblox' || !isAllowedReferenceUrl(value.thumbnailUrl)) return null
-  const { universeId, placeId, name, playing, url, thumbnailUrl, nearCount } = value
-  return { source: 'roblox', universeId, placeId, name: String(name ?? ''), playing: Number(playing) || 0, url, thumbnailUrl, nearCount }
+  const { universeId, placeId, name, playing, url, thumbnailUrl, nearCount, query } = value
+  return {
+    source: 'roblox',
+    universeId,
+    placeId,
+    name: String(name ?? ''),
+    playing: Number(playing) || 0,
+    url,
+    thumbnailUrl,
+    nearCount,
+    query: typeof query === 'string' ? query : undefined
+  }
+}
+
+/** The game the title was written from, kept only when its link is a roblox.com game page. */
+function describedFromOf(value) {
+  if (typeof value?.url !== 'string' || !/^https:\/\/www\.roblox\.com\/games\/\d+/.test(value.url)) return null
+  return { name: String(value.name ?? ''), url: value.url, playing: Number(value.playing) || 0 }
 }
 
 function listHistory(outputsDir, limit = 40) {
@@ -83,7 +83,8 @@ async function handleGenerate(req, root, outputsDir) {
   const { gameName } = body
   if (typeof gameName !== 'string' || !gameName.trim()) throw new BadRequest('Give the game a name first.')
   const prompt = buildPrompt(gameName)
-  const reference = body.reference?.source === 'fallback' ? fallbackReference() : trustedReference(body.reference) ?? (await referenceFor(gameName))
+  const reference =
+    body.reference?.source === 'fallback' ? fallbackReference(body.reference.query) : trustedReference(body.reference) ?? (await referenceFor(gameName))
   const started = Date.now()
   const result = await generateThumbnail(prompt, await referenceImage(root, reference))
   const id = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
@@ -97,6 +98,7 @@ async function handleGenerate(req, root, outputsDir) {
     prompt,
     resolution: OUTPUT_RESOLUTION,
     reference,
+    describedFrom: describedFromOf(body.describedFrom),
     provider: result.provider,
     model: result.model,
     ms: Date.now() - started
@@ -128,10 +130,9 @@ export function createApi(root) {
     try {
       const route = `${req.method} ${url.pathname}`
       if (route === 'POST /api/plan') {
-        const { prompt } = await readJson(req)
-        if (typeof prompt !== 'string' || !prompt.trim()) throw new BadRequest('Type your game name first.')
-        const gameName = extractGameName(prompt)
-        return sendJson(res, 200, { gameName, prompt: buildPrompt(gameName), reference: await referenceFor(gameName) })
+        const { prompt, keepName } = await readJson(req)
+        if (typeof prompt !== 'string' || !prompt.trim()) throw new BadRequest('Type your game name or paste its Roblox link first.')
+        return sendJson(res, 200, await planThumbnail(prompt, { keepName: keepName === true }))
       }
       if (route === 'POST /api/generate') return sendJson(res, 200, await handleGenerate(req, root, outputsDir))
       if (route === 'GET /api/reference') {
@@ -147,12 +148,14 @@ export function createApi(root) {
           imageProvider: c.imageProvider,
           imageModel: c.imageModel,
           falModel: c.falModel,
+          textModel: c.textModel,
+          falTextModel: c.falTextModel,
           fallbackReferenceName: c.referenceName
         })
       }
       return sendJson(res, 404, { error: `No route ${route}` })
     } catch (err) {
-      if (err instanceof BadRequest) return sendJson(res, 400, { error: err.message })
+      if (err instanceof BadRequest || err instanceof GameNotFound) return sendJson(res, 400, { error: err.message })
       console.error(`API ${req.method} ${url.pathname} failed:`, err)
       return sendJson(res, 502, { error: err.message })
     }
