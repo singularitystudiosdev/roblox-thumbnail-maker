@@ -24,12 +24,13 @@ test('Gemini body: the prompt then the reference, image output at 16:9', () => {
   })
 })
 
-test('a run is the template plus three novel perspective remixes', () => {
+test('a run is the template, three novel perspective remixes and the plain template', () => {
   const slots = planSlots('Break and Steal a Egg')
-  assert.deepEqual(slots.map((s) => [s.slot, s.strategy]), [[1, 'template'], [2, 'remix'], [3, 'remix'], [4, 'remix']])
+  assert.deepEqual(slots.map((s) => [s.slot, s.strategy]), [[1, 'template'], [2, 'remix'], [3, 'remix'], [4, 'remix'], [5, 'plain']])
   assert.equal(
     slots[0].prompt,
     'Make me a thumbnail for my roblox game "Break and Steal a Egg" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
-  for (const slot of slots.slice(1)) assert.equal(slot.prompt, 'Make this thumbnail but from a novel perspective. No text.')
+  for (const slot of slots.slice(1, 4)) assert.equal(slot.prompt, 'Make this thumbnail but from a novel perspective. No text.')
+  assert.equal(slots[4].prompt, 'Make me a thumbnail for my game "Break and Steal a Egg" in the style of my reference image. No text. 16:9 Ratio.')
 })

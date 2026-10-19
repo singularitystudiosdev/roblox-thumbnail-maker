@@ -1,7 +1,8 @@
-// One run: the game name, then four Nano Banana 2 thumbnails at once
-// (1: the exact template with the style reference; 2 to 4: the novel
-// perspective remix prompt, each with the cleanest thumbnail of the popular
-// reference game), then the judge, told what the game is (judgeContext).
+// One run: the game name, then five Nano Banana 2 thumbnails at once
+// (1 and 5: the exact and the plain template, each with the style reference;
+// 2 to 4: the novel perspective remix prompt, each with the cleanest thumbnail
+// of the popular reference game), then the judge, told what the game is
+// (judgeContext).
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -11,7 +12,7 @@ import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
 import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
-import { buildPrompt, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
+import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { pickCleanestThumbnail } from './cleanest.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
@@ -23,11 +24,12 @@ function newRunId() {
   return `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
 }
 
-/** The slots of a run and the exact prompt each sends: the template, then REMIX_COUNT remixes. */
+/** The slots of a run and the exact prompt each sends: the template, REMIX_COUNT remixes, then the plain template. */
 export function planSlots(gameName) {
   return [
     { slot: 1, strategy: 'template', prompt: buildPrompt(gameName) },
-    ...Array.from({ length: REMIX_COUNT }, (_, i) => ({ slot: i + 2, strategy: 'remix', prompt: REMIX_PROMPT }))
+    ...Array.from({ length: REMIX_COUNT }, (_, i) => ({ slot: i + 2, strategy: 'remix', prompt: REMIX_PROMPT })),
+    { slot: REMIX_COUNT + 2, strategy: 'plain', prompt: buildPrompt(gameName, PLAIN_TEMPLATE) }
   ]
 }
 
@@ -42,7 +44,7 @@ async function nearestOrNull(gameName, extraNames) {
 
 /**
  * `style`: { bytes, mimeType, name, source: 'bundled' | 'upload' }, the image
- * thumbnail 1 is styled after. Returns the saved run record.
+ * the two templates are styled after. Returns the saved run record.
  */
 export async function runThumbnails({ input, style, outputsDir, emit = () => {}, random = Math.random }) {
   const started = Date.now()
@@ -80,7 +82,8 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     return thumbnail
   }
 
-  const template = generate(slots[0], style, style.name).then(report)
+  // The templates need only the style reference, so they start at once; the remixes wait for the Roblox lookup.
+  const templates = Promise.all(slots.filter((s) => s.strategy !== 'remix').map((slot) => generate(slot, style, style.name).then(report)))
   const remixes = (async () => {
     const nearest = await nearestOrNull(gameName, link ? [link.title] : [])
     let referenceImage = style
@@ -102,9 +105,9 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     // No Roblox game found or its thumbnail unreachable: the remixes start from the style reference.
     record.reference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
     emit({ type: 'reference', reference: record.reference })
-    return Promise.all(slots.slice(1).map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
+    return Promise.all(slots.filter((s) => s.strategy === 'remix').map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
   })()
-  await Promise.all([template, remixes])
+  await Promise.all([templates, remixes])
   record.thumbnails.sort((a, b) => a.slot - b.slot)
 
   const finished = record.thumbnails.filter((t) => images.has(t.slot)).map((t) => ({ slot: t.slot, ...images.get(t.slot) }))

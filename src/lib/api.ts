@@ -24,7 +24,8 @@ export interface Reference {
 
 export interface Slot {
   slot: number
-  strategy: 'template' | 'remix'
+  /** template: the exact template; plain: the plain template (both with the style reference); remix: the novel perspective remix. */
+  strategy: 'template' | 'plain' | 'remix'
   prompt: string
 }
 
@@ -147,9 +148,10 @@ export const api = {
   status: () => request<Status>('/api/status')
 }
 
-/** "Remix: Novel perspective" from "Make this thumbnail but from a novel perspective. No text."; "Exact template" for slot 1. */
+/** "Remix: Novel perspective" from "Make this thumbnail but from a novel perspective. No text."; the templates by name. */
 export function strategyLabel(slot: Slot) {
   if (slot.strategy === 'template') return 'Exact template'
+  if (slot.strategy === 'plain') return 'Plain template'
   const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'
   return `Remix: ${angle[0].toUpperCase()}${angle.slice(1)}`
 }

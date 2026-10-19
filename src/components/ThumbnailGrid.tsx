@@ -3,7 +3,7 @@ import { providerLabel, slugify, strategyLabel, type Run, type Slot } from '../l
 import { cn } from '../lib/cn'
 import { buttonClasses } from './Button'
 
-const COUNT_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four' }
+const COUNT_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four', 5: 'five' }
 
 interface ThumbnailGridProps {
   run: Run
@@ -69,7 +69,7 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         </div>
         <p className="rounded-8 bg-bg-canvas px-8 py-4 text-caption text-text-primary">{slot.prompt}</p>
         <p className="text-caption text-text-secondary">
-          Reference: {thumbnail?.referenceName ?? (slot.strategy === 'template' ? run.style.name : run.reference?.name ?? 'finding it')}
+          Reference: {thumbnail?.referenceName ?? (slot.strategy === 'remix' ? run.reference?.name ?? 'finding it' : run.style.name)}
         </p>
         {thumbnail?.provider && (
           <p className="text-caption text-text-secondary">
@@ -98,8 +98,8 @@ export function ThumbnailGrid({ run, busy, shownSlot, onShow }: ThumbnailGridPro
       <h2 id="all-thumbnails-title" className="text-title font-semibold">
         All {COUNT_WORDS[run.slots.length] ?? run.slots.length} thumbnails
       </h2>
-      {/* Four sit two by two; runs saved with three keep one row. */}
-      <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+      {/* Five sit three then two, older runs of four two by two, of three in one row. */}
+      <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 4 ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
         {run.slots.map((slot) => (
           <Tile key={slot.slot} run={run} slot={slot} busy={busy} shown={shownSlot === slot.slot} onShow={onShow} />
         ))}

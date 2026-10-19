@@ -30,9 +30,12 @@ function steps(run: Run | null, phase: Phase) {
   // Runs saved before the four-thumbnail layout have two remixes.
   const remixSlots = run?.slots.filter((s) => s.strategy === 'remix').map((s) => s.slot) ?? [2, 3, 4]
   const remixLabel = remixSlots.length === 2 ? 'Thumbnails 2 and 3' : `Thumbnails 2 to ${remixSlots.at(-1)}`
+  // Older runs have the exact template only.
+  const styleSlots = run?.slots.filter((s) => s.strategy !== 'remix').map((s) => s.slot) ?? [1, 5]
+  const styleLabel = styleSlots.length === 1 ? 'Thumbnail 1 from the exact template' : `Thumbnails ${styleSlots.join(' and ')} from your reference image`
   return [
     { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
-    { label: 'Thumbnail 1 from the exact template', state: run ? slotState(run, [1]) : 'pending' },
+    { label: styleLabel, state: run ? slotState(run, styleSlots) : 'pending' },
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
     { label: `${remixLabel} remixed from it`, state: reference ? slotState(run, remixSlots) : 'pending' },
     { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' }
@@ -80,7 +83,7 @@ export function WinnerStage({ phase, run, shownSlot, elapsed, error, onExample, 
       {phase === 'idle' && !run && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-16 p-24 text-center">
           <p className="max-w-prose text-body text-text-secondary">
-            One prompt makes four thumbnails and the judge puts the most clickable one here.
+            One prompt makes five thumbnails and the judge puts the most clickable one here.
           </p>
           <Button onClick={onExample}>Try an example</Button>
         </div>

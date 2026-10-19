@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildPrompt, extractGameName, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
+import { buildPrompt, extractGameName, PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 
 test('the template is the exact text, only GAME_NAME substituted', () => {
   assert.equal(
@@ -15,6 +15,15 @@ test('the template is the exact text, only GAME_NAME substituted', () => {
     buildPrompt('A axe throwing game with a bacon hair in the thumbnail'),
     'Make me a thumbnail for my roblox game "A axe throwing game with a bacon hair in the thumbnail" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
+})
+
+test('the plain template is the exact text, only GAME_NAME substituted', () => {
+  assert.equal(PLAIN_TEMPLATE, 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.')
+  assert.equal(
+    buildPrompt('"Break and Steal a Egg"', PLAIN_TEMPLATE),
+    'Make me a thumbnail for my game "Break and Steal a Egg" in the style of my reference image. No text. 16:9 Ratio.'
+  )
+  assert.equal(extractGameName(buildPrompt('Rob a Bank', PLAIN_TEMPLATE)), 'Rob a Bank')
 })
 
 test('a name typed in quotes is not quoted twice', () => {

@@ -181,7 +181,7 @@ export function App() {
                   )}
                   <Button onClick={() => start(prompt || run.input)}>
                     <RefreshCw className="size-16" aria-hidden="true" />
-                    Make 4 more
+                    Make 5 more
                   </Button>
                 </div>
               </div>

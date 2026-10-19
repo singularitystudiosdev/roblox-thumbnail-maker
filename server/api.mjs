@@ -3,7 +3,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { imageMimeType } from './mime.mjs'
-import { PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
+import { PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { GameNotFound } from './roblox.mjs'
 import { listRuns, rejudgeRun, RUN_ID, runThumbnails } from './run.mjs'
 
@@ -128,6 +128,7 @@ export function createApi(root) {
           judgeModels: c.judgeModels,
           styleReferenceName: c.styleReferenceName,
           template: PROMPT_TEMPLATE,
+          plainTemplate: PLAIN_TEMPLATE,
           remixPrompt: REMIX_PROMPT,
           remixCount: REMIX_COUNT
         })

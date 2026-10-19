@@ -53,7 +53,7 @@ export function StyleCard({ upload, defaultName, disabled, onUpload }: StyleCard
       />
       <div className="flex flex-col gap-4">
         <span className="truncate text-body font-medium">{upload?.name ?? defaultName}</span>
-        <p className="text-caption text-text-secondary">Thumbnail 1 is made in the style of this image.</p>
+        <p className="text-caption text-text-secondary">Thumbnails 1 and 5 are made in the style of this image.</p>
         {error && <p role="alert" className="text-caption text-destructive">{error}</p>}
       </div>
       <div className="flex flex-wrap gap-8">
