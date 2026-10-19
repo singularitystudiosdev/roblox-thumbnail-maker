@@ -1,13 +1,15 @@
 // One run: the game name, then three Nano Banana 2 thumbnails at once
 // (1: the exact template with the style reference; 2 and 3: two random remix
-// prompts with the cleanest thumbnail of the nearest popular Roblox game), then the judge.
+// prompts with the cleanest thumbnail of the nearest popular Roblox game), then
+// the judge, told what the game is (judgeContext).
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { resolveGameName } from './gamename.mjs'
+import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
-import { judgeThumbnails } from './judge.mjs'
+import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
 import { buildPrompt, pickRemixPrompts } from './prompt.mjs'
 import { pickCleanestThumbnail } from './cleanest.mjs'
@@ -110,18 +112,45 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
   const finished = record.thumbnails.filter((t) => images.has(t.slot)).map((t) => ({ slot: t.slot, ...images.get(t.slot) }))
   if (finished.length > 0) {
     emit({ type: 'judging' })
-    try {
-      record.judge = await judgeThumbnails(gameName, finished, { random })
-    } catch (err) {
-      console.error('Judging failed:', err)
-      record.judge = { error: err.message, winnerSlot: null }
-    }
+    await judgeInto(record, dir, finished, random)
     emit({ type: 'judge', judge: record.judge })
   }
-  record.winnerSlot = record.judge?.winnerSlot ?? null
+  record.winnerSlot ??= null
   record.ms = Date.now() - started
   writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
   emit({ type: 'done', run: record })
+  return record
+}
+
+/** Judges `finished` thumbnails with the game's context; a failed judge is recorded, never thrown. */
+async function judgeInto(record, dir, finished, random = Math.random) {
+  try {
+    const context = await judgeContext(record, dir).catch((err) => {
+      console.error('Game context for the judge failed; judging on the name alone:', err)
+      return null
+    })
+    record.judge = await judgeThumbnails(record.gameName, finished, { random, context })
+  } catch (err) {
+    console.error('Judging failed:', err)
+    record.judge = { error: err.message, winnerSlot: null }
+  }
+  record.winnerSlot = record.judge.winnerSlot ?? null
+}
+
+/** Judges a saved run again with the current judge and saves the new verdict. */
+export async function rejudgeRun(outputsDir, id) {
+  const dir = join(outputsDir, id)
+  if (!RUN_ID.test(id) || !existsSync(join(dir, 'run.json'))) return null
+  const record = JSON.parse(readFileSync(join(dir, 'run.json'), 'utf8'))
+  const finished = record.thumbnails
+    .filter((t) => t.imageUrl)
+    .map((t) => {
+      const bytes = readFileSync(join(dir, basename(t.imageUrl)))
+      return { slot: t.slot, bytes, mimeType: imageMimeType(bytes) }
+    })
+  if (finished.length === 0) return record
+  await judgeInto(record, dir, finished)
+  writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
   return record
 }
 

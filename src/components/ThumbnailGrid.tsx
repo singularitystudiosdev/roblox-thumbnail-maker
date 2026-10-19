@@ -14,6 +14,9 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
   const thumbnail = run.thumbnails.find((t) => t.slot === slot.slot)
   const score = run.judge?.scores?.find((s) => s.slot === slot.slot)
   const isWinner = run.judge?.winnerSlot === slot.slot
+  // Runs judged on the 50-point rubric before minFitsGame was recorded used 5.
+  const minFits = run.judge?.minFitsGame ?? (run.judge?.maxTotal === 50 ? 5 : null)
+  const ruledOut = !isWinner && score != null && minFits != null && Number(score.fitsGame) < minFits
   const label = `Thumbnail ${slot.slot}: ${strategyLabel(slot)}`
 
   return (
@@ -73,8 +76,14 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         )}
         {score && (
           <p className="text-caption text-text-secondary">
-            <span className={cn('font-semibold', isWinner ? 'text-brand' : 'text-text-primary')}>Judge {score.total}/40.</span> {score.note}
+            <span className={cn('font-semibold', isWinner ? 'text-brand' : 'text-text-primary')}>
+              Judge {Math.round(score.total)}/{run.judge?.maxTotal ?? 40}.
+            </span>{' '}
+            {score.note}
           </p>
+        )}
+        {ruledOut && (
+          <p className="text-caption font-semibold text-text-primary">Ruled out: it does not show this game, so its other scores cannot make it win.</p>
         )}
       </div>
     </li>

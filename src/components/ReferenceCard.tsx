@@ -7,8 +7,8 @@ interface ReferenceCardProps {
 }
 
 function caption(reference: Reference) {
-  if (reference.source === 'style') return 'Roblox had no game close to this name, so the remixes start from your reference image.'
-  const pool = reference.candidateCount ? `Picked from ${reference.candidateCount} Roblox search results.` : ''
+  if (reference.source === 'style') return 'No Roblox game like this one has over 300 players right now, so the remixes start from your reference image.'
+  const pool = reference.candidateCount ? `${reference.candidateCount} of the games Roblox search returned have over 300 players.` : ''
   return [reference.why, pool].filter(Boolean).join(' ')
 }
 

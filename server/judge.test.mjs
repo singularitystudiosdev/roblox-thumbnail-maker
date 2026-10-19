@@ -1,20 +1,24 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
-import { judgeThumbnails, readVerdict, shuffled } from './judge.mjs'
+import { combinePasses, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, readVerdict, renumber, shuffled } from './judge.mjs'
 
-const row = (thumbnail, n, note = 'fine') => ({ thumbnail, coherent: n, fitsName: n, clean: n, clickable: n, note })
+const row = (image, n, note = 'fine') => ({ image, fitsGame: n, robloxStyle: n, clean: n, clickable: n, coherent: n, note })
 
 test('scores and the winner keep the slot numbers the judge saw, whatever the order', () => {
-  // Shown in the order 3, 1, 2.
-  const verdict = readVerdict({ scores: [row(3, 9), row(1, 5), row(2, 7)], winner: 3, reason: 'Clear subject — strong contrast.' }, [3, 1, 2])
+  // Shown in the order 3, 1, 2: Image 1 is slot 3.
+  const verdict = readVerdict({ scores: [row(1, 9), row(2, 5), row(3, 7)], winner: 1, reason: 'Image 1 has a clear subject — strong contrast.' }, [3, 1, 2])
   assert.equal(verdict.winnerSlot, 3)
   assert.equal(verdict.winnerFrom, 'judge')
-  assert.deepEqual(verdict.scores.map((s) => [s.slot, s.total]), [[1, 20], [2, 28], [3, 36]])
-  assert.equal(verdict.reason, 'Clear subject, strong contrast.')
+  assert.deepEqual(verdict.scores.map((s) => [s.slot, s.total]), [[1, 25], [2, 35], [3, 45]])
+  assert.equal(verdict.reason, 'Thumbnail 3 has a clear subject, strong contrast.')
+  assert.equal(MAX_TOTAL, 50)
 })
 
 test('a winner written as text still names its slot', () => {
-  assert.equal(readVerdict({ scores: [row('Thumbnail 1', 4), row('2', 6)], winner: 'Thumbnail 2' }, [1, 2]).winnerSlot, 2)
+  assert.equal(readVerdict({ scores: [row('Image 1', 4), row('2', 6)], winner: 'Image 2' }, [1, 2]).winnerSlot, 2)
 })
 
 test('an unusable winner number falls back to the top total; scores are clamped', () => {
@@ -31,6 +35,83 @@ test('scores for thumbnails that were not shown are ignored', () => {
 
 test('a verdict with nothing usable is an error', () => {
   assert.throws(() => readVerdict({ scores: [], winner: '' }, [1, 2, 3]))
+})
+
+test('every image mention, single or listed, becomes its slot', () => {
+  const order = [3, 2, 1]
+  assert.equal(renumber('Image 1 beats image 3.', order), 'Thumbnail 3 beats Thumbnail 1.')
+  assert.equal(renumber('Images 1 and 2 drift, Images 1, 2 and 3 all fit.', order), 'Thumbnails 3 and 2 drift, Thumbnails 3, 2 and 1 all fit.')
+  assert.equal(renumber('Image 4 is the context.', order), 'Image 4 is the context.')
+})
+
+// Every criterion the same mark, unless `fits` overrides fitsGame.
+const pass = (winnerSlot, totals, fits = {}) => ({
+  winnerSlot,
+  reason: `pass for ${winnerSlot}`,
+  scores: Object.entries(totals).map(([slot, total]) => ({
+    slot: Number(slot),
+    ...Object.fromEntries(['fitsGame', 'robloxStyle', 'clean', 'clickable', 'coherent'].map((c) => [c, total / 5])),
+    ...(fits[slot] != null ? { fitsGame: fits[slot] } : {}),
+    total,
+    note: `note ${slot}`
+  }))
+})
+
+test('the winner is the highest mean total, so no loser shows a higher score', () => {
+  // The live run that showed it: votes went 2 to 1 for slot 3, mean totals favoured slot 2.
+  const combined = combinePasses([pass(3, { 2: 41, 3: 42 }), pass(3, { 2: 42, 3: 41 }), pass(2, { 2: 43, 3: 37 })])
+  assert.equal(combined.winnerSlot, 2)
+  assert.deepEqual(combined.votes, { 3: 2, 2: 1 })
+  assert.equal(combined.reason, 'pass for 2')
+  assert.deepEqual(combined.scores.map((s) => [s.slot, s.total]), [[2, 42], [3, 40]])
+})
+
+test('a thumbnail that misleads players cannot win on its other marks', () => {
+  const combined = combinePasses([pass(1, { 1: 44, 2: 38 }, { 1: 2 }), pass(1, { 1: 44, 2: 38 }, { 1: 3 })])
+  assert.equal(combined.winnerSlot, 2)
+  assert.equal(combined.minFitsGame, 5)
+  assert.match(combined.reason, /^Thumbnail 2 scored best across the judge's passes\. note 2$/)
+  // When none fits, the totals still decide.
+  assert.equal(combinePasses([pass(2, { 1: 30, 2: 20 }, { 1: 2, 2: 2 })]).winnerSlot, 1)
+})
+
+test('equal totals go to the thumbnail more passes voted for', () => {
+  assert.equal(combinePasses([pass(2, { 1: 40, 2: 40 }), pass(2, { 1: 40, 2: 40 }), pass(1, { 1: 40, 2: 40 })]).winnerSlot, 2)
+})
+
+test("a linked game's own thumbnail and description reach the judge; a nearest game only as text", async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'judge-'))
+  writeFileSync(join(dir, 'reference.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]))
+  const reference = { source: 'roblox', name: 'Break and Steal an Egg', placeId: 114326934417838, universeId: 7, playing: 122812, imageUrl: '/outputs/x/reference.png' }
+  const description = 'Break eggs with your pickaxe!  https://discord.gg/x  Steal the lava eggs.'
+  const details = async (ids) => [{ universeId: ids[0], description }]
+  const place = async () => ({ universeId: 7, name: 'Break and Steal an Egg', playing: 122812, description })
+  const link = { placeId: '114326934417838' }
+
+  const own = await judgeContext({ reference, link }, dir, { details, place, thumbnailOf: () => assert.fail('the saved reference is that game') })
+  assert.equal(own.own, true)
+  assert.equal(own.image.mimeType, 'image/png')
+  assert.equal(own.description, 'Break eggs with your pickaxe! Steal the lava eggs.')
+  assert.match(judgeRequest('Break and Steal an Egg', 3, own), /creator's own game on Roblox[\s\S]*last image is its current Roblox thumbnail[\s\S]*Image 1, Image 2, Image 3/)
+
+  // The remixes started from a more played game: the judge still sees the creator's own game and its thumbnail.
+  const fetched = []
+  const other = await judgeContext({ reference: { ...reference, universeId: 99, name: 'Steal An Egg' }, link }, dir, {
+    details,
+    place,
+    thumbnailOf: async (id) => (fetched.push(id), { bytes: Buffer.from('x'), mimeType: 'image/png' })
+  })
+  assert.equal(other.own, true)
+  assert.equal(other.name, 'Break and Steal an Egg')
+  assert.deepEqual(fetched, [7])
+
+  const nearest = await judgeContext({ reference, link: null }, dir, { details })
+  assert.equal(nearest.own, false)
+  assert.equal(nearest.image, null)
+  assert.match(judgeRequest('A axe game', 3, nearest), /It is a different game/)
+
+  assert.equal(await judgeContext({ reference: { source: 'style' }, link: null }, dir, { details }), null)
+  assert.doesNotMatch(judgeRequest('Rob a Bank', 2, null), /Context/)
 })
 
 test('a lone thumbnail wins without asking a model', async () => {

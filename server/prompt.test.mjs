@@ -3,15 +3,23 @@ import { test } from 'node:test'
 import { buildPrompt, extractGameName, pickRemixPrompts, PROMPT_TEMPLATE, REMIX_PROMPTS } from './prompt.mjs'
 
 test('the template is the exact text, only GAME_NAME substituted', () => {
-  assert.equal(PROMPT_TEMPLATE, 'Make me a thumbnail for my game GAME_NAME in the style of my reference image different characters. No text. 16:9 Ratio.')
   assert.equal(
-    buildPrompt('  Steal an Egg '),
-    'Make me a thumbnail for my game Steal an Egg in the style of my reference image different characters. No text. 16:9 Ratio.'
+    PROMPT_TEMPLATE,
+    'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
+  )
+  assert.equal(
+    buildPrompt('  Bake a Cake '),
+    'Make me a thumbnail for my roblox game "Bake a Cake" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
   assert.equal(
     buildPrompt('A axe throwing game with a bacon hair in the thumbnail'),
-    'Make me a thumbnail for my game A axe throwing game with a bacon hair in the thumbnail in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a thumbnail for my roblox game "A axe throwing game with a bacon hair in the thumbnail" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
+})
+
+test('a name typed in quotes is not quoted twice', () => {
+  assert.equal(buildPrompt('"Bake a Cake"'), buildPrompt('Bake a Cake'))
+  assert.equal(buildPrompt('“Bake a Cake”'), buildPrompt('Bake a Cake'))
 })
 
 test('dollar patterns in a name are inserted literally', () => {
@@ -22,12 +30,11 @@ test('an empty game name is refused', () => {
   assert.throws(() => buildPrompt('  '))
 })
 
-test('the four remix prompts are the exact texts, top down removed', () => {
+test('the three remix prompts are the exact texts, top down and profile shot removed', () => {
   assert.deepEqual(REMIX_PROMPTS, [
     'Make this thumbnail but Before-and-After. No text.',
     'Make this thumbnail but from a novel perspective. No text.',
-    'Make this thumbnail but High Angle. No text.',
-    'Make this thumbnail but Profile Shot. No text.'
+    'Make this thumbnail but High Angle. No text.'
   ])
 })
 
@@ -39,9 +46,9 @@ test('two different remix prompts are picked, every pair reachable', () => {
     assert.ok(REMIX_PROMPTS.includes(a) && REMIX_PROMPTS.includes(b))
     seen.add(`${a}|${b}`)
   }
-  assert.equal(seen.size, 12)
+  assert.equal(seen.size, 6)
   assert.deepEqual(pickRemixPrompts(() => 0), [REMIX_PROMPTS[0], REMIX_PROMPTS[1]])
-  assert.deepEqual(pickRemixPrompts(() => 0.999), [REMIX_PROMPTS[3], REMIX_PROMPTS[2]])
+  assert.deepEqual(pickRemixPrompts(() => 0.999), [REMIX_PROMPTS[2], REMIX_PROMPTS[1]])
 })
 
 test('a description is the game name, word for word', () => {

@@ -5,7 +5,7 @@ import { config } from './env.mjs'
 import { imageMimeType } from './mime.mjs'
 import { REMIX_PROMPTS, PROMPT_TEMPLATE } from './prompt.mjs'
 import { GameNotFound } from './roblox.mjs'
-import { listRuns, RUN_ID, runThumbnails } from './run.mjs'
+import { listRuns, rejudgeRun, RUN_ID, runThumbnails } from './run.mjs'
 
 const MAX_BODY = 12 * 1024 * 1024
 const MAX_STYLE_BYTES = 8 * 1024 * 1024
@@ -107,6 +107,11 @@ export function createApi(root) {
       const route = `${req.method} ${url.pathname}`
       if (route === 'POST /api/run') return await handleRun(req, res, root, outputsDir)
       if (route === 'GET /api/runs') return sendJson(res, 200, { items: listRuns(outputsDir) })
+      const rejudge = req.method === 'POST' && url.pathname.match(/^\/api\/runs\/([^/]+)\/judge$/)
+      if (rejudge) {
+        const record = await rejudgeRun(outputsDir, decodeURIComponent(rejudge[1]))
+        return record ? sendJson(res, 200, record) : sendJson(res, 404, { error: 'No such run.' })
+      }
       if (route === 'GET /api/style-reference') {
         const { file, mimeType } = bundledStyle(root)
         return serveImage(res, file, mimeType, 'no-cache')

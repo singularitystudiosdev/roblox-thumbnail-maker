@@ -37,20 +37,24 @@ export interface Thumbnail extends Slot {
   error?: string
 }
 
+/** Per-criterion marks out of 10 (fitsGame, robloxStyle, clean, clickable, coherent; older runs had fitsName), their total and a note. */
 export interface Score {
   slot: number
-  coherent: number
-  fitsName: number
-  clean: number
-  clickable: number
   total: number
   note: string
+  [criterion: string]: number | string
 }
 
 export interface Judge {
   winnerSlot: number | null
   reason?: string
   scores?: Score[]
+  /** Out of what the totals are; runs before the five-criterion rubric were out of 40. */
+  maxTotal?: number
+  /** Below this mean fitsGame a thumbnail is ruled out whatever its total. */
+  minFitsGame?: number
+  votes?: Record<string, number>
+  context?: { own: boolean; name: string; withImage: boolean } | null
   provider?: string | null
   model?: string | null
   error?: string
@@ -95,8 +99,8 @@ export interface StyleUpload {
   name: string
 }
 
-async function request<T>(path: string): Promise<T> {
-  const res = await fetch(path)
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init)
   const body = await res.json().catch((err) => {
     console.error(`${path} returned a non-JSON body`, err)
     return null
@@ -139,6 +143,7 @@ async function run(prompt: string, style: StyleUpload | null, onEvent: (event: R
 export const api = {
   run,
   runs: () => request<{ items: Run[] }>('/api/runs'),
+  rejudge: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}/judge`, { method: 'POST' }),
   status: () => request<Status>('/api/status')
 }
 

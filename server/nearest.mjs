@@ -1,10 +1,11 @@
-// Thumbnails 2 and 3 remix one real Roblox thumbnail: the game nearest to the
-// game name and most popular. Candidates are Roblox search results for the name
-// itself, its keywords and the genre queries a text model writes from it. When
-// titles hold the whole name, the most played of them wins outright; otherwise
-// (a description) the model picks the nearest candidate, the most played among
-// equally near ones. Without a model the pick is by shared words, then players.
-import { askJson, textRoutes, withoutDashes } from './llm.mjs'
+// Thumbnails 2 and 3 remix one real Roblox thumbnail: a popular game of the
+// same kind as the creator's. Candidates are Roblox search results for the name
+// itself, its keywords and the genre queries a text model writes from it; only
+// games with more than MIN_PLAYING players count. A text model sorts those into
+// the same kind of game and related ones (titles holding the whole name are the
+// same kind), and players decide: the most played game of the same kind wins,
+// else the most played related one. Without a model, shared words sort them.
+import { askJson, textRoutes } from './llm.mjs'
 import { nameTokens, sameWord, searchGames, withThumbnails } from './roblox.mjs'
 
 const RESULTS_PER_QUERY = 15
@@ -22,17 +23,20 @@ const QUERY_SCHEMA = {
   required: ['queries']
 }
 
-const PICK_SYSTEM = `You pick the reference thumbnail for a new Roblox game thumbnail: the existing Roblox game nearest to the user's game and most popular.
-You get the user's game (a name, or a description of it) and numbered candidates, each with how many people are playing it right now.
-- Nearest: the same gameplay and theme (what the player does, the setting). Ignore details that only describe the thumbnail (avatar looks such as bacon hair, poses, text).
-- Among candidates about as near as each other, choose the one with the most players.
-- Never choose a popular game of a different kind over a near one.
-Reply as JSON: {"index": <candidate number>, "why": "<one short sentence without dashes>"}`
+// A reference from a game nobody plays is not what players click: more than this many playing now.
+export const MIN_PLAYING = 300
 
-const PICK_SCHEMA = {
+const SORT_SYSTEM = `You sort Roblox games by how close they are to a creator's game.
+You get the creator's game (a name, or a description of it) and numbered Roblox games.
+- same: the same kind of game as the creator's: the same core gameplay and theme (what the player does, and with what). Another title for the same idea counts.
+- related: the same broad genre or setting, with different core gameplay.
+Leave every other game out. Ignore details that only describe the thumbnail (avatar looks such as bacon hair, poses, text).
+Reply as JSON: {"same": [numbers], "related": [numbers]}`
+
+const SORT_SCHEMA = {
   type: 'OBJECT',
-  properties: { index: { type: 'INTEGER' }, why: { type: 'STRING' } },
-  required: ['index', 'why']
+  properties: { same: { type: 'ARRAY', items: { type: 'INTEGER' } }, related: { type: 'ARRAY', items: { type: 'INTEGER' } } },
+  required: ['same', 'related']
 }
 
 /** The name's meaningful words as one search query: "axe throwing bacon hair". */
@@ -97,66 +101,82 @@ export function nearness(queries, title) {
   return best
 }
 
-/** Nearest by shared words, then most played (ties keep Roblox's order); the top five results when nothing shares a word. */
-export function pickByWords(queries, games) {
-  if (games.length === 0) return null
-  const scored = games.map((game) => ({ game, near: nearness(queries, game.name) }))
-  const top = Math.max(...scored.map((s) => s.near))
-  const pool = top > 0 ? scored.filter((s) => s.near === top) : scored.slice(0, 5)
-  return pool.reduce((best, s) => (best.game.playing >= s.game.playing ? best : s)).game
+/** Only games with more than MIN_PLAYING players right now. */
+export const popularOnly = (games) => games.filter((g) => g.playing > MIN_PLAYING)
+
+/** Games whose title holds every word of one of the names (the game name, a linked game's title). */
+export function wholeNameMatches(names, games) {
+  const named = names.filter((name) => nameTokens(name).length > 0)
+  return games.filter((game) => named.some((name) => nearness([name], game.name) === 1))
+}
+
+/** Without a model: half a query's words in the title makes the same kind, any shared word related. */
+export function sortByWords(queries, games) {
+  const same = games.filter((g) => nearness(queries, g.name) >= 0.5)
+  const related = games.filter((g) => !same.includes(g) && nearness(queries, g.name) > 0)
+  return { same, related }
+}
+
+/** The most played game of the first tier that has any, with the tier and how many games it held. */
+export function mostPlayedOf(tiers) {
+  for (const [tier, games] of tiers) {
+    if (games.length > 0) return { tier, count: games.length, game: games.reduce((best, g) => (g.playing > best.playing ? g : best)) }
+  }
+  return null
+}
+
+async function sortWithModel(gameName, games) {
+  const list = games.map((g, i) => `${i + 1}. ${g.name}`).join('\n')
+  const { value, model } = await askJson(
+    { label: 'Game kind sort', system: SORT_SYSTEM, user: `Creator's game: ${gameName}\n\nRoblox games:\n${list}`, schema: SORT_SCHEMA },
+    textRoutes()
+  )
+  const pick = (numbers) => [...new Set(Array.isArray(numbers) ? numbers : [])].map((n) => games[Number(n) - 1]).filter(Boolean)
+  return { same: pick(value.same), related: pick(value.related), sortedBy: model }
 }
 
 /**
- * The most played candidate whose title holds every word of one of the names
- * (the game name, a linked game's title): as near as a title gets, so no model
- * is asked. Null when no title holds a whole name, as with a description.
+ * Of the popular candidates, the most played of the same kind as the creator's
+ * game, else the most played related one; null when none is either. `sort`
+ * is the model sort (swappable in tests); shared words stand in when it fails.
  */
-export function pickWholeNameMatch(names, games) {
-  let best = null
-  for (const name of names) {
-    if (nameTokens(name).length === 0) continue
-    for (const game of games) {
-      if (nearness([name], game.name) === 1 && (!best || game.playing > best.game.playing)) best = { game, name }
-    }
-  }
-  return best
-}
-
-async function pickNearest(gameName, names, queries, candidates) {
-  const whole = pickWholeNameMatch(names, candidates)
-  if (whole) {
-    const why = `Its title holds every word of "${whole.name}", and it has the most players of the games whose titles do.`
-    return { game: whole.game, pickedBy: 'whole name match', why }
-  }
-  const list = candidates.map((g, i) => `${i + 1}. ${g.name} (${g.playing} playing)`).join('\n')
+export async function pickNearestPopular(gameName, names, queries, popular, { sort = sortWithModel } = {}) {
+  if (popular.length === 0) return null
+  let sorted
   try {
-    const { value, model } = await askJson(
-      { label: 'Nearest game pick', system: PICK_SYSTEM, user: `User's game: ${gameName}\n\nCandidates:\n${list}`, schema: PICK_SCHEMA },
-      textRoutes()
-    )
-    const game = candidates[Number(value.index) - 1]
-    if (game) return { game, pickedBy: model, why: withoutDashes(value.why) }
-    console.warn(`Nearest game pick answered index ${value.index} of ${candidates.length}; picking by shared words.`)
+    sorted = await sort(gameName, popular)
   } catch (err) {
-    console.error(`Nearest game pick for "${gameName}" failed; picking by shared words:`, err)
+    console.error(`Sorting games like "${gameName}" failed; sorting by shared words:`, err)
+    sorted = { ...sortByWords(queries, popular), sortedBy: 'shared words' }
   }
-  return { game: pickByWords(queries, candidates), pickedBy: 'shared words', why: 'Most played of the titles sharing the most words with the game name.' }
+  const same = [...new Set([...wholeNameMatches(names, popular), ...sorted.same])]
+  const related = sorted.related.filter((g) => !same.includes(g))
+  const pick = mostPlayedOf([['same', same], ['related', related]])
+  if (!pick) return null
+  const kind = pick.tier === 'same' ? 'of the same kind' : 'in a related genre'
+  const why =
+    pick.count === 1
+      ? `The only game ${kind} with over ${MIN_PLAYING} players.`
+      : `The most played of ${pick.count} games ${kind} with over ${MIN_PLAYING} players.`
+  return { game: pick.game, tier: pick.tier, pickedBy: sorted.sortedBy, why }
 }
 
 /**
- * The nearest, most popular Roblox game to `gameName` with its 16:9 thumbnail,
- * or null when Roblox returns nothing. `extraNames` (a linked game's title)
- * are searched right after the name.
+ * A popular Roblox game of the same kind as `gameName` with its 16:9 thumbnail,
+ * or null when Roblox has none with more than MIN_PLAYING players.
+ * `extraNames` (a linked game's title) are searched right after the name.
  */
 export async function findNearestPopular(gameName, { extraNames = [] } = {}) {
   const base = searchPlan(gameName, extraNames, keywordQuery(gameName))
   const [genre, baseResults] = await Promise.all([genreQueries(gameName), searchAll(base)])
   const queries = searchPlan(base, genre)
   const extraResults = await searchAll(queries.filter((q) => !base.includes(q)))
-  const candidates = await withThumbnails(mergeResults([...baseResults, ...extraResults]))
-  if (candidates.length === 0) return null
-  // Genre queries name the gameplay; they rank nearness ahead of the raw name.
-  const rankQueries = searchPlan(genre, base)
-  const { game, pickedBy, why } = await pickNearest(gameName, [gameName, ...extraNames], rankQueries, candidates)
-  return { ...game, queries, candidateCount: candidates.length, pickedBy, why }
+  const popular = await withThumbnails(popularOnly(mergeResults([...baseResults, ...extraResults])))
+  // Genre queries name the gameplay; they sort by words ahead of the raw name.
+  const picked = await pickNearestPopular(gameName, [gameName, ...extraNames], searchPlan(genre, base), popular)
+  if (!picked) {
+    console.warn(`No Roblox game like "${gameName}" has over ${MIN_PLAYING} players; the remixes use the style reference.`)
+    return null
+  }
+  return { ...picked.game, queries, candidateCount: popular.length, tier: picked.tier, pickedBy: picked.pickedBy, why: picked.why }
 }

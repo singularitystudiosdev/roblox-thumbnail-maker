@@ -28,7 +28,10 @@ test('Gemini body: the prompt then the reference, image output at 16:9', () => {
 test('a run is the template plus two different remix prompts', () => {
   const slots = planSlots('Steal an Egg', () => 0.5)
   assert.deepEqual(slots.map((s) => s.strategy), ['template', 'remix', 'remix'])
-  assert.equal(slots[0].prompt, 'Make me a thumbnail for my game Steal an Egg in the style of my reference image different characters. No text. 16:9 Ratio.')
+  assert.equal(
+    slots[0].prompt,
+    'Make me a thumbnail for my roblox game "Steal an Egg" in the style of my reference image different characters. No text. 16:9 Ratio.'
+  )
   assert.notEqual(slots[1].prompt, slots[2].prompt)
   assert.ok(REMIX_PROMPTS.includes(slots[1].prompt) && REMIX_PROMPTS.includes(slots[2].prompt))
 })

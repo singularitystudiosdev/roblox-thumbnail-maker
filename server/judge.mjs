@@ -1,30 +1,42 @@
-// The judge: a vision model sees the finished thumbnails with the game name,
-// scores each on the four things a winner needs (coherent, makes sense for the
-// name, clean, clickable) and picks one. The thumbnails keep their own numbers
-// but are shown in shuffled order, so position cannot favour one strategy and
-// whatever number the model writes in its reason is the one the page shows.
+// The judge: a vision model sees the finished thumbnails with the game name and
+// what the game really is (its Roblox description, and its current thumbnail
+// when the creator linked it), scores each on a Roblox rubric led by "shows
+// this game", and picks one. Each pass shows the thumbnails in a fresh shuffled
+// order labelled by position ("Image 1" is simply the first image, so the model
+// never has to map labels to images); code maps positions back to slots.
+// Several passes vote, so neither order nor one sample decides.
+import { readFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 import { askJson, judgeRoutes, withoutDashes } from './llm.mjs'
+import { imageMimeType } from './mime.mjs'
+import { downloadThumbnail, gameDetails, gameFromPlace, gameThumbnails } from './roblox.mjs'
 
-export const CRITERIA = ['coherent', 'fitsName', 'clean', 'clickable']
+export const CRITERIA = ['fitsGame', 'robloxStyle', 'clean', 'clickable', 'coherent']
+export const MAX_TOTAL = CRITERIA.length * 10
+export const PASSES = 3
+const DESCRIPTION_LIMIT = 700
 
-const JUDGE_SYSTEM = `You judge Roblox game thumbnails for a creator. You get their game (its name, or their description of it) and numbered candidate thumbnails, in no particular order.
+const JUDGE_SYSTEM = `You judge Roblox game thumbnails for a creator. A good Roblox thumbnail lets a player scrolling past at small size understand the game at a glance and want to click it, and it never misleads them about what the game is.
+You get the creator's game (its name, or their description of it), context about the game, and candidate thumbnails labelled Image 1, Image 2 and so on by their position, in no particular order.
+Look closely at the whole of every image, its edges and corners included, before you score it.
 Score every candidate from 1 to 10 on:
-- coherent: the scene, characters and objects make visual and physical sense (no warped bodies, merged limbs, broken perspective or smeared areas).
-- fitsName: it makes sense for this game; a player reading the game name would expect this picture.
-- clean: uncluttered, free of artifacts, watermarks and stray or garbled text (the thumbnails were asked for no text).
-- clickable: at small size on the Roblox home page it reads at a glance, with a clear subject, strong contrast and a reason to click.
-Then pick the winner: the best thumbnail for this game on all four together, not just the prettiest image.
-Write each note and the reason as one or two plain sentences without dashes. Refer to a candidate as "Thumbnail" and its number.
-Reply as JSON: {"scores":[{"thumbnail":1,"coherent":1,"fitsName":1,"clean":1,"clickable":1,"note":"..."}],"winner":1,"reason":"..."}`
+- fitsGame: it shows this game: its gameplay, characters, objects and setting as the name and the context describe them. A picture of a different setting, genre or story (for example a space battle for a farming game) misleads players: score it 1 to 3 however polished it is. Illustrating the words of the name literally is not enough when the context shows the game is something else.
+- robloxStyle: it looks like a thumbnail on the Roblox front page: bright saturated colors, a simple background, chunky Roblox avatars and a blocky Roblox world. Dark, gritty, realistic or movie poster renders score low.
+- clean: the picture fills the whole 16:9 frame edge to edge; a circular or vignette crop, white or blank corners, borders or a picture inside a frame make a broken thumbnail, so score clean 1 to 3. Also no words anywhere (on screen, on signs or on clothing), no watermarks or artifacts. Small comic symbols such as zzz, arrows or exclamation marks barely matter.
+- clickable: at feed size (about 256 by 144 pixels) one big subject reads at a glance and gives a reason to click. Big and close beats small and complete: the game's signature objects shown large and close, filling the frame with depth and drama, beat a distant scene that shows everything small. Things partly hidden behind the subject are fine.
+- coherent: nothing is broken: warped bodies, duplicated or floating objects (such as two of the same tool, or a tool with no hand), impossible objects. A deliberate camera angle such as top down, close up, high angle or profile is not a flaw.
+Pick the winner: fitsGame decides first, because a thumbnail that misleads players cannot win. Among the thumbnails that fit the game, pick the best on the other four together.
+Refer to candidates only as "Image" and their number. Write each note and the reason as one or two plain sentences without dashes.
+Reply as JSON: {"scores":[{"image":1,"fitsGame":1,"robloxStyle":1,"clean":1,"clickable":1,"coherent":1,"note":"..."}],"winner":1,"reason":"..."}`
 
 const SCORE_SCHEMA = {
   type: 'OBJECT',
   properties: {
-    thumbnail: { type: 'INTEGER' },
+    image: { type: 'INTEGER' },
     ...Object.fromEntries(CRITERIA.map((c) => [c, { type: 'INTEGER' }])),
     note: { type: 'STRING' }
   },
-  required: ['thumbnail', ...CRITERIA, 'note']
+  required: ['image', ...CRITERIA, 'note']
 }
 
 const JUDGE_SCHEMA = {
@@ -44,47 +56,171 @@ export function shuffled(items, random = Math.random) {
 }
 
 const clampScore = (value) => Math.min(10, Math.max(1, Math.round(Number(value) || 1)))
-// "3", 3 or "Thumbnail 3" all name slot 3.
-const slotNumber = (value) => Number(String(value ?? '').match(/\d+/)?.[0])
+const imageNumber = (value) => Number(String(value ?? '').match(/\d+/)?.[0])
 
-/** The model's verdict over the shown slots; a winner it did not name validly is the top total. */
-export function readVerdict(value, slots) {
-  const shown = new Set(slots)
+/** "Image 2" in the model's words becomes the slot shown second ("Thumbnail 3"); "Images 1 and 2" maps each number. */
+export function renumber(text, order) {
+  const list = /\bimage(s?)\s+(\d+(?:(?:\s*,\s*|\s+and\s+|\s*&\s*)\d+)*)\b/gi
+  return withoutDashes(text).replace(list, (match, plural, numbers) => {
+    if (numbers.match(/\d+/g).some((n) => !order[n - 1])) return match
+    return `Thumbnail${plural} ${numbers.replace(/\d+/g, (n) => order[n - 1])}`
+  })
+}
+
+/** One pass's verdict, image positions mapped back to slots; a winner it did not name validly is the top total. */
+export function readVerdict(value, order) {
+  const slotAt = (n) => order[n - 1] ?? null
   const scores = []
   for (const row of Array.isArray(value?.scores) ? value.scores : []) {
-    const slot = slotNumber(row?.thumbnail)
-    if (!shown.has(slot) || scores.some((s) => s.slot === slot)) continue
+    const slot = slotAt(imageNumber(row?.image))
+    if (!slot || scores.some((s) => s.slot === slot)) continue
     const marks = Object.fromEntries(CRITERIA.map((c) => [c, clampScore(row[c])]))
-    scores.push({ slot, ...marks, total: CRITERIA.reduce((sum, c) => sum + marks[c], 0), note: withoutDashes(row.note) })
+    scores.push({ slot, ...marks, total: CRITERIA.reduce((sum, c) => sum + marks[c], 0), note: renumber(row.note, order) })
   }
   scores.sort((a, b) => a.slot - b.slot)
-  const named = shown.has(slotNumber(value?.winner)) ? slotNumber(value.winner) : null
+  const named = slotAt(imageNumber(value?.winner))
   const top = scores.reduce((best, s) => (best && best.total >= s.total ? best : s), null)
   const winnerSlot = named ?? top?.slot ?? null
   if (!winnerSlot) throw new Error('The judge named no winner and scored no thumbnail.')
-  return { winnerSlot, reason: withoutDashes(value?.reason), scores, winnerFrom: named ? 'judge' : 'top score' }
+  return { winnerSlot, reason: renumber(value?.reason, order), scores, winnerFrom: named ? 'judge' : 'top score' }
+}
+
+// Below this mean fitsGame a thumbnail misleads players about the game and cannot win on its other marks.
+export const FITS_GAME_MIN = 5
+
+/**
+ * Scores are each slot's mean over the passes, and the winner is what they say:
+ * the highest mean total among thumbnails that fit the game (all of them when
+ * none does), more pass votes breaking a tie. So the page never shows a loser
+ * with a higher score than the winner.
+ */
+export function combinePasses(passes) {
+  const votes = new Map()
+  for (const pass of passes) votes.set(pass.winnerSlot, (votes.get(pass.winnerSlot) ?? 0) + 1)
+  const slots = [...new Set(passes.flatMap((p) => p.scores.map((s) => s.slot)))].sort((a, b) => a - b)
+  const scores = slots.map((slot) => {
+    const rows = passes.flatMap((p) => p.scores.filter((s) => s.slot === slot))
+    const mean = (key) => Math.round((rows.reduce((sum, r) => sum + r[key], 0) / rows.length) * 10) / 10
+    const voted = passes.find((p) => p.winnerSlot === slot) ?? passes[0]
+    return { slot, ...Object.fromEntries([...CRITERIA, 'total'].map((k) => [k, mean(k)])), note: voted.scores.find((s) => s.slot === slot)?.note ?? rows[0].note }
+  })
+  const fitting = scores.filter((s) => s.fitsGame >= FITS_GAME_MIN)
+  const rank = (s) => [s.total, votes.get(s.slot) ?? 0]
+  const best = (fitting.length > 0 ? fitting : scores).reduce((a, b) => {
+    const [ta, va] = rank(a)
+    const [tb, vb] = rank(b)
+    return tb > ta || (tb === ta && vb > va) ? b : a
+  })
+  const winnerSlot = best.slot
+  const reason = passes.find((p) => p.winnerSlot === winnerSlot)?.reason ?? `Thumbnail ${winnerSlot} scored best across the judge's passes. ${best.note}`
+  return { winnerSlot, reason, scores, votes: Object.fromEntries(votes), maxTotal: MAX_TOTAL, minFitsGame: FITS_GAME_MIN }
+}
+
+const tidy = (text) => String(text ?? '').replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim()
+
+/** A game's first thumbnail on its Roblox page, or null when it has none. */
+async function firstThumbnail(universeId) {
+  const [url] = await gameThumbnails(universeId)
+  return url ? downloadThumbnail(url) : null
+}
+
+const savedImage = (dir, imageUrl) => {
+  const bytes = readFileSync(join(dir, basename(imageUrl)))
+  return { bytes, mimeType: imageMimeType(bytes) }
+}
+
+/** The creator's linked game: its description and current thumbnail (the saved reference when it is that game). */
+async function ownGameContext(run, dir, place, thumbnailOf) {
+  const game = await place(run.link.placeId)
+  const ref = run.reference
+  const isReference = ref?.source === 'roblox' && String(ref.universeId) === String(game.universeId)
+  let image = null
+  try {
+    image = isReference ? savedImage(dir, ref.imageUrl) : await thumbnailOf(game.universeId)
+  } catch (err) {
+    console.error(`Thumbnail of "${game.name}" for the judge failed; judging on its description:`, err)
+  }
+  return { own: true, name: game.name, playing: game.playing ?? 0, description: tidy(game.description).slice(0, DESCRIPTION_LIMIT), image }
 }
 
 /**
- * `entries`: [{ slot, bytes, mimeType }] for the thumbnails that generated.
- * Returns { winnerSlot, reason, scores, order, provider, model }.
+ * What the judge is told the game is. A linked game is the creator's own: its
+ * description and current thumbnail, whichever game the remixes started from.
+ * Otherwise the popular reference game comes as text only, so copying it earns
+ * nothing. Null when there is neither.
  */
-export async function judgeThumbnails(gameName, entries, { random = Math.random } = {}) {
-  if (entries.length === 1) {
-    return { winnerSlot: entries[0].slot, reason: 'The only thumbnail that generated.', scores: [], order: [entries[0].slot], provider: null, model: null }
+export async function judgeContext(run, dir, { details = gameDetails, place = gameFromPlace, thumbnailOf = firstThumbnail } = {}) {
+  if (run.link) {
+    try {
+      return await ownGameContext(run, dir, place, thumbnailOf)
+    } catch (err) {
+      console.error(`The linked game for the judge failed; falling back to the reference game:`, err)
+    }
   }
+  const ref = run.reference
+  if (ref?.source !== 'roblox') return null
+  let description = ''
+  try {
+    description = tidy((await details([ref.universeId]))[0]?.description).slice(0, DESCRIPTION_LIMIT)
+  } catch (err) {
+    console.error(`Description of "${ref.name}" for the judge failed:`, err)
+  }
+  return { own: false, name: ref.name, playing: ref.playing ?? 0, description, image: null }
+}
+
+/** The judge's user message for one pass. */
+export function judgeRequest(gameName, count, context) {
+  const lines = [`The creator's game: ${gameName}`]
+  const about = context?.description ? ` Its Roblox description: "${context.description}"` : ''
+  if (context?.own) {
+    lines.push(`Context: this is the creator's own game on Roblox, "${context.name}", with ${context.playing} playing now.${about}`)
+    if (context.image) {
+      lines.push(`The last image is its current Roblox thumbnail, attached so you know what the game looks like. It is context, not a candidate.`)
+    }
+  } else if (context) {
+    lines.push(
+      `Context: the most played Roblox game like the creator's is "${context.name}", with ${context.playing} playing now.${about}`,
+      `It is a different game: use it only to understand this kind of game, not as the creator's game.`
+    )
+  }
+  lines.push(`Candidates: ${Array.from({ length: count }, (_, i) => `Image ${i + 1}`).join(', ')}.`)
+  return lines.join('\n\n')
+}
+
+async function judgeOnce(gameName, entries, context, random) {
   const order = shuffled(entries, random)
-  const labels = order.map((entry) => `Thumbnail ${entry.slot}`)
+  const images = order.map((entry, i) => ({ label: `Image ${i + 1}`, mimeType: entry.mimeType, bytes: entry.bytes }))
+  if (context?.image) images.push({ label: "The game's current thumbnail (context, not a candidate)", ...context.image })
   const { value, provider, model } = await askJson(
-    {
-      label: 'Thumbnail judge',
-      system: JUDGE_SYSTEM,
-      user: `Game: ${gameName}\n\nCandidates: ${labels.join(', ')}. Each image follows its label.`,
-      images: order.map((entry, i) => ({ label: labels[i], mimeType: entry.mimeType, bytes: entry.bytes })),
-      schema: JUDGE_SCHEMA
-    },
+    { label: 'Thumbnail judge', system: JUDGE_SYSTEM, user: judgeRequest(gameName, order.length, context), images, schema: JUDGE_SCHEMA },
     judgeRoutes()
   )
   const slots = order.map((entry) => entry.slot)
   return { ...readVerdict(value, slots), order: slots, provider, model }
+}
+
+/**
+ * `entries`: [{ slot, bytes, mimeType }] for the thumbnails that generated;
+ * `context`: from judgeContext, or null. Returns { winnerSlot, reason, scores,
+ * votes, passes, maxTotal, provider, model }.
+ */
+export async function judgeThumbnails(gameName, entries, { random = Math.random, context = null, passes = PASSES } = {}) {
+  if (entries.length === 1) {
+    return { winnerSlot: entries[0].slot, reason: 'The only thumbnail that generated.', scores: [], maxTotal: MAX_TOTAL, provider: null, model: null }
+  }
+  const settled = await Promise.allSettled(Array.from({ length: passes }, () => judgeOnce(gameName, entries, context, random)))
+  const done = settled.flatMap((outcome, i) => {
+    if (outcome.status === 'fulfilled') return [outcome.value]
+    console.error(`Judge pass ${i + 1} of ${passes} failed:`, outcome.reason)
+    return []
+  })
+  if (done.length === 0) throw settled[0].reason
+  const combined = combinePasses(done)
+  return {
+    ...combined,
+    context: context ? { own: context.own, name: context.name, withImage: context.image != null } : null,
+    passes: done.map(({ winnerSlot, order, scores }) => ({ winnerSlot, order, totals: Object.fromEntries(scores.map((s) => [s.slot, s.total])) })),
+    provider: done[0].provider,
+    model: done[0].model
+  }
 }

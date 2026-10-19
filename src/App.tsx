@@ -1,4 +1,4 @@
-import { Banana, Download, RefreshCw, Trophy } from 'lucide-react'
+import { Banana, Download, RefreshCw, Scale, Trophy } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { buttonClasses, Button } from './components/Button'
 import { HistoryList } from './components/HistoryList'
@@ -97,6 +97,22 @@ export function App() {
     setPhase('done')
   }
 
+  // The same three thumbnails, judged again by the current judge; the new verdict is saved with the run.
+  const judgeAgain = async (id: string) => {
+    setPhase('judging')
+    setError(null)
+    try {
+      setRun(await api.rejudge(id))
+      setShownSlot(null)
+      setPhase('done')
+      refreshHistory()
+    } catch (err) {
+      console.error('Judging again failed', err)
+      setError((err as Error).message)
+      setPhase('error')
+    }
+  }
+
   const winnerSlot = run?.judge?.winnerSlot ?? null
   const firstImage = run?.thumbnails.filter((t) => t.imageUrl).sort((a, b) => a.slot - b.slot)[0]?.slot ?? null
   const stageSlot = shownSlot ?? winnerSlot ?? firstImage
@@ -150,12 +166,18 @@ export function App() {
                   {run.judge?.error && <p role="alert" className="text-label text-destructive">The judge could not pick a winner: {run.judge.error}</p>}
                   {phase === 'error' && error && <p role="alert" className="text-label text-destructive">{error}</p>}
                 </div>
-                <div className="flex gap-8">
+                <div className="flex flex-wrap gap-8">
                   {winner?.imageUrl && (
                     <a href={winner.imageUrl} download={`${slugify(run.gameName)}-winner.png`} className={buttonClasses('normal', 'md')}>
                       <Download className="size-16" aria-hidden="true" />
                       Download winner
                     </a>
+                  )}
+                  {run.thumbnails.filter((t) => t.imageUrl).length > 1 && (
+                    <Button onClick={() => judgeAgain(run.id)}>
+                      <Scale className="size-16" aria-hidden="true" />
+                      Judge again
+                    </Button>
                   )}
                   <Button onClick={() => start(prompt || run.input)}>
                     <RefreshCw className="size-16" aria-hidden="true" />

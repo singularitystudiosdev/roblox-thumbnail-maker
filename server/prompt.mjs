@@ -1,20 +1,21 @@
 // The prompts the image model receives, word for word. Thumbnail 1 is the
-// template with only GAME_NAME substituted; thumbnails 2 and 3 are two
-// different remix prompts drawn at random, each sent with a Roblox reference.
+// template with only GAME_NAME substituted (inside the quotes); thumbnails 2
+// and 3 are two different remix prompts drawn at random, each sent with a
+// Roblox reference.
 export const PROMPT_TEMPLATE =
-  'Make me a thumbnail for my game GAME_NAME in the style of my reference image different characters. No text. 16:9 Ratio.'
+  'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
 
 export const REMIX_PROMPTS = [
   'Make this thumbnail but Before-and-After. No text.',
   'Make this thumbnail but from a novel perspective. No text.',
-  'Make this thumbnail but High Angle. No text.',
-  'Make this thumbnail but Profile Shot. No text.'
+  'Make this thumbnail but High Angle. No text.'
 ]
 
 export const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 
 export function buildPrompt(gameName) {
-  const name = String(gameName ?? '').trim()
+  // The template supplies the quotes, so a name typed in quotes is not quoted twice.
+  const name = stripQuotes(String(gameName ?? ''))
   if (!name) throw new Error('A game name is required to build the prompt.')
   // A function replacement, so "$&" or "$1" in a name is inserted literally.
   return PROMPT_TEMPLATE.replace('GAME_NAME', () => name)
