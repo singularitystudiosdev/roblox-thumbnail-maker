@@ -115,8 +115,9 @@ test('Domino game gets Domino Engine: the sort sees the quiet domino games, and 
   const picked = await pickNearestPopular('Domino game', ['Domino game'], ['domino'], DOMINOES, { sort })
   assert.ok(shown.includes('Domino Playground'), 'the sort is shown games under the floor too')
   assert.equal(picked.game.name, 'Domino Engine')
-  assert.equal(picked.tier, 'same')
-  assert.equal(picked.why, 'The only popular game of the same kind, with 252 playing now and 46.2M visits.')
+  // Its title holds the whole name ("game" is filler), so it is named for it.
+  assert.equal(picked.tier, 'named')
+  assert.equal(picked.why, 'The only popular game named for yours, with 252 playing now and 46.2M visits.')
   // With no domino game popular at all, a related game is the fallback, never the quiet domino games.
   const quiet = DOMINOES.filter((g) => g.name !== 'Domino Engine')
   assert.equal((await pickNearestPopular('Domino game', ['Domino game'], ['domino'], quiet, { sort })).game.name, 'Chaos Jenga')
@@ -135,4 +136,27 @@ test('without a model, shared words sort the games; none qualifying means no Rob
   })
   assert.equal(await pickNearestPopular('Zzyzx Blorp', ['Zzyzx Blorp'], ['zzyzx'], [game('Brookhaven 🏡RP', 251399)], { sort: failing }), null)
   assert.equal(await pickNearestPopular('Bake a Cake', ['Bake a Cake'], ['bake cake'], [], { sort: failing }), null)
+})
+
+test('a game named for the creator\'s wins over a bigger game of the same kind: Ragdoll Soccer gets Ragdoll Football', async () => {
+  // Real "Ragdoll Soccer" candidates, 2026-10-19: the most played of the same kind was Illegal Soccer.
+  const soccer = [game('[UPDATE!] Illegal Soccer', 39032), game('Realistic Street Soccer', 13746), game('Ragdoll Engine ⚙️', 10412), game('Ragdoll Football', 559, 'ragdoll-football', 3_615_153)]
+  const sort = async (_name, games) => ({
+    named: games.filter((g) => g.name === 'Ragdoll Football'),
+    same: games.filter((g) => /Soccer|Football/.test(g.name)),
+    related: games.filter((g) => /Engine/.test(g.name)),
+    sortedBy: 'stub model'
+  })
+  const picked = await pickNearestPopular('Ragdoll Soccer', ['Ragdoll Soccer'], ['ragdoll soccer'], soccer, { sort })
+  assert.equal(picked.game.name, 'Ragdoll Football')
+  assert.equal(picked.tier, 'named')
+  assert.equal(picked.why, 'The only popular game named for yours, with over 300 playing.')
+  // A named game nobody plays never wins: the same kind decides, most played first.
+  const quiet = soccer.map((g) => (g.name === 'Ragdoll Football' ? { ...g, playing: 20, visits: 9000 } : g))
+  const fallback = await pickNearestPopular('Ragdoll Soccer', ['Ragdoll Soccer'], ['ragdoll soccer'], quiet, { sort })
+  assert.equal(fallback.game.name, '[UPDATE!] Illegal Soccer')
+  assert.equal(fallback.tier, 'same')
+  // A model reply with no named list still sorts by kind.
+  const older = await pickNearestPopular('Ragdoll Soccer', ['Ragdoll Soccer'], ['ragdoll soccer'], soccer, { sort: async (n, games) => ({ ...(await sort(n, games)), named: undefined }) })
+  assert.equal(older.game.name, '[UPDATE!] Illegal Soccer')
 })

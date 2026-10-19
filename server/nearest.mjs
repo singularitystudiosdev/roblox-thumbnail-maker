@@ -1,12 +1,15 @@
 // Thumbnails 2 to 4 remix one real Roblox thumbnail: a popular game of the
 // same kind as the creator's. Candidates are Roblox search results for the name
 // itself, its keywords and the genre queries a text model writes from it. A text
-// model sorts every candidate into the same kind of game and related ones
-// (titles holding the whole name are the same kind) before popularity filters
+// model sorts every candidate into games named for the creator's (their words,
+// or the same words said another way), the same kind of game and related ones
+// (titles holding the whole name are named for it) before popularity filters
 // them, so it sees the real games of the kind even when none is popular right
-// now. Then only popular games count: among the same kind players decide, the
-// most played wins; failing that, the closest popular related game. Without a
-// model, shared words sort them.
+// now. Then only popular games count: the most played game named for the
+// creator's wins, then the most played of the same kind (a bigger game of the
+// kind lost "Ragdoll Soccer" its own idea, Ragdoll Football, to Illegal
+// Soccer); failing both, the closest popular related game. Without a model,
+// shared words sort them.
 import { askJson, judgeRoutes, textRoutes } from './llm.mjs'
 import { nameTokens, sameWord, searchGames, withThumbnails, withVisits } from './roblox.mjs'
 
@@ -34,15 +37,20 @@ export const QUIET_HOUR_PLAYING = 100
 
 export const SORT_SYSTEM = `You sort Roblox games by how close they are to a creator's game.
 You get the creator's game (a name, or a description of it) and numbered Roblox games.
-- same: the same kind of game as the creator's: the same core gameplay and theme (what the player does, and with what). Another title for the same idea counts.
+- named: games whose title names the creator's game itself: every one of the creator's words is in the title, as written or as a word that means the same (football for soccer, a plural, another order). A title that drops one of the creator's words or swaps it for a merely related one (hotel for horror hotel, evil for killer) is not named, however close its gameplay.
+- same: the same kind of game as the creator's: the same core gameplay and theme (what the player does, and with what). Another title for the same idea counts. List the named games here too.
 - related: the same broad genre or setting, with different core gameplay. List them closest to the creator's game first.
 Leave every other game out. Ignore details that only describe the thumbnail (avatar looks such as bacon hair, poses, text).
-Reply as JSON: {"same": [numbers], "related": [numbers]}`
+Reply as JSON: {"named": [numbers], "same": [numbers], "related": [numbers]}`
 
 const SORT_SCHEMA = {
   type: 'OBJECT',
-  properties: { same: { type: 'ARRAY', items: { type: 'INTEGER' } }, related: { type: 'ARRAY', items: { type: 'INTEGER' } } },
-  required: ['same', 'related']
+  properties: {
+    named: { type: 'ARRAY', items: { type: 'INTEGER' } },
+    same: { type: 'ARRAY', items: { type: 'INTEGER' } },
+    related: { type: 'ARRAY', items: { type: 'INTEGER' } }
+  },
+  required: ['named', 'same', 'related']
 }
 
 /** The name's meaningful words as one search query: "axe throwing bacon hair". */
@@ -143,7 +151,7 @@ export function mostPlayedOf(games) {
 }
 
 /**
- * A model's sort into the same kind and related, related closest first. The
+ * A model's sort into named for the creator's game, the same kind and related, related closest first. The
  * judge's model sorts by default: the small text model called a prison escape
  * game the same kind as a SWAT raid. Rubric and routes are swappable for probes.
  */
@@ -155,16 +163,17 @@ export function modelSort({ system = SORT_SYSTEM, routes = judgeRoutes } = {}) {
       routes()
     )
     const pick = (numbers) => [...new Set(Array.isArray(numbers) ? numbers : [])].map((n) => games[Number(n) - 1]).filter(Boolean)
-    return { same: pick(value.same), related: pick(value.related), sortedBy: model }
+    return { named: pick(value.named), same: pick(value.same), related: pick(value.related), sortedBy: model }
   }
 }
 
 const sortWithModel = modelSort()
 
 /**
- * Sorts every candidate by kind, then takes the most played popular game of the
- * same kind as the creator's, else the closest popular related one; null when
- * none is either. The sort sees the unpopular games too: shown only the popular
+ * Sorts every candidate by kind, then takes the most played popular game named
+ * for the creator's (sorted.named, and every title holding the whole name), else
+ * the most played popular game of the same kind, else the closest popular related
+ * one; null when none is any. The sort sees the unpopular games too: shown only the popular
  * ones, it called the nearest of the wrong kind the same kind whenever every
  * game of the right kind was quiet. A related game is a stand-in, so closeness
  * picks it: the most played related game was a hangout game with 200K players
@@ -180,7 +189,13 @@ export async function pickNearestPopular(gameName, names, queries, candidates, {
     console.error(`Sorting games like "${gameName}" failed; sorting by shared words:`, err)
     sorted = { ...sortByWords(queries, candidates), sortedBy: 'shared words' }
   }
-  const same = [...new Set([...wholeNameMatches(names, candidates), ...sorted.same])]
+  const named = [...new Set([...wholeNameMatches(names, candidates), ...(sorted.named ?? [])])]
+  const same = [...new Set([...named, ...sorted.same])]
+  const namedFor = mostPlayedOf(popularOnly(named))
+  if (namedFor) {
+    const lead = namedFor.count === 1 ? 'The only popular game named for yours' : `The most played of ${namedFor.count} popular games named for yours`
+    return { game: namedFor.game, tier: 'named', pickedBy: sorted.sortedBy, why: `${lead}, with ${popularity(namedFor.game)}.` }
+  }
   const sameKind = mostPlayedOf(popularOnly(same))
   if (sameKind) {
     const lead = sameKind.count === 1 ? 'The only popular game of the same kind' : `The most played of ${sameKind.count} popular games of the same kind`
