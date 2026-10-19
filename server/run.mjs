@@ -104,23 +104,9 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
       return { ...base, error: err.message, ms: Date.now() - t0 }
     }
   }
-  // Each landed thumbnail's square Roblox icon, drawn while the other slots and the judge run; the run waits for them before it saves.
-  const icons = []
-  const startIcon = (thumbnail, image) => {
-    icons.push(
-      makeIcon(image, model)
-        .then((icon) => {
-          thumbnail.iconUrl = save(`icon-${thumbnail.slot}`, icon)
-          thumbnail.iconRedrawn = icon.redrawn
-          emit({ type: 'icon', slot: thumbnail.slot, iconUrl: thumbnail.iconUrl, iconRedrawn: icon.redrawn })
-        })
-        .catch((err) => console.error(`Icon for thumbnail ${thumbnail.slot} failed:`, err))
-    )
-  }
   const report = (thumbnail) => {
     record.thumbnails.push(thumbnail)
     emit({ type: 'thumbnail', thumbnail })
-    if (images.has(thumbnail.slot)) startIcon(thumbnail, images.get(thumbnail.slot))
     return thumbnail
   }
 
@@ -195,8 +181,8 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     emit({ type: 'judging' })
     await judgeInto(record, dir, finished, random)
     emit({ type: 'judge', judge: record.judge })
+    await iconForWinner(record, dir, model, { emit })
   }
-  await Promise.all(icons)
   record.winnerSlot ??= null
   record.ms = Date.now() - started
   writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
@@ -219,8 +205,32 @@ async function judgeInto(record, dir, finished, random = Math.random) {
   record.winnerSlot = record.judge.winnerSlot ?? null
 }
 
-/** Judges a saved run again with the current judge and saves the new verdict. */
-export async function rejudgeRun(outputsDir, id) {
+/**
+ * The winner's square Roblox icon (icon.mjs), drawn by the run's image model
+ * once the judge has picked; a winner that has one keeps it, and a failed icon
+ * leaves the run standing. `icon` is swappable in tests.
+ */
+async function iconForWinner(record, dir, model, { emit = () => {}, icon = makeIcon } = {}) {
+  const winner = record.thumbnails.find((t) => t.slot === record.winnerSlot && t.imageUrl)
+  if (!winner || winner.iconUrl) return
+  try {
+    const bytes = readFileSync(join(dir, basename(winner.imageUrl)))
+    const made = await icon({ bytes, mimeType: imageMimeType(bytes) }, model)
+    const file = `icon-${winner.slot}.png`
+    writeFileSync(join(dir, file), made.bytes)
+    winner.iconUrl = `/outputs/${record.id}/${file}`
+    winner.iconRedrawn = made.redrawn
+    emit({ type: 'icon', slot: winner.slot, iconUrl: winner.iconUrl, iconRedrawn: made.redrawn })
+  } catch (err) {
+    console.error(`Icon for the winner, thumbnail ${winner.slot}, failed:`, err)
+  }
+}
+
+/**
+ * Judges a saved run again with the current judge and saves the new verdict,
+ * with an icon for a new winner that has none. `icon` is swappable in tests.
+ */
+export async function rejudgeRun(outputsDir, id, { icon = makeIcon } = {}) {
   const dir = join(outputsDir, id)
   if (!RUN_ID.test(id) || !existsSync(join(dir, 'run.json'))) return null
   const record = JSON.parse(readFileSync(join(dir, 'run.json'), 'utf8'))
@@ -232,6 +242,8 @@ export async function rejudgeRun(outputsDir, id) {
     })
   if (finished.length === 0) return record
   await judgeInto(record, dir, finished)
+  // Runs saved before the switch used Nano Banana 2.
+  await iconForWinner(record, dir, imageModel(record.imageModel?.key) ?? imageModel(), { icon })
   writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
   return record
 }

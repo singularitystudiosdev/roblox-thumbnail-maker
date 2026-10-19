@@ -78,7 +78,7 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         <p className="text-caption text-text-secondary">
           Reference: {thumbnail?.referenceName ?? pendingReference(slot, run)}
         </p>
-        {thumbnail?.imageUrl && !thumbnail.iconUrl && busy && (
+        {thumbnail?.imageUrl && !thumbnail.iconUrl && busy && run.winnerSlot === slot.slot && (
           <div className="flex items-center gap-8">
             <div aria-hidden="true" className="size-48 shrink-0 rounded-8 bg-border-default motion-safe:animate-pulse" />
             <span className="text-caption text-text-secondary">Making the 512 × 512 icon</span>

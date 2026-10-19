@@ -17,16 +17,38 @@ function savedRun(thumbnails) {
   return outputs
 }
 
-test('judging again replaces and saves the verdict', async () => {
+// The icon maker stands in for the image model: only the winner gets an icon.
+const iconStub = async (image, model) => ({ bytes: Buffer.concat([image.bytes, Buffer.from(model.key)]), mimeType: 'image/png', redrawn: true })
+
+test('judging again replaces and saves the verdict, with an icon for the new winner only', async () => {
   // One finished thumbnail wins without a model, so this needs no network.
   const outputs = savedRun([
     { slot: 2, imageUrl: `/outputs/${ID}/thumbnail-2.png` },
     { slot: 3, error: 'fal returned no image' }
   ])
-  const record = await rejudgeRun(outputs, ID)
+  const record = await rejudgeRun(outputs, ID, { icon: iconStub })
   assert.equal(record.winnerSlot, 2)
   assert.equal(JSON.parse(readFileSync(join(outputs, ID, 'run.json'), 'utf8')).winnerSlot, 2)
   assert.equal(listRuns(outputs)[0].winnerSlot, 2)
+  const winner = record.thumbnails.find((t) => t.slot === 2)
+  assert.equal(winner.iconUrl, `/outputs/${ID}/icon-2.png`)
+  assert.equal(winner.iconRedrawn, true)
+  // A run saved before the model switch is iconed with Nano Banana 2.
+  assert.deepEqual(readFileSync(join(outputs, ID, 'icon-2.png')), Buffer.concat([PNG, Buffer.from('nano-banana-2')]))
+  assert.equal(record.thumbnails.find((t) => t.slot === 3).iconUrl, undefined)
+})
+
+test('a winner that already has an icon keeps it when judged again', async () => {
+  const outputs = savedRun([{ slot: 2, imageUrl: `/outputs/${ID}/thumbnail-2.png`, iconUrl: `/outputs/${ID}/icon-2.png` }])
+  let calls = 0
+  const record = await rejudgeRun(outputs, ID, {
+    icon: async (...args) => {
+      calls++
+      return iconStub(...args)
+    }
+  })
+  assert.equal(calls, 0)
+  assert.equal(record.thumbnails[0].iconUrl, `/outputs/${ID}/icon-2.png`)
 })
 
 test('an unknown or malformed run id is not found', async () => {

@@ -12,7 +12,7 @@ export const PLAIN_TEMPLATE = 'Make me a thumbnail for my game "GAME_NAME" in th
 
 export const REMIX_PROMPT = 'Make this thumbnail but from a novel perspective. No text.'
 
-// Each finished thumbnail, redrawn by the same model as a square Roblox icon (icon.mjs). Without the
+// The winning thumbnail, redrawn by the same model as a square Roblox icon (icon.mjs). Without the
 // "continuing the same scene" sentence the model once filled the new height with a repeated strip.
 export const ICON_PROMPT =
   'Resize this image to a 1:1 square. Keep everything in it fully in frame and unchanged: every character and object whole, nothing cut off. Fill the new space by continuing the same scene, never by repeating or tiling any part of the image. No text.'

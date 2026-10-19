@@ -1,4 +1,4 @@
-// A Roblox experience icon from each finished thumbnail: Roblox's 512 by 512
+// A Roblox experience icon from the winning thumbnail: Roblox's 512 by 512
 // template (Creator Hub, "Icons", read 2026-10-19; it scales down to sizes
 // such as 150 by 150). A square cut of a 16:9 thumbnail loses characters, so
 // the run's own image model redraws the thumbnail as a 1:1 square with
