@@ -205,10 +205,22 @@ export const api = {
   run,
   runs: () => request<{ items: Run[] }>('/api/runs'),
   rejudge: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}/judge`, { method: 'POST' }),
-  pick: (id: string, slot: number | null) =>
-    request<Run>(`/api/runs/${encodeURIComponent(id)}/pick`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot }) }),
+  /** Saves every thumbnail the creator takes as the winner, the first as their main pick; an empty list clears it. */
+  pick: (id: string, slots: number[]) =>
+    request<Run>(`/api/runs/${encodeURIComponent(id)}/pick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot: slots[0] ?? null, accept: slots })
+    }),
   status: () => request<Status>('/api/status')
 }
+
+/** Every thumbnail the creator picked as a winner, their main pick first; empty when they made none. */
+export const pickedSlots = (run: Run) => (run.userPick ? (run.userPick.accept ?? [run.userPick.slot]) : [])
+
+/** "thumbnail 3" or "thumbnails 3 and 7", for the picks in a line of text. */
+export const slotsPhrase = (slots: number[]) =>
+  slots.length === 1 ? `thumbnail ${slots[0]}` : `thumbnails ${slots.slice(0, -1).join(', ')} and ${slots[slots.length - 1]}`
 
 /** Whether a slot starts from the nearest popular game's thumbnail. */
 export const onRobloxReference = (slot: Slot) => slot.strategy === 'remix' || slot.strategy === 'meta'

@@ -1,4 +1,4 @@
-import { armLabel, formatAgo, type Run } from '../lib/api'
+import { armLabel, formatAgo, pickedSlots, slotsPhrase, type Run } from '../lib/api'
 
 interface HistoryListProps {
   items: Run[]
@@ -36,7 +36,7 @@ export function HistoryList({ items, currentId, onOpen }: HistoryListProps) {
                 <span className="truncate text-label font-medium">{item.gameName}</span>
                 <span className="truncate text-caption text-text-secondary">
                   {item.userPick
-                    ? `Your pick: thumbnail ${item.userPick.slot}`
+                    ? `${pickedSlots(item).length > 1 ? 'Your picks' : 'Your pick'}: ${slotsPhrase(pickedSlots(item))}`
                     : item.winnerSlot
                       ? `Winner: thumbnail ${item.winnerSlot}`
                       : 'No winner picked'}

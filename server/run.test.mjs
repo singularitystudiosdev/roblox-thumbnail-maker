@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { listRuns, rejudgeRun } from './run.mjs'
+import { listRuns, pickWinner, rejudgeRun } from './run.mjs'
 
 const ID = '2026-10-19T04-05-22-531Z-e01f3485'
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
@@ -55,4 +55,17 @@ test('an unknown or malformed run id is not found', async () => {
   const outputs = savedRun([])
   assert.equal(await rejudgeRun(outputs, '2026-10-19T00-00-00-000Z-00000000'), null)
   assert.equal(await rejudgeRun(outputs, '../../etc'), null)
+})
+
+test('the creator can pick several winners: the first is the main pick, unfinished slots are dropped, an empty pick clears it', () => {
+  const outputs = savedRun([
+    { slot: 3, imageUrl: `/outputs/${ID}/thumbnail-3.png` },
+    { slot: 5, error: 'fal returned no image' },
+    { slot: 7, imageUrl: `/outputs/${ID}/thumbnail-7.png` }
+  ])
+  const picked = pickWinner(outputs, ID, 3, [3, 5, 7])
+  assert.deepEqual({ slot: picked.userPick.slot, accept: picked.userPick.accept }, { slot: 3, accept: [3, 7] })
+  assert.deepEqual(JSON.parse(readFileSync(join(outputs, ID, 'run.json'), 'utf8')).userPick.accept, [3, 7])
+  assert.equal(pickWinner(outputs, ID, 7, [7]).userPick.accept, undefined)
+  assert.equal(pickWinner(outputs, ID, null, []).userPick, null)
 })

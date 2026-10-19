@@ -1,5 +1,5 @@
 import { Download, ThumbsUp, Trophy } from 'lucide-react'
-import { onRobloxReference, providerLabel, runModelLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
+import { onRobloxReference, pickedSlots, providerLabel, runModelLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
 import { cn } from '../lib/cn'
 
 /** The reference a slot will start from, before its thumbnail lands. */
@@ -19,8 +19,8 @@ interface ThumbnailGridProps {
   busy: boolean
   shownSlot: number | null
   onShow: (slot: number) => void
-  /** Saves the creator's own winner (null clears it); the strategy picker learns from it. */
-  onPick: (slot: number | null) => void
+  /** Saves every thumbnail the creator takes as the winner (empty clears it); the strategy picker learns from them. */
+  onPick: (slots: number[]) => void
 }
 
 interface TileProps {
@@ -29,16 +29,18 @@ interface TileProps {
   busy: boolean
   shown: boolean
   onShow: (slot: number) => void
-  onPick: (slot: number | null) => void
+  onPick: (slots: number[]) => void
 }
 
 function Tile({ run, slot, busy, shown, onShow, onPick }: TileProps) {
   const thumbnail = run.thumbnails.find((t) => t.slot === slot.slot)
   const score = run.judge?.scores?.find((s) => s.slot === slot.slot)
   const isWinner = run.judge?.winnerSlot === slot.slot
-  const isUserPick = run.userPick?.slot === slot.slot
-  // Agreeing with the judge needs no click; any other finished thumbnail can be picked instead.
-  const canPick = !busy && Boolean(thumbnail?.imageUrl) && !isUserPick && !(isWinner && !run.userPick)
+  const picked = pickedSlots(run)
+  const isUserPick = picked.includes(slot.slot)
+  // Agreeing with the judge needs no click; any other finished thumbnail can be picked instead, and once
+  // one is picked, more can join it.
+  const canPick = !busy && Boolean(thumbnail?.imageUrl) && !isUserPick && !(isWinner && picked.length === 0)
   // Runs judged on the 50-point rubric before minFitsGame was recorded used 5.
   const minFits = run.judge?.minFitsGame ?? (run.judge?.maxTotal === 50 ? 5 : null)
   const ruledOut = !isWinner && score != null && minFits != null && Number(score.fitsGame) < minFits
@@ -146,15 +148,19 @@ function Tile({ run, slot, busy, shown, onShow, onPick }: TileProps) {
         {canPick && (
           <button
             type="button"
-            onClick={() => onPick(slot.slot)}
+            onClick={() => onPick([...picked, slot.slot])}
             className={buttonClasses('quiet', 'sm', 'self-start pointer-coarse:min-h-48')}
           >
             <ThumbsUp className="size-16" aria-hidden="true" />
-            Should have won
+            {picked.length === 0 ? 'Should have won' : 'Also my pick'}
           </button>
         )}
         {isUserPick && !busy && (
-          <button type="button" onClick={() => onPick(null)} className={buttonClasses('quiet', 'sm', 'self-start pointer-coarse:min-h-48')}>
+          <button
+            type="button"
+            onClick={() => onPick(picked.filter((s) => s !== slot.slot))}
+            className={buttonClasses('quiet', 'sm', 'self-start pointer-coarse:min-h-48')}
+          >
             Undo my pick
           </button>
         )}

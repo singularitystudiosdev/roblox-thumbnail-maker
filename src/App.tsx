@@ -8,7 +8,7 @@ import { SelectionCard } from './components/SelectionCard'
 import { StyleCard } from './components/StyleCard'
 import { ThumbnailGrid } from './components/ThumbnailGrid'
 import { WinnerStage, type Phase } from './components/WinnerStage'
-import { api, isPicked, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
+import { api, isPicked, pickedSlots, slotsPhrase, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
 
 const EXAMPLES = [
   'https://www.roblox.com/games/107778070777162/Steal-An-Egg',
@@ -124,12 +124,13 @@ export function App() {
     setPhase('done')
   }
 
-  // The creator's own winner, saved with the run: the strategy picker learns from it on its next run.
-  const pickWinner = async (id: string, slot: number | null) => {
+  // The creator's own winners, saved with the run: the strategy picker learns from them on its next run.
+  const pickWinner = async (id: string, slots: number[]) => {
     const previous = run
-    setRun((current) => (current && current.id === id ? { ...current, userPick: slot == null ? null : { slot, at: new Date().toISOString() } } : current))
+    const userPick = slots.length === 0 ? null : { slot: slots[0], ...(slots.length > 1 ? { accept: slots } : {}), at: new Date().toISOString() }
+    setRun((current) => (current && current.id === id ? { ...current, userPick } : current))
     try {
-      setRun(await api.pick(id, slot))
+      setRun(await api.pick(id, slots))
       refreshHistory()
     } catch (err) {
       console.error('Saving your pick failed', err)
@@ -230,8 +231,10 @@ export function App() {
                     <p className="flex items-start gap-8 text-label text-text-primary">
                       <Trophy className="mt-2 size-16 shrink-0 text-brand" aria-hidden="true" />
                       <span>
-                        Your pick: thumbnail {winner.slot} ({strategyLabel(winner)}). The judge picked thumbnail {run.judge?.winnerSlot}; the strategy pick
-                        learns from yours.
+                        {pickedSlots(run).length > 1
+                          ? `Your picks: ${slotsPhrase(pickedSlots(run))}.`
+                          : `Your pick: thumbnail ${winner.slot} (${strategyLabel(winner)}).`}{' '}
+                        The judge picked thumbnail {run.judge?.winnerSlot}; the strategy pick learns from yours.
                       </span>
                     </p>
                   ) : (
@@ -285,7 +288,7 @@ export function App() {
 
           {run && run.slots.length > 0 && (
             <div className="order-2 min-w-0 lg:order-none">
-              <ThumbnailGrid run={run} busy={busy} shownSlot={stageSlot} onShow={setShownSlot} onPick={(slot) => pickWinner(run.id, slot)} />
+              <ThumbnailGrid run={run} busy={busy} shownSlot={stageSlot} onShow={setShownSlot} onPick={(slots) => pickWinner(run.id, slots)} />
             </div>
           )}
           <div className="order-6 min-w-0 lg:order-none">

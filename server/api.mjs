@@ -121,8 +121,9 @@ export function createApi(root) {
       if (pick) {
         const body = await readJson(req)
         const slot = body.slot == null ? null : Number(body.slot)
-        if (slot != null && !Number.isInteger(slot)) throw new BadRequest('Pick a thumbnail by its number.')
-        const record = pickWinner(outputsDir, decodeURIComponent(pick[1]), slot)
+        const accept = Array.isArray(body.accept) ? body.accept.map(Number) : null
+        if ((slot != null && !Number.isInteger(slot)) || (accept && !accept.every(Number.isInteger))) throw new BadRequest('Pick a thumbnail by its number.')
+        const record = pickWinner(outputsDir, decodeURIComponent(pick[1]), slot, accept)
         return record ? sendJson(res, 200, record) : sendJson(res, 404, { error: 'No such run or thumbnail.' })
       }
       const rejudge = req.method === 'POST' && url.pathname.match(/^\/api\/runs\/([^/]+)\/judge$/)
