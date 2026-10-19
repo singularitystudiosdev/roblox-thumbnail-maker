@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildPrompt, extractGameName, pickRemixPrompts, PROMPT_TEMPLATE, REMIX_PROMPTS } from './prompt.mjs'
+import { buildPrompt, extractGameName, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 
 test('the template is the exact text, only GAME_NAME substituted', () => {
   assert.equal(
@@ -30,25 +30,12 @@ test('an empty game name is refused', () => {
   assert.throws(() => buildPrompt('  '))
 })
 
-test('the three remix prompts are the exact texts, top down and profile shot removed', () => {
-  assert.deepEqual(REMIX_PROMPTS, [
-    'Make this thumbnail but Before-and-After. No text.',
-    'Make this thumbnail but from a novel perspective. No text.',
-    'Make this thumbnail but High Angle. No text.'
-  ])
+test('the remix prompt is novel perspective, word for word; every other angle is gone', () => {
+  assert.equal(REMIX_PROMPT, 'Make this thumbnail but from a novel perspective. No text.')
 })
 
-test('two different remix prompts are picked, every pair reachable', () => {
-  const seen = new Set()
-  for (let i = 0; i < 2000; i++) {
-    const [a, b] = pickRemixPrompts()
-    assert.notEqual(a, b)
-    assert.ok(REMIX_PROMPTS.includes(a) && REMIX_PROMPTS.includes(b))
-    seen.add(`${a}|${b}`)
-  }
-  assert.equal(seen.size, 6)
-  assert.deepEqual(pickRemixPrompts(() => 0), [REMIX_PROMPTS[0], REMIX_PROMPTS[1]])
-  assert.deepEqual(pickRemixPrompts(() => 0.999), [REMIX_PROMPTS[2], REMIX_PROMPTS[1]])
+test('a run draws the remix three times, so four thumbnails in all', () => {
+  assert.equal(REMIX_COUNT, 3)
 })
 
 test('a description is the game name, word for word', () => {

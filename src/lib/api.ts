@@ -5,7 +5,7 @@ export interface StyleRef {
   imageUrl: string
 }
 
-/** The nearest, most popular Roblox game, whose thumbnail thumbnails 2 and 3 remix. */
+/** The popular Roblox game like the creator's, whose thumbnail the remixes (thumbnails 2 to 4) start from. */
 export interface Reference {
   source: 'roblox' | 'style'
   name: string
@@ -147,7 +147,7 @@ export const api = {
   status: () => request<Status>('/api/status')
 }
 
-/** "High Angle" from "Make this thumbnail but High Angle. No text."; "Exact template" for slot 1. */
+/** "Remix: Novel perspective" from "Make this thumbnail but from a novel perspective. No text."; "Exact template" for slot 1. */
 export function strategyLabel(slot: Slot) {
   if (slot.strategy === 'template') return 'Exact template'
   const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'

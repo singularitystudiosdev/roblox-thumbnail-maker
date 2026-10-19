@@ -43,7 +43,7 @@ export function PromptBox({ value, onChange, onSubmit, busy }: PromptBoxProps) {
         </span>
         <Button type="submit" variant="primary" size="lg" loading={busy} disabled={!value.trim()} aria-keyshortcuts="Meta+Enter Control+Enter">
           {!busy && <ImagePlus className="size-16" aria-hidden="true" />}
-          Make 3 thumbnails
+          Make 4 thumbnails
         </Button>
       </div>
     </form>

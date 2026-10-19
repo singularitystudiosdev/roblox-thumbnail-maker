@@ -3,7 +3,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { imageMimeType } from './mime.mjs'
-import { REMIX_PROMPTS, PROMPT_TEMPLATE } from './prompt.mjs'
+import { PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { GameNotFound } from './roblox.mjs'
 import { listRuns, rejudgeRun, RUN_ID, runThumbnails } from './run.mjs'
 
@@ -128,7 +128,8 @@ export function createApi(root) {
           judgeModels: c.judgeModels,
           styleReferenceName: c.styleReferenceName,
           template: PROMPT_TEMPLATE,
-          remixPrompts: REMIX_PROMPTS
+          remixPrompt: REMIX_PROMPT,
+          remixCount: REMIX_COUNT
         })
       }
       return sendJson(res, 404, { error: `No route ${route}` })

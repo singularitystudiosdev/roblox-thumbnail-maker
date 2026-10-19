@@ -1,7 +1,7 @@
-// One run: the game name, then three Nano Banana 2 thumbnails at once
-// (1: the exact template with the style reference; 2 and 3: two random remix
-// prompts with the cleanest thumbnail of the nearest popular Roblox game), then
-// the judge, told what the game is (judgeContext).
+// One run: the game name, then four Nano Banana 2 thumbnails at once
+// (1: the exact template with the style reference; 2 to 4: the novel
+// perspective remix prompt, each with the cleanest thumbnail of the popular
+// reference game), then the judge, told what the game is (judgeContext).
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -11,7 +11,7 @@ import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
 import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
-import { buildPrompt, pickRemixPrompts } from './prompt.mjs'
+import { buildPrompt, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { pickCleanestThumbnail } from './cleanest.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
@@ -23,13 +23,11 @@ function newRunId() {
   return `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
 }
 
-/** The three slots of a run and the exact prompt each sends. */
-export function planSlots(gameName, random = Math.random) {
-  const [remixA, remixB] = pickRemixPrompts(random)
+/** The slots of a run and the exact prompt each sends: the template, then REMIX_COUNT remixes. */
+export function planSlots(gameName) {
   return [
     { slot: 1, strategy: 'template', prompt: buildPrompt(gameName) },
-    { slot: 2, strategy: 'remix', prompt: remixA },
-    { slot: 3, strategy: 'remix', prompt: remixB }
+    ...Array.from({ length: REMIX_COUNT }, (_, i) => ({ slot: i + 2, strategy: 'remix', prompt: REMIX_PROMPT }))
   ]
 }
 
@@ -59,7 +57,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
   }
 
   const styleRef = { name: style.name, source: style.source, imageUrl: save('style', style) }
-  const slots = planSlots(gameName, random)
+  const slots = planSlots(gameName)
   const record = { id, createdAt: new Date().toISOString(), input, gameName, namedBy, link, style: styleRef, reference: null, slots, thumbnails: [], judge: null }
   emit({ type: 'plan', run: record })
 

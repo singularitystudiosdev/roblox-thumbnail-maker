@@ -97,7 +97,7 @@ export function App() {
     setPhase('done')
   }
 
-  // The same three thumbnails, judged again by the current judge; the new verdict is saved with the run.
+  // The same thumbnails, judged again by the current judge; the new verdict is saved with the run.
   const judgeAgain = async (id: string) => {
     setPhase('judging')
     setError(null)
@@ -181,7 +181,7 @@ export function App() {
                   )}
                   <Button onClick={() => start(prompt || run.input)}>
                     <RefreshCw className="size-16" aria-hidden="true" />
-                    Make 3 more
+                    Make 4 more
                   </Button>
                 </div>
               </div>

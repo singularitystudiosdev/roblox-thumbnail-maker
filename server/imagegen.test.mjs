@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { falInput, geminiInput } from './imagegen.mjs'
 import { planSlots } from './run.mjs'
-import { REMIX_PROMPTS } from './prompt.mjs'
 
 const reference = { mimeType: 'image/png', bytes: Buffer.from('ref') }
 const b64 = Buffer.from('ref').toString('base64')
@@ -25,13 +24,12 @@ test('Gemini body: the prompt then the reference, image output at 16:9', () => {
   })
 })
 
-test('a run is the template plus two different remix prompts', () => {
-  const slots = planSlots('Steal an Egg', () => 0.5)
-  assert.deepEqual(slots.map((s) => s.strategy), ['template', 'remix', 'remix'])
+test('a run is the template plus three novel perspective remixes', () => {
+  const slots = planSlots('Break and Steal a Egg')
+  assert.deepEqual(slots.map((s) => [s.slot, s.strategy]), [[1, 'template'], [2, 'remix'], [3, 'remix'], [4, 'remix']])
   assert.equal(
     slots[0].prompt,
-    'Make me a thumbnail for my roblox game "Steal an Egg" in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a thumbnail for my roblox game "Break and Steal a Egg" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
-  assert.notEqual(slots[1].prompt, slots[2].prompt)
-  assert.ok(REMIX_PROMPTS.includes(slots[1].prompt) && REMIX_PROMPTS.includes(slots[2].prompt))
+  for (const slot of slots.slice(1)) assert.equal(slot.prompt, 'Make this thumbnail but from a novel perspective. No text.')
 })

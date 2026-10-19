@@ -27,11 +27,14 @@ function slotState(run: Run | null, slots: number[]): StepState {
 
 function steps(run: Run | null, phase: Phase) {
   const reference = run?.reference
+  // Runs saved before the four-thumbnail layout have two remixes.
+  const remixSlots = run?.slots.filter((s) => s.strategy === 'remix').map((s) => s.slot) ?? [2, 3, 4]
+  const remixLabel = remixSlots.length === 2 ? 'Thumbnails 2 and 3' : `Thumbnails 2 to ${remixSlots.at(-1)}`
   return [
     { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
     { label: 'Thumbnail 1 from the exact template', state: run ? slotState(run, [1]) : 'pending' },
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
-    { label: 'Thumbnails 2 and 3 remixed from it', state: reference ? slotState(run, [2, 3]) : 'pending' },
+    { label: `${remixLabel} remixed from it`, state: reference ? slotState(run, remixSlots) : 'pending' },
     { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' }
   ] satisfies { label: string; state: StepState }[]
 }
@@ -77,7 +80,7 @@ export function WinnerStage({ phase, run, shownSlot, elapsed, error, onExample, 
       {phase === 'idle' && !run && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-16 p-24 text-center">
           <p className="max-w-prose text-body text-text-secondary">
-            One prompt makes three thumbnails and the judge puts the most clickable one here.
+            One prompt makes four thumbnails and the judge puts the most clickable one here.
           </p>
           <Button onClick={onExample}>Try an example</Button>
         </div>

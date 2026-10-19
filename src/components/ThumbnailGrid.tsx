@@ -3,6 +3,8 @@ import { providerLabel, slugify, strategyLabel, type Run, type Slot } from '../l
 import { cn } from '../lib/cn'
 import { buttonClasses } from './Button'
 
+const COUNT_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four' }
+
 interface ThumbnailGridProps {
   run: Run
   busy: boolean
@@ -92,9 +94,12 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
 
 export function ThumbnailGrid({ run, busy, shownSlot, onShow }: ThumbnailGridProps) {
   return (
-    <section aria-labelledby="all-three-title" className="flex flex-col gap-16 rounded-16 border border-border-default bg-bg-surface p-16">
-      <h2 id="all-three-title" className="text-title font-semibold">All three thumbnails</h2>
-      <ul className="grid grid-cols-1 gap-24 sm:grid-cols-3 sm:gap-16">
+    <section aria-labelledby="all-thumbnails-title" className="flex flex-col gap-16 rounded-16 border border-border-default bg-bg-surface p-16">
+      <h2 id="all-thumbnails-title" className="text-title font-semibold">
+        All {COUNT_WORDS[run.slots.length] ?? run.slots.length} thumbnails
+      </h2>
+      {/* Four sit two by two; runs saved with three keep one row. */}
+      <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
         {run.slots.map((slot) => (
           <Tile key={slot.slot} run={run} slot={slot} busy={busy} shown={shownSlot === slot.slot} onShow={onShow} />
         ))}

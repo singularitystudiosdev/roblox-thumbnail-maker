@@ -1,4 +1,4 @@
-// Thumbnails 2 and 3 remix one real Roblox thumbnail: a popular game of the
+// Thumbnails 2 to 4 remix one real Roblox thumbnail: a popular game of the
 // same kind as the creator's. Candidates are Roblox search results for the name
 // itself, its keywords and the genre queries a text model writes from it; only
 // games with more than MIN_PLAYING players count. A text model sorts those into
