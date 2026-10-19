@@ -2248,9 +2248,9 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 2,
+    "template": 0,
     "remix": 0,
-    "search": 2,
+    "search": 2.7,
     "meta": 0,
     "plain": 0
    },
