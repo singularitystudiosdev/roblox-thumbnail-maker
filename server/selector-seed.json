@@ -30,7 +30,15 @@
     "search": 0,
     "meta": 6.4,
     "plain": 3.7
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-12-00-922Z-43feb20f",
@@ -61,7 +69,15 @@
     "search": 13,
     "meta": 0.3,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-13-45-102Z-0a3cdc75",
@@ -92,7 +108,15 @@
     "search": 0,
     "meta": 13.7,
     "plain": 11.3
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-14-35-507Z-cf8f6897",
@@ -123,7 +147,15 @@
     "search": 23.6,
     "meta": 4,
     "plain": 5.6
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T06-19-12-236Z-cf4a3563",
@@ -154,7 +186,15 @@
     "search": 14,
     "meta": 4.7,
     "plain": 9
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-19-27-243Z-c1e7e262",
@@ -185,7 +225,15 @@
     "search": 0,
     "meta": 5.3,
     "plain": 8
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-21-08-274Z-ca540c7d",
@@ -216,7 +264,15 @@
     "search": 17.4,
     "meta": 0,
     "plain": 18.4
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-26-58-249Z-58cd1399",
@@ -247,7 +303,15 @@
     "search": 1.3,
     "meta": 13.3,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-33-43-163Z-2173a86a",
@@ -278,7 +342,15 @@
     "search": 0,
     "meta": 0.7,
     "plain": 3.3
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-34-32-956Z-bc73b669",
@@ -309,7 +381,15 @@
     "search": 5.4,
     "meta": 7,
     "plain": 7
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-35-32-598Z-78d7a4b5",
@@ -340,7 +420,15 @@
     "search": 7.4,
     "meta": 10,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-40-45-733Z-36dd5ba8",
@@ -371,7 +459,15 @@
     "search": 0,
     "meta": 10.3,
     "plain": 4.6
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T06-50-35-566Z-4672cc0b",
@@ -402,7 +498,15 @@
     "search": 0,
     "meta": 3.3,
     "plain": 9.7
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T06-55-07-646Z-105a6bfa",
@@ -433,7 +537,15 @@
     "search": 3.3,
     "meta": 10.6,
     "plain": 1.3
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T07-03-19-509Z-9eb4bd24",
@@ -464,7 +576,15 @@
     "search": 11.3,
     "meta": 0,
     "plain": 11.6
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T07-16-31-506Z-10223f6f",
@@ -495,7 +615,15 @@
     "search": 5.7,
     "meta": 0,
     "plain": 13
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 1,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T07-22-32-944Z-fb2d7340",
@@ -526,7 +654,15 @@
     "search": 7.7,
     "meta": 1.7,
     "plain": 11
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-09-42-006Z-6e6de45e",
@@ -557,7 +693,15 @@
     "search": 11.7,
     "meta": 7,
     "plain": 8
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-09-57-005Z-13633f2b",
@@ -588,7 +732,15 @@
     "search": 0,
     "meta": 17,
     "plain": 4
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-10-33-186Z-e0bc0a59",
@@ -619,7 +771,15 @@
     "search": 10.4,
     "meta": 5.7,
     "plain": 9.4
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-10-45-990Z-ba1d4d04",
@@ -650,7 +810,15 @@
     "search": 2.3,
     "meta": 0,
     "plain": 2.3
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-11-18-591Z-ab254117",
@@ -681,7 +849,15 @@
     "search": 11,
     "meta": 2.7,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-12-08-369Z-b9f4159b",
@@ -712,7 +888,15 @@
     "search": 0,
     "meta": 5.6,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-13-00-374Z-267c21c2",
@@ -743,7 +927,15 @@
     "search": 3.7,
     "meta": 4.4,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-14-05-945Z-1c46ecca",
@@ -774,7 +966,15 @@
     "search": 4.3,
     "meta": 2.3,
     "plain": 1.7
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-14-46-499Z-71bd2484",
@@ -805,7 +1005,15 @@
     "search": 10.4,
     "meta": 9.4,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-15-42-344Z-bad89501",
@@ -832,11 +1040,19 @@
    "model": "nano-banana-2.1",
    "regret": {
     "template": 2.7,
-    "remix": 4.1,
-    "search": 6.7,
-    "meta": 4,
+    "remix": 9.5,
+    "search": 13.7,
+    "meta": 8,
     "plain": 0
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-16-22-813Z-f4bf8a25",
@@ -863,11 +1079,19 @@
    "model": "nano-banana-2.1",
    "regret": {
     "template": 0,
-    "remix": 2,
-    "search": 4.3,
-    "meta": 2,
+    "remix": 14.9,
+    "search": 14.7,
+    "meta": 15.4,
     "plain": 2
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-16-53-636Z-85dd6818",
@@ -893,12 +1117,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 10.4,
-    "remix": 7.5,
+    "template": 10.7,
+    "remix": 5.4,
     "search": 0,
-    "meta": 7.4,
-    "plain": 10.7
-   }
+    "meta": 6.7,
+    "plain": 12
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-31-47-160Z-d5711bf0",
@@ -924,12 +1156,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 3.3,
-    "remix": 8,
-    "search": 4.3,
+    "template": 3,
+    "remix": 6.5,
+    "search": 4.7,
     "meta": 0,
-    "plain": 10.3
-   }
+    "plain": 12.7
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-32-36-793Z-c530873f",
@@ -955,12 +1195,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 8,
+    "template": 9,
     "remix": 0,
-    "search": 9,
-    "meta": 4.7,
-    "plain": 7.3
-   }
+    "search": 11,
+    "meta": 5,
+    "plain": 8.3
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-34-59-231Z-11710a4b",
@@ -986,12 +1234,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 11.4,
+    "template": 7,
     "remix": 0,
-    "search": 21.7,
-    "meta": 7.4,
-    "plain": 5
-   }
+    "search": 25,
+    "meta": 6.4,
+    "plain": 2.4
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-35-42-713Z-f4abcc2c",
@@ -1022,7 +1278,15 @@
     "search": 2,
     "meta": 0,
     "plain": 2
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-36-25-693Z-03bb53ad",
@@ -1048,12 +1312,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 11.3,
-    "remix": 0.8,
-    "search": 5.7,
-    "meta": 12,
-    "plain": 7.7
-   }
+    "template": 11.7,
+    "remix": 1.1,
+    "search": 6,
+    "meta": 11.7,
+    "plain": 8.7
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-37-14-547Z-b4e77b2f",
@@ -1084,7 +1356,15 @@
     "search": 2,
     "meta": 0,
     "plain": 2
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   },
   {
    "id": "2026-10-19T08-38-02-914Z-bf227c96",
@@ -1110,12 +1390,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 0,
-    "remix": 8.5,
-    "search": 19.6,
-    "meta": 4.3,
-    "plain": 0.6
-   }
+    "template": 2,
+    "remix": 7.1,
+    "search": 20.7,
+    "meta": 3.7,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
   },
   {
    "id": "2026-10-19T08-38-49-826Z-3d1499bd",
@@ -1141,12 +1429,20 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 3.6,
-    "remix": 6.6,
+    "template": 2,
+    "remix": 16.2,
     "search": 0,
-    "meta": 2,
+    "meta": 12.3,
     "plain": 2
-   }
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   }
  ]
 }

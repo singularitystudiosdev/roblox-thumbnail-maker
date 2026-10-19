@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { planPickedSlots } from './run.mjs'
 import { readFit, hasFeatures } from './fit.mjs'
-import { ARMS, DEFAULT_PARAMS, chooseArm, exampleOf, expectedRegrets, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
+import { ARMS, DEFAULT_PARAMS, builtOnExact, chooseArm, coWinners, drawNoise, exampleOf, expectedRegrets, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
 
 const fit = (nearestFit, searchFit, nameClarity) => ({ nearestFit, searchFit, nameClarity })
 const regret = (winner, others = 6) => Object.fromEntries(ARMS.map((a) => [a, a === winner ? 0 : others]))
@@ -189,4 +189,38 @@ test('ratings the shipped seed carries beyond the run\'s own are filled in, the 
   writeFileSync(join(dir, 'outputs', id, 'run.json'), JSON.stringify(fullRun([40, 46, 44, 45, 35, 42], { selection: { fit: fit(9, 8, 5) } })))
   const [loaded] = loadExamples(join(dir, 'outputs'), seed)
   assert.deepEqual(loaded.fit, { ...fit(9, 8, 5), realism: 7, genre: 'simulator' })
+})
+
+test('the strategy built on a game with the prompt\'s exact name: remix on the nearest game, else search on the search game', () => {
+  assert.equal(builtOnExact({ game: 'Doors', refNames: { nearest: 'DOORS 🚨', search: 'DOORS HARDCORE' } }), 'remix')
+  assert.equal(builtOnExact({ game: 'Blade Ball', refNames: { nearest: '[🎃] Ball VS Ball', search: 'Blade Ball' } }), 'search')
+  assert.equal(builtOnExact({ game: 'Rob a Bank', refNames: { nearest: 'Deadly Heist', search: 'Mega Escape Bank Rob' } }), null)
+})
+
+test('the exact name bonus settles a close call toward the strategy built on the game that exists', () => {
+  // Past runs: on an exact game meta beat remix by a hair, so the memory alone leans meta.
+  const exact = (id, winner) => ({ ...example(id, `Game ${id}`, fit(9, 5, 5), winner, { nearest: `n-${id}`, search: `s-${id}` }, { nearest: `Game ${id}`, search: 'Other' }), model: null })
+  const examples = [exact('a', 'meta'), exact('b', 'meta'), exact('c', 'remix')]
+  const current = { game: 'Game z', fit: fit(9, 5, 5), refs: {}, refNames: { nearest: 'Game z', search: 'Other' } }
+  assert.equal(chooseArm(current, examples, { ...DEFAULT_PARAMS, exactBonus: 0 }).arm, 'meta')
+  assert.equal(chooseArm(current, examples, { ...DEFAULT_PARAMS, exactBonus: 8 }).arm, 'remix')
+  // No game has the name: the bonus changes nothing.
+  const none = { ...current, refNames: { nearest: 'Something else', search: 'Other' } }
+  assert.deepEqual(chooseArm(none, examples, { ...DEFAULT_PARAMS, exactBonus: 8 }).expected, chooseArm(none, examples, { ...DEFAULT_PARAMS, exactBonus: 0 }).expected)
+})
+
+test('noise between draws and the strategies the judge cannot tell from the best', () => {
+  const run = fullRun([40, 46, 44, 45, 35, 42, 44.5])
+  run.slots.push({ slot: 7, strategy: 'remix' })
+  // remix drew 46, 42 and 44.5: spread sqrt(((46-44.17)^2 + (42-44.17)^2 + (44.5-44.17)^2) / 2)
+  const sd = drawNoise([run])
+  assert.ok(Math.abs(sd - 2.0) < 0.1, String(sd))
+  assert.equal(drawNoise([{ slots: [{ slot: 1, strategy: 'meta' }], judge: { scores: [{ slot: 1, total: 40 }] } }]), null)
+  const ex = exampleOf({ ...run, selection: { fit: fit(9, 8, 5) } })
+  assert.deepEqual(ex.drawn, { template: 1, remix: 3, search: 1, meta: 1, plain: 1 })
+  // Meta fell 1 point short of the best, with a draw spread of 2 points: not a clear loss. Plain fell 11 short: a clear one.
+  const co = coWinners(ex, 2)
+  assert.ok(co.includes('meta') && co.includes('search') && !co.includes('plain'))
+  // The creator\'s pick ends the doubt.
+  assert.deepEqual(coWinners(exampleOf({ ...run, userPick: { slot: 4 }, selection: { fit: fit(9, 8, 5) } }), 2), ['meta'])
 })

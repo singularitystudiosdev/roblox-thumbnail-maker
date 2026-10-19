@@ -30,11 +30,15 @@ const FAMILY = { template: 'template', plain: 'plain', remix: 'remix', meta: 'on
 // differently per model: plain led under Nano Banana 2.1, meta under Pro). 0.25 before the request
 // features were backtested; the leave-one-out mean regret is flat from 0 to 0.1 and worse above, and
 // choosing it inside each fold (nested) beats 0.25 too, so other models now only trace the pull toward a prior.
+// exactBonus: expected regret points taken off the strategy built on a reference game that has the prompt's exact
+// name (remix when the nearest game has it, else search when the plain search found it): a game that exists is
+// best drawn from its own thumbnail, and the memory of like runs is too thin to settle the close calls among
+// remix, meta and search. Flat from 2 to 20 in the backtest, where fewer than 2 loses the close calls again.
 // features, featureWeight: the request features fit.mjs rates (FEATURES) that also count toward likeness,
 // each as one more dimension of distance; split: features that also split the typed prior by a low or high
 // half. Both empty by default: the backtest found none that beat the memory without them
 // (debug/strategy-backtest.mjs, "request features").
-export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, features: [], featureWeight: 1, split: [] }
+export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, features: [], featureWeight: 1, split: [] }
 
 /**
  * The request features fit.mjs rates in its one call: realism, abstractness and knownGame (1 to 10) and genre
@@ -159,7 +163,40 @@ export function modelOf(run) {
 export function exampleOf(run) {
   const regret = (run?.mode ?? 'standard') === 'standard' && run.selection?.fit ? regretsOf(run) : null
   if (!regret) return null
-  return { id: run.id, game: run.gameName, fit: run.selection.fit, refs: refsOf(run), refNames: refNamesOf(run), model: modelOf(run), regret }
+  const drawn = Object.fromEntries(ARMS.map((a) => [a, run.slots.filter((slot) => slot.strategy === a && run.judge.scores.some((s) => s.slot === slot.slot)).length]))
+  return { id: run.id, game: run.gameName, fit: run.selection.fit, refs: refsOf(run), refNames: refNamesOf(run), model: modelOf(run), regret, drawn, picked: Boolean(run.userPick) }
+}
+
+/**
+ * The pooled spread (standard deviation, judge points of 50) of one strategy's thumbnails in a run: how far two
+ * draws of the same prompt on the same reference differ, from every run that drew a strategy more than once.
+ */
+export function drawNoise(runs) {
+  let sum = 0
+  let degrees = 0
+  for (const run of runs) {
+    for (const arm of ARMS) {
+      const totals = (run?.slots ?? []).filter((slot) => slot.strategy === arm).map((slot) => run.judge?.scores?.find((s) => s.slot === slot.slot)).filter(Boolean).map((s) => Number(s.total))
+      if (totals.length < 2) continue
+      const m = totals.reduce((a, b) => a + b, 0) / totals.length
+      sum += totals.reduce((a, v) => a + (v - m) ** 2, 0)
+      degrees += totals.length - 1
+    }
+  }
+  return degrees > 0 ? Math.sqrt(sum / degrees) : null
+}
+
+/**
+ * The strategies whose results cannot be told from the run's best at `z` standard errors, a strategy's score
+ * being the mean of its draws (`example.drawn`), each draw `sigma` points of noise (drawNoise). The creator's own pick
+ * ends the doubt: only the strategies they accepted. A score the judge could not tell from the best is no
+ * clear loss, so a pick among these is noise-aware correct; the strict winner is `lowest(example.regret)`.
+ */
+export function coWinners(example, sigma, z = 1.96) {
+  const best = ARMS.reduce((b, a) => (example.regret[a] < example.regret[b] ? a : b), ARMS[0])
+  if (example.picked) return ARMS.filter((a) => example.regret[a] === 0)
+  const n = (a) => Math.max(1, example.drawn?.[a] ?? 1)
+  return ARMS.filter((a) => example.regret[a] - example.regret[best] <= z * sigma * Math.sqrt(1 / n(a) + 1 / n(best)))
 }
 
 /**
@@ -261,9 +298,16 @@ function likeness(current, point, params) {
   return Math.exp(-d2 / (2 * params.bandwidth ** 2)) * (sameRef ? params.refBoost : 1) * modelWeight(current, point.model, params)
 }
 
+/** The strategy built on the reference game that has the prompt's exact name: remix on the nearest game, else search on the search game; null when no game has it. */
+export function builtOnExact(item) {
+  if (matchLevel(item.game, item.refNames?.nearest) === 'exact') return 'remix'
+  return matchLevel(item.game, item.refNames?.search) === 'exact' ? 'search' : null
+}
+
 /** Expected regret per strategy for a run `current` ({ game, fit, refs }) from `examples`. */
 export function expectedRegrets(current, examples, params = DEFAULT_PARAMS) {
   const tokens = nameTokens(current.game)
+  const built = builtOnExact(current)
   return Object.fromEntries(
     ARMS.map((arm) => {
       const here = { tokens, fits: fitsOf(current), model: current.model ?? null, ...situation(current, arm) }
@@ -276,7 +320,7 @@ export function expectedRegrets(current, examples, params = DEFAULT_PARAMS) {
       const ownWeight = own.reduce((sum, p) => sum + modelWeight(here, p.model, params), 0)
       const flat = own.reduce((sum, p) => sum + modelWeight(here, p.model, params) * p.value, 0) / ownWeight
       const prior = params.slope ? priorLine(points)(here.fit) : params.typed ? typedPrior(arm, here, examples, flat, params) : flat
-      return [arm, (weighted + params.prior * prior) / (total + params.prior)]
+      return [arm, (weighted + params.prior * prior) / (total + params.prior) - (arm === built ? (params.exactBonus ?? 0) : 0)]
     })
   )
 }

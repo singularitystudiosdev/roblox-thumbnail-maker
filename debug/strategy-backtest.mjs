@@ -20,7 +20,7 @@ import { loadDotEnv } from '../server/env.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 loadDotEnv(root)
-const { ARMS, DEFAULT_PARAMS, expectedRegrets, loadExamples, modelOf, nameTokens, promptType, refNamesOf, refsOf, regretsOf } = await import('../server/selector.mjs')
+const { ARMS, DEFAULT_PARAMS, builtOnExact, coWinners, drawNoise, expectedRegrets, loadExamples, matchLevel, modelOf, nameTokens, promptType, refNamesOf, refsOf, regretsOf } = await import('../server/selector.mjs')
 const { imageModel } = await import('../server/imagemodels.mjs')
 const { FIT_FEATURES, hasFeatures } = await import('../server/fit.mjs')
 const args = new Set(process.argv.slice(2))
@@ -43,14 +43,16 @@ const shippedFit = (fit) => {
 function writeSeed(examples) {
   const about =
     "Explore runs (every strategy drawn and judged) the strategy selector learns from: each strategy's regret against the run's best thumbnail (or the creator's own pick), out of 50, the reference ratings and request features from server/fit.mjs, the reference games and the image model. The app reads saved runs fresh; these fill in runs a machine does not have and carry the features rated after a run was saved. Written by debug/strategy-backtest.mjs --write-seed."
-  const shipped = examples.map(({ id, game, fit, refs, refNames, model, regret }) => ({
+  const shipped = examples.map(({ id, game, fit, refs, refNames, model, regret, drawn, picked }) => ({
     id,
     game,
     fit: shippedFit(fit),
     refs,
     refNames,
     model,
-    regret: Object.fromEntries(ARMS.map((a) => [a, Math.round(regret[a] * 10) / 10]))
+    regret: Object.fromEntries(ARMS.map((a) => [a, Math.round(regret[a] * 10) / 10])),
+    drawn,
+    picked
   }))
   writeFileSync(seedFile, `${JSON.stringify({ about, examples: shipped }, null, 1)}\n`)
   console.log(`wrote ${examples.length} examples to server/selector-seed.json`)
@@ -119,12 +121,22 @@ function typeName(e) {
   return `${match === 'near' ? 'partly matched' : 'no match'}, ${descriptive ? 'description' : 'short name'}`
 }
 
+// Noise between two draws of the same strategy, measured on the runs of the shipped image model.
+const SIGMA = drawNoise(
+  heldOut.map(({ e }) => JSON.parse(readFileSync(join(outputsDir, e.id, 'run.json'), 'utf8')))
+)
+
+/** How a pick scores in a run: its regret, whether it IS the winning strategy (strict, ties count), and whether it is one the judge cannot tell from the best. */
+function outcome(e, arm) {
+  const best = Math.min(...ARMS.map((a) => e.regret[a]))
+  return { arm, regret: e.regret[arm], hit: e.regret[arm] <= best + 1e-9, coHit: coWinners(e, SIGMA).includes(arm) }
+}
+
 /** Leave-one-out over the held-out runs: (heldOut, rest) => arm, scored by that run's regret. */
 function loo(policy) {
   return heldOut.map(({ e, i }) => {
     const rest = examples.filter((_, j) => j !== i)
-    const arm = policy(e, rest)
-    return { id: e.id, game: e.game, type: typeName(e), arm, regret: e.regret[arm] }
+    return { id: e.id, game: e.game, type: typeName(e), ...outcome(e, policy(e, rest)) }
   })
 }
 
@@ -145,7 +157,8 @@ function summarize(name, rows) {
     meanRegret: round(meanOf(regrets)),
     ci95: [round(low), round(high)],
     within2: Math.round((regrets.filter((r) => r <= 2).length / rows.length) * 100),
-    bestPicked: Math.round((regrets.filter((r) => r === 0).length / rows.length) * 100),
+    winnerPicked: Math.round((rows.filter((r) => r.hit).length / rows.length) * 100),
+    noiseAware: Math.round((rows.filter((r) => r.coHit).length / rows.length) * 100),
     picks: Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a).length]).filter(([, n]) => n > 0)),
     rows
   }
@@ -159,8 +172,160 @@ const results = [
   summarize('  other image models counted 0.25 (before)', loo(withParams({ otherModel: 0.25 }))),
   summarize('  other image models counted fully', loo(withParams({ otherModel: 1 }))),
   summarize('  without memory of like runs', loo(withParams({ prior: 50 }))),
-  summarize("oracle (the run's own winner)", heldOut.map(({ e }) => ({ id: e.id, game: e.game, type: typeName(e), arm: pick(e.regret), regret: 0 })))
+  summarize("oracle (the run's own winner)", heldOut.map(({ e }) => ({ id: e.id, game: e.game, type: typeName(e), ...outcome(e, pick(e.regret)) })))
 ]
+
+// The 80% target: how often the pick IS the winning strategy. "Winner picked" is strict: the pick has the lowest regret
+// of the five (a tie counts; the creator's own pick decides where they made one). "Noise-aware" also counts a pick the
+// judge cannot tell from the best at 1.96 standard errors (coWinners, selector.mjs), given the draw-to-draw noise
+// measured on these runs (SIGMA). Strict is the number to hold the target to; noise-aware only says how much of the rest is noise.
+// Every approach below is scored leave-one-out; anything tuned is tuned inside each fold (nested). The two marked
+// "after reading the data" were written once the winners were known, so their scores are optimistic.
+const featureRow = (e, names) => {
+  const level = (w) => matchLevel(e.game, e.refNames?.[w])
+  const all = {
+    exactN: +(level('nearest') === 'exact'), exactS: +(level('search') === 'exact'), nearN: +(level('nearest') === 'near'), nearS: +(level('search') === 'near'),
+    desc: +(nameTokens(e.game).length >= 3), words: Math.min(8, nameTokens(e.game).length), fitA: e.fit.nearestFit ?? 5, fitB: e.fit.searchFit ?? 5, clarity: e.fit.nameClarity ?? 5,
+    known: e.fit.knownGame ?? 5, realism: e.fit.realism ?? 5, abstract: e.fit.abstractness ?? 5, artA: e.fit.nearestArt ?? 5, artB: e.fit.searchArt ?? 5
+  }
+  return names.map((n) => all[n])
+}
+const weightOf = (e) => (e.model === MODEL ? 1 : DEFAULT_PARAMS.otherModel)
+
+/** Weighted ridge regression of each strategy's regret on standardised features; returns e => predicted regret per strategy. */
+function ridgeModel(train, names, lambda) {
+  const rows = train.map((e) => ({ e, x: featureRow(e, names), w: weightOf(e) }))
+  const W = rows.reduce((sum, r) => sum + r.w, 0)
+  const mu = names.map((_, j) => rows.reduce((sum, r) => sum + r.w * r.x[j], 0) / W)
+  const sd = names.map((_, j) => Math.sqrt(rows.reduce((sum, r) => sum + r.w * (r.x[j] - mu[j]) ** 2, 0) / W) || 1)
+  const z = (x) => x.map((v, j) => (v - mu[j]) / sd[j])
+  const d = names.length
+  const models = Object.fromEntries(
+    ARMS.map((arm) => {
+      const ybar = rows.reduce((sum, r) => sum + r.w * r.e.regret[arm], 0) / W
+      const M = Array.from({ length: d }, (_, i) => [...Array(d).fill(0), 0].map((_, j) => (i === j ? lambda : 0)))
+      for (const r of rows) {
+        const zr = z(r.x)
+        for (let i = 0; i < d; i++) {
+          for (let j = 0; j < d; j++) M[i][j] += r.w * zr[i] * zr[j]
+          M[i][d] += r.w * zr[i] * (r.e.regret[arm] - ybar)
+        }
+      }
+      for (let i = 0; i < d; i++) {
+        let p = i
+        for (let r = i + 1; r < d; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r
+        ;[M[i], M[p]] = [M[p], M[i]]
+        for (let r = 0; r < d; r++) {
+          if (r === i) continue
+          const f = M[r][i] / M[i][i]
+          for (let c = i; c <= d; c++) M[r][c] -= f * M[i][c]
+        }
+      }
+      return [arm, { ybar, beta: M.map((row, i) => row[d] / row[i]) }]
+    })
+  )
+  return (e) => {
+    const ze = z(featureRow(e, names))
+    return Object.fromEntries(ARMS.map((arm) => [arm, models[arm].ybar + models[arm].beta.reduce((sum, b, j) => sum + b * ze[j], 0)]))
+  }
+}
+
+/** A policy whose one knob is chosen per fold by leave-one-out regret on the other runs: make(knob) => (held, rest) => arm. */
+const nestedKnob = (knobs, make) => (held, rest) => {
+  const inner = rest.filter((r) => r.model === MODEL)
+  let best = null
+  for (const knob of knobs) {
+    const score = meanOf(inner.map((h) => h.regret[make(knob)(h, rest.filter((r) => r.id !== h.id))]))
+    if (!best || score < best.score - 1e-9) best = { knob, score }
+  }
+  return make(best.knob)(held, rest)
+}
+
+// A cell table: the prompt's type (exact name on the nearest game, on the search game, a description, a short name), each
+// cell's strategy the one with the lowest regret in past runs of that cell, shrunk toward all runs.
+const cellOf = (e) => {
+  const f = featureRow(e, ['exactN', 'exactS', 'desc'])
+  return f[0] ? 'nearest-exact' : f[1] ? 'search-exact' : f[2] ? 'description' : 'short'
+}
+const cellTable = (held, rest) => {
+  const same = rest.filter((r) => cellOf(r) === cellOf(held))
+  const total = rest.reduce((sum, r) => sum + weightOf(r), 0)
+  const weight = same.reduce((sum, r) => sum + weightOf(r), 0)
+  return pick(Object.fromEntries(ARMS.map((a) => [a, (same.reduce((sum, r) => sum + weightOf(r) * r.regret[a], 0) + 2 * (rest.reduce((sum, r) => sum + weightOf(r) * r.regret[a], 0) / total)) / (weight + 2)])))
+}
+const hardRule = (held) => ({ 'nearest-exact': 'remix', 'search-exact': 'search', description: 'plain', short: 'template' })[cellOf(held)]
+const ridgePolicy = (names) => nestedKnob([1, 3, 10, 30, 100, 1000], (lambda) => (held, rest) => pick(ridgeModel(rest, names, lambda)(held)))
+
+const approaches = [
+  summarize('selector before this change (no exact bonus)', loo(withParams({ exactBonus: 0 }))),
+  summarize('selector shipped (exact bonus 3)', loo(withParams({}))),
+  summarize('exact bonus chosen per fold (nested)', loo(nestedKnob([0, 1, 2, 3, 5, 8, 20], (exactBonus) => withParams({ exactBonus })))),
+  summarize('cell table learned (4 cells)', loo(cellTable)),
+  summarize('ridge on name match + length (nested)', loo(ridgePolicy(['exactN', 'exactS', 'nearN', 'nearS', 'desc']))),
+  summarize('ridge + fit ratings, clarity (nested)', loo(ridgePolicy(['exactN', 'exactS', 'nearN', 'nearS', 'desc', 'fitA', 'fitB', 'clarity']))),
+  summarize('ridge on every feature (nested)', loo(ridgePolicy(['exactN', 'exactS', 'nearN', 'nearS', 'desc', 'words', 'fitA', 'fitB', 'clarity', 'known', 'realism', 'abstract', 'artA', 'artB']))),
+  summarize('ridge on model ratings only (no name match)', loo(ridgePolicy(['desc', 'words', 'fitA', 'fitB', 'clarity', 'known', 'realism', 'abstract', 'artA', 'artB']))),
+  summarize('hard rule, after reading the data (optimistic)', loo(hardRule))
+]
+
+// What a perfect predictor could score: it knows each strategy's expected score exactly (taken as the observed mean),
+// and is judged against the winner of a fresh run, each draw SIGMA points of noise (a strategy drawn n times: SIGMA over sqrt n).
+function ceiling(reps = 400) {
+  let seed = 11
+  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const gauss = () => Math.sqrt(-2 * Math.log(random())) * Math.cos(2 * Math.PI * random())
+  let hits = 0
+  let total = 0
+  for (const { e } of heldOut) {
+    const run = JSON.parse(readFileSync(join(outputsDir, e.id, 'run.json'), 'utf8'))
+    const mu = Object.fromEntries(ARMS.map((a) => [a, meanOf(run.slots.filter((s) => s.strategy === a).map((s) => run.judge.scores.find((x) => x.slot === s.slot)).filter(Boolean).map((x) => Number(x.total)))]))
+    const n = Object.fromEntries(ARMS.map((a) => [a, Math.max(1, e.drawn?.[a] ?? 1)]))
+    const top = ARMS.reduce((b, a) => (mu[a] > mu[b] ? a : b))
+    for (let k = 0; k < reps; k++) {
+      const fresh = ARMS.reduce((b, a) => (mu[a] + (gauss() * SIGMA) / Math.sqrt(n[a]) > mu[b] + (gauss() * SIGMA) / Math.sqrt(n[b]) ? a : b))
+      total++
+      if (fresh === top) hits++
+    }
+  }
+  return Math.round((hits / total) * 100)
+}
+const ceilingPct = ceiling()
+
+// Learning curve: the shipped selector trained on n of the other runs of the shipped model (and all runs of the other models).
+function learningCurve(sizes, reps = 60) {
+  let seed = 5
+  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  return sizes.map((size) => {
+    let hits = 0
+    let regret = 0
+    let total = 0
+    for (let rep = 0; rep < reps; rep++) {
+      for (const { e, i } of heldOut) {
+        const rest = examples.filter((_, j) => j !== i)
+        const own = rest.filter((r) => r.model === MODEL)
+        const others = rest.filter((r) => r.model !== MODEL)
+        const chosen = own.map((r) => [random(), r]).sort((a, b) => a[0] - b[0]).slice(0, Math.min(size, own.length)).map(([, r]) => r)
+        const o = outcome(e, withParams({})(e, [...others, ...chosen]))
+        total++
+        if (o.hit) hits++
+        regret += o.regret
+      }
+    }
+    return { trainingRuns: Math.min(size, heldOut.length - 1), winnerPicked: Math.round((hits / total) * 100), meanRegret: round(regret / total) }
+  })
+}
+const curve = learningCurve([0, 3, 6, 9, 12, 15, 18, 21])
+
+// Where the curve is heading: the winner-picked share closes the gap to the perfect predictor's ceiling at a steady rate
+// (ln of the gap falls by a fixed amount per run). Fitted over the curve's points; a target at or above the ceiling is never reached.
+const projection = (() => {
+  const points = curve.filter((c) => c.winnerPicked < ceilingPct - 1).map((c) => [c.trainingRuns, Math.log(ceilingPct - c.winnerPicked)])
+  const mx = meanOf(points.map((p) => p[0]))
+  const my = meanOf(points.map((p) => p[1]))
+  const slope = points.reduce((sum, p) => sum + (p[0] - mx) * (p[1] - my), 0) / points.reduce((sum, p) => sum + (p[0] - mx) ** 2, 0)
+  const runsFor = (target) => (target >= ceilingPct ? null : Math.ceil((my - slope * mx - Math.log(ceilingPct - target)) / -slope))
+  return Object.fromEntries([60, 70, 75, 80].map((t) => [t, runsFor(t)]))
+})()
 
 // Request features: does a feature of the request (or of the reference it starts from) tell which strategy
 // wins, beyond the name match the selector already reads? Each set below adds features to the selector's kernel
@@ -206,7 +371,7 @@ function nestedLoo(grid, pool = examples) {
       const scores = grid.map(score)
       const best = scores.indexOf(Math.min(...scores))
       const arm = pick(expectedRegrets(e, rest, { ...DEFAULT_PARAMS, ...grid[best] }))
-      return { id: e.id, game: e.game, type: typeName(e), arm, regret: e.regret[arm], chose: best === 0 ? 'default' : Object.entries(grid[best]).filter(([k]) => k !== 'features' && k !== 'split').map(([k, v]) => `${k} ${v}`).join(' ') || 'on' }
+      return { id: e.id, game: e.game, type: typeName(e), ...outcome(e, arm), chose: best === 0 ? 'default' : Object.entries(grid[best]).filter(([k]) => k !== 'features' && k !== 'split').map(([k, v]) => `${k} ${v}`).join(' ') || 'on' }
     })
 }
 
@@ -266,15 +431,22 @@ const prospective = readdirSync(outputsDir)
 console.log(`\n${examples.length} explore runs; scored on the ${heldOut.length} drawn with ${MODEL}\n`)
 for (const r of results) {
   console.log(
-    `${r.policy.padEnd(38)} mean regret ${r.meanRegret.toFixed(2).padStart(5)}  95% CI ${r.ci95[0].toFixed(2)} to ${r.ci95[1].toFixed(2)}  best pick ${String(r.bestPicked).padStart(3)}%  within 2 pts ${String(r.within2).padStart(3)}%  picks ${JSON.stringify(r.picks)}`
+    `${r.policy.padEnd(38)} mean regret ${r.meanRegret.toFixed(2).padStart(5)}  95% CI ${r.ci95[0].toFixed(2)} to ${r.ci95[1].toFixed(2)}  winner picked ${String(r.winnerPicked).padStart(3)}% (noise-aware ${String(r.noiseAware).padStart(3)}%)  within 2 pts ${String(r.within2).padStart(3)}%  picks ${JSON.stringify(r.picks)}`
   )
 }
 
+console.log(`\nthe 80% target; noise between two draws of one strategy ${SIGMA.toFixed(2)} points, a perfect predictor of the expected scores would pick the fresh winner ${ceilingPct}% of the time (strict)`)
+console.log(`${'approach (leave-one-out)'.padEnd(52)} ${'winner picked'.padEnd(14)} ${'noise-aware'.padEnd(12)} ${'within 2'.padEnd(9)} mean regret (95% CI)`)
+for (const r of approaches) console.log(`${r.policy.padEnd(52)} ${(r.winnerPicked + '%').padEnd(14)} ${(r.noiseAware + '%').padEnd(12)} ${(r.within2 + '%').padEnd(9)} ${r.meanRegret.toFixed(2)} (${r.ci95[0].toFixed(2)} to ${r.ci95[1].toFixed(2)})`)
+console.log('learning curve of the shipped selector (training runs of the shipped model -> winner picked, mean regret):')
+console.log('  ' + curve.map((c) => `${c.trainingRuns}: ${c.winnerPicked}%, ${c.meanRegret.toFixed(2)}`).join('   '))
+console.log(`  explore runs of the shipped model needed to reach a strict winner-picked share, from that curve and the ceiling: ${Object.entries(projection).map(([t, n]) => `${t}%: ${n ?? 'never (at or above the ceiling)'}`).join(', ')}`)
+
 if (featureResults.length > 0) {
   console.log(`\nrequest features (${rated} of ${examples.length} examples rated); mean regret, shipped selector ${baseline.meanRegret.toFixed(2)}, always plain ${results.find((r) => r.policy === 'always plain').meanRegret.toFixed(2)}`)
-  console.log(`${'feature set'.padEnd(32)} ${'weight fixed (best/within 2)'.padEnd(34)} ${'nested, honest'.padEnd(34)} nested minus shipped (95% CI)   chose   permutation p`)
+  console.log(`${'feature set'.padEnd(32)} ${'weight fixed (winner/within 2)'.padEnd(34)} ${'nested, honest'.padEnd(34)} nested minus shipped (95% CI)   chose   permutation p`)
   for (const f of featureResults) {
-    const cell = (r) => `${r.meanRegret.toFixed(2)} (${r.ci95[0].toFixed(2)} to ${r.ci95[1].toFixed(2)}) ${String(r.bestPicked).padStart(2)}/${String(r.within2).padStart(3)}%`.padEnd(34)
+    const cell = (r) => `${r.meanRegret.toFixed(2)} (${r.ci95[0].toFixed(2)} to ${r.ci95[1].toFixed(2)}) ${String(r.winnerPicked).padStart(2)}/${String(r.within2).padStart(3)}%`.padEnd(34)
     console.log(`${f.set.padEnd(32)} ${cell(f.fixed)} ${cell(f.nested)} ${String(f.nestedMinusShipped).padStart(6)} (${f.nestedMinusShippedCi95[0]} to ${f.nestedMinusShippedCi95[1]})   ${JSON.stringify(f.chose)}${f.permutationP != null ? `   p=${f.permutationP}` : ''}`)
   }
 } else {
@@ -341,5 +513,5 @@ for (const r of shipped.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} $
 
 writeFileSync(
   join(root, 'debug', 'strategy-backtest_report.json'),
-  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, results, featureResults, featureBreakdown, prospective }, null, 1)}\n`
+  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, results, approaches, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
 )
