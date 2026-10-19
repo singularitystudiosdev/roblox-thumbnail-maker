@@ -55,7 +55,8 @@ async function viaFal({ model, reasoning = false }, { system, user, images }) {
       prompt: `${user}${order}\n\nReply with the JSON object only.`,
       max_tokens: reasoning ? 8000 : 1500,
       ...(reasoning ? { reasoning: true } : { temperature: 0 }),
-      ...(vision ? { image_urls: images.map(dataUrl) } : {})
+      // An image fal already hosts goes by its link; anything else as a data URL.
+      ...(vision ? { image_urls: images.map((img) => img.url ?? dataUrl(img)) } : {})
     },
     180000
   )
@@ -63,7 +64,8 @@ async function viaFal({ model, reasoning = false }, { system, user, images }) {
 }
 
 /**
- * `request`: { label, system, user, images?: [{ label?, mimeType, bytes }], schema? }.
+ * `request`: { label, system, user, images?: [{ label?, mimeType, bytes, url? }], schema? }; `url` is
+ * a public link fal can fetch instead of the bytes (Gemini always gets the bytes).
  * `routes`: [{ provider: 'gemini' | 'fal', model, reasoning? }]. Returns { value, provider, model }.
  */
 export async function askJson(request, routes) {

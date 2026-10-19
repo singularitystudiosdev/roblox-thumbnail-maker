@@ -62,7 +62,8 @@ async function viaFal(prompt, reference) {
   const url = body?.images?.[0]?.url
   if (!url) throw new Error('fal returned no image')
   const image = await download(url)
-  return { ...image, provider: 'fal', model: config().falModel }
+  // sourceUrl lets the judge send fal its own link instead of megabytes of base64.
+  return { ...image, sourceUrl: url, provider: 'fal', model: config().falModel }
 }
 
 /** Sends the exact prompt plus the reference image bytes; returns the image and which route served it. */

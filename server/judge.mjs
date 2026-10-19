@@ -14,6 +14,8 @@ import { downloadThumbnail, gameDetails, gameFromPlace, gameThumbnails } from '.
 export const CRITERIA = ['fitsGame', 'robloxStyle', 'clean', 'clickable', 'coherent']
 export const MAX_TOTAL = CRITERIA.length * 10
 export const PASSES = 3
+const PASS_STAGGER_MS = 1000
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const DESCRIPTION_LIMIT = 700
 
 const JUDGE_SYSTEM = `You judge Roblox game thumbnails for a creator. A good Roblox thumbnail lets a player scrolling past at small size understand the game at a glance and want to click it, and it never misleads them about what the game is.
@@ -189,7 +191,7 @@ export function judgeRequest(gameName, count, context) {
 
 async function judgeOnce(gameName, entries, context, random) {
   const order = shuffled(entries, random)
-  const images = order.map((entry, i) => ({ label: `Image ${i + 1}`, mimeType: entry.mimeType, bytes: entry.bytes }))
+  const images = order.map((entry, i) => ({ label: `Image ${i + 1}`, mimeType: entry.mimeType, bytes: entry.bytes, url: entry.sourceUrl }))
   if (context?.image) images.push({ label: "The game's current thumbnail (context, not a candidate)", ...context.image })
   const { value, provider, model } = await askJson(
     { label: 'Thumbnail judge', system: JUDGE_SYSTEM, user: judgeRequest(gameName, order.length, context), images, schema: JUDGE_SCHEMA },
@@ -208,7 +210,10 @@ export async function judgeThumbnails(gameName, entries, { random = Math.random,
   if (entries.length === 1) {
     return { winnerSlot: entries[0].slot, reason: 'The only thumbnail that generated.', scores: [], maxTotal: MAX_TOTAL, provider: null, model: null }
   }
-  const settled = await Promise.allSettled(Array.from({ length: passes }, () => judgeOnce(gameName, entries, context, random)))
+  // Passes start a second apart: fal refuses a burst of image-heavy requests landing at once.
+  const settled = await Promise.allSettled(
+    Array.from({ length: passes }, (_, i) => delay(i * PASS_STAGGER_MS).then(() => judgeOnce(gameName, entries, context, random)))
+  )
   const done = settled.flatMap((outcome, i) => {
     if (outcome.status === 'fulfilled') return [outcome.value]
     console.error(`Judge pass ${i + 1} of ${passes} failed:`, outcome.reason)
