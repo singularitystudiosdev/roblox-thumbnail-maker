@@ -84,6 +84,7 @@ function userPickedRuns() {
 const known = new Set(labels.map((l) => l.run))
 const allPicks = [...labels, ...userPickedRuns().filter((p) => !known.has(p.run))]
 const tunedOn = new Map(allPicks.map((l) => [l.run, l.tunedOn ?? null]))
+const library = judge.pickLibrary ? judge.pickLibrary(join(root, 'outputs'), new Map(allPicks.map((l) => [l.run, l.accept]))) : null
 const cases = given.length > 0 ? given : allPicks.map((l) => `${l.run}=${l.accept.join('|')}`)
 const report = { startedAt: new Date().toISOString(), trials, judgeExports: Object.keys(judge), cases: [] }
 
@@ -107,7 +108,8 @@ for (const spec of cases) {
     continue
   }
   const { run, dir, entries } = loadRun(runId)
-  const context = judge.judgeContext ? await judge.judgeContext(run, dir) : null
+  // Worked examples come from the other picks only: judgeContext leaves out this run's own.
+  const context = judge.judgeContext ? await judge.judgeContext(run, dir, process.env.NO_EXAMPLES === '1' ? { examples: 0 } : { library }) : null
   console.log(`\n=== ${run.gameName} (${runId}), expect ${expected}, context: ${context ? 'yes' : 'none'}`)
   // Trials run one after another: saved runs send their thumbnails as bytes, and fal refuses big bursts.
   const outcomes = []

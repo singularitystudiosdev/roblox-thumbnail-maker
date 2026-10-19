@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { combinePasses, JUDGE_SYSTEM, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, NAMED_MIN_PLAYING, readVerdict, renumber, shuffled } from './judge.mjs'
+import sharp from 'sharp'
+import { combinePasses, JUDGE_SYSTEM, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, NAMED_MIN_PLAYING, pickLibrary, readVerdict, renumber, shuffled, similarPicks } from './judge.mjs'
 
 const row = (image, n, note = 'fine') => ({ image, fitsGame: n, genreLook: n, clean: n, clickable: n, coherent: n, note })
 
@@ -168,4 +169,39 @@ test('the rubric never marks a thumbnail down for being less realistic than anot
   assert.doesNotMatch(JUDGE_SYSTEM, /realistic, cinematic renders, a simulator/)
   assert.match(JUDGE_SYSTEM, /realism is never a reason to score one above another/)
   assert.match(JUDGE_SYSTEM, /flat 2D or outlined drawing scores 1 to 4/)
+})
+
+test("the creator's earlier picks become worked examples: similar games first, never the run itself", async () => {
+  const outputs = mkdtempSync(join(tmpdir(), 'picks-'))
+  const make = (id, record) => {
+    mkdirSync(join(outputs, id), { recursive: true })
+    writeFileSync(join(outputs, id, 'run.json'), JSON.stringify(record))
+  }
+  const thumbnails = [1, 2, 3].map((slot) => ({ slot, imageUrl: `/outputs/x/thumbnail-${slot}.png` }))
+  const judge = (winner) => ({ winnerSlot: winner, scores: [1, 2, 3].map((slot) => ({ slot, total: slot === winner ? 45 : 40 - slot })) })
+  make('2026-10-19T01-a', { id: '2026-10-19T01-a', gameName: 'Rob a Bank', thumbnails, judge: judge(3), userPick: { slot: 1, at: 'x' } })
+  make('2026-10-19T02-b', { id: '2026-10-19T02-b', gameName: 'Bake a Cake', thumbnails, judge: judge(2), userPick: { slot: 2, accept: [2, 3], at: 'x' } })
+  make('2026-10-19T03-c', { id: '2026-10-19T03-c', gameName: 'Swat a House', thumbnails, judge: judge(1) }) // no pick
+  make('2026-10-19T04-d', { id: '2026-10-19T04-d', gameName: 'Rob a Bank (again)', thumbnails, judge: judge(1) })
+  const library = pickLibrary(outputs, new Map([['2026-10-19T04-d', [2]]]))
+  assert.deepEqual(library.map((e) => e.id), ['2026-10-19T01-a', '2026-10-19T02-b', '2026-10-19T04-d'])
+  // The thumbnail they took, and the best total among those they did not (never one they accepted).
+  assert.deepEqual(library.map((e) => [e.chosen, e.passed]), [[1, 3], [2, 1], [2, 1]])
+  const run = { id: '2026-10-19T05-e', gameName: 'Rob a Bank' }
+  assert.deepEqual(similarPicks(run, library, 2).map((e) => e.id), ['2026-10-19T04-d', '2026-10-19T01-a'])
+  // The run being judged is never its own example.
+  assert.ok(!similarPicks({ ...run, id: '2026-10-19T01-a' }, library, 3).some((e) => e.id === '2026-10-19T01-a'))
+
+  const png = await sharp({ create: { width: 64, height: 36, channels: 3, background: '#c33' } }).png().toBuffer()
+  for (const id of ['2026-10-19T01-a', '2026-10-19T02-b']) for (const slot of [1, 2, 3]) writeFileSync(join(outputs, id, `thumbnail-${slot}.png`), png)
+  const context = await judgeContext({ ...run, link: null, reference: null }, join(outputs, '2026-10-19T05-e'), { library: library.slice(0, 2) })
+  assert.equal(context.bare, true)
+  assert.equal(context.examples.length, 2)
+  assert.equal(context.examples[0].chosen.mimeType, 'image/jpeg')
+  const request = judgeRequest('Rob a Bank', 3, context)
+  assert.match(request, /2 pairs[\s\S]*never copy their subjects[\s\S]*Candidates: Image 1, Image 2, Image 3\.$/)
+  assert.doesNotMatch(request, /Context: the most played/)
+  // Without examples the request is the plain one.
+  assert.doesNotMatch(judgeRequest('Rob a Bank', 3, null), /pairs/)
+  assert.equal(await judgeContext({ ...run, link: null, reference: null }, join(outputs, '2026-10-19T05-e'), { library, examples: 0 }), null)
 })

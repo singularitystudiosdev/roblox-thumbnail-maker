@@ -5,8 +5,9 @@
 // order labelled by position ("Image 1" is simply the first image, so the model
 // never has to map labels to images); code maps positions back to slots.
 // Several passes vote, so neither order nor one sample decides.
-import { readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
+import sharp from 'sharp'
 import { askJson, judgeRoutes, withoutDashes } from './llm.mjs'
 import { imageMimeType } from './mime.mjs'
 import { downloadThumbnail, gameDetails, gameFromPlace, gameThumbnails } from './roblox.mjs'
@@ -149,6 +150,68 @@ async function ownGameContext(run, dir, place, thumbnailOf) {
   return { own: true, name: game.name, playing: game.playing ?? 0, description: tidy(game.description).slice(0, DESCRIPTION_LIMIT), image }
 }
 
+// Worked examples: earlier picks of the creator, shown to the judge as chosen and passed over pairs.
+export const EXAMPLE_PAIRS = 2
+const EXAMPLE_WIDTH = 512
+const STOP_WORDS = new Set(['the', 'a', 'an', 'of', 'to', 'in', 'on', 'and', 'for', 'game', 'roblox', 'my', 'make', 'me'])
+const tokensOf = (text) => new Set(String(text ?? '').toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length > 1 && !STOP_WORDS.has(w)) ?? [])
+
+/** The creator's picks among the saved runs in `outputsDir`, each with the thumbnail they took and the one the judge liked best among those they did not. */
+export function pickLibrary(outputsDir, labelled = new Map()) {
+  const library = []
+  for (const id of readdirSync(outputsDir).sort()) {
+    const file = join(outputsDir, id, 'run.json')
+    if (!existsSync(file)) continue
+    let record
+    try {
+      record = JSON.parse(readFileSync(file, 'utf8'))
+    } catch (err) {
+      console.error(`Saved run ${id} could not be read for the judge's examples; skipping it:`, err)
+      continue
+    }
+    // `labelled` (run id to accepted slots) adds picks that were recorded outside the run, as debug/labels.json does.
+    const pick = record.userPick ?? (labelled.has(id) ? { slot: labelled.get(id)[0], accept: labelled.get(id) } : null)
+    const accepted = Array.isArray(pick?.accept) && pick.accept.length ? pick.accept.map(Number) : Number.isInteger(pick?.slot) ? [pick.slot] : []
+    const has = (slot) => record.thumbnails?.some((t) => t.slot === slot && t.imageUrl)
+    const chosen = has(pick?.slot) ? pick.slot : accepted.find(has)
+    if (chosen == null) continue
+    const passed = (record.judge?.scores ?? [])
+      .filter((s) => !accepted.includes(s.slot) && has(s.slot))
+      .sort((a, b) => b.total - a.total)[0]?.slot
+    if (passed == null) continue
+    const words = tokensOf([record.gameName, record.reference?.name, record.searchReference?.name].join(' '))
+    library.push({ id, dir: join(outputsDir, id), gameName: record.gameName, words, chosen, passed, file: (slot) => basename(record.thumbnails.find((t) => t.slot === slot).imageUrl) })
+  }
+  return library
+}
+
+/** The picks of other runs most like this one: the most words shared with its game, newest first among equals. */
+export function similarPicks(run, library, count = EXAMPLE_PAIRS) {
+  const mine = tokensOf([run.gameName, run.reference?.name, run.searchReference?.name].join(' '))
+  const shared = (entry) => [...entry.words].filter((w) => mine.has(w)).length
+  return library
+    .filter((entry) => entry.id !== run.id)
+    .sort((a, b) => shared(b) - shared(a) || (a.id < b.id ? 1 : -1))
+    .slice(0, count)
+}
+
+const smaller = async (bytes) => ({ bytes: await sharp(bytes).resize({ width: EXAMPLE_WIDTH }).jpeg({ quality: 72 }).toBuffer(), mimeType: 'image/jpeg' })
+
+/** Each example pair as two small images: what the creator chose and what they passed over. */
+async function loadExamples(entries) {
+  const out = []
+  for (const entry of entries) {
+    try {
+      const chosen = await smaller(readFileSync(join(entry.dir, entry.file(entry.chosen))))
+      const passed = await smaller(readFileSync(join(entry.dir, entry.file(entry.passed))))
+      out.push({ gameName: entry.gameName, chosen, passed })
+    } catch (err) {
+      console.error(`Example pair from ${entry.id} for the judge could not be read; leaving it out:`, err)
+    }
+  }
+  return out
+}
+
 /**
  * What the judge is told the game is. A linked game is the creator's own: its
  * description and current thumbnail, whichever game the remixes started from.
@@ -162,7 +225,21 @@ async function ownGameContext(run, dir, place, thumbnailOf) {
  * life because the nearest game happened to be realistic. A different game's
  * look never decides this game's. Null when there is neither.
  */
-export async function judgeContext(
+export async function judgeContext(run, dir, options = {}) {
+  const context = await gameContext(run, dir, options)
+  const { examples = EXAMPLE_PAIRS } = options
+  if (!examples) return context
+  let pairs = []
+  try {
+    const library = options.library ?? pickLibrary(dirname(dir))
+    pairs = await loadExamples(similarPicks(run, library, examples))
+  } catch (err) {
+    console.error("The creator's earlier picks for the judge failed; judging without examples:", err)
+  }
+  return pairs.length ? { ...(context ?? { bare: true }), examples: pairs } : context
+}
+
+async function gameContext(
   run,
   dir,
   { details = gameDetails, place = gameFromPlace, thumbnailOf = firstThumbnail } = {}
@@ -238,10 +315,15 @@ export function judgeRequest(gameName, count, context) {
     lines.push(
       `Context: the creator attached a reference image and asked for thumbnails based on it. The last image is that reference image: it shows the look and subject they want. It is context, not a candidate.`
     )
-  } else if (context) {
+  } else if (context && !context.bare) {
     lines.push(
       `Context: the most played Roblox game like the creator's is "${context.name}", with ${context.playing} playing now.${about}`,
       `It is a different game: use it only to understand this kind of game, not as the creator's game.`
+    )
+  }
+  if (context?.examples?.length) {
+    lines.push(
+      `The creator has picked between thumbnails before, for other games. After the candidates and any context image come ${context.examples.length} pairs: in each, the thumbnail marked "chosen" is the one the creator took and the one marked "passed over" is one they did not. They are for different games, so never copy their subjects: use them only to learn what this creator values in a thumbnail, and let that guide your scores and your pick. They are never candidates.`
     )
   }
   lines.push(`Candidates: ${Array.from({ length: count }, (_, i) => `Image ${i + 1}`).join(', ')}.`)
@@ -254,6 +336,10 @@ async function judgeOnce(gameName, entries, context, random, system) {
   if (context?.image) {
     const label = context.attached ? "The creator's reference image (context, not a candidate)" : "The game's current thumbnail (context, not a candidate)"
     images.push({ label, ...context.image })
+  }
+  for (const [i, pair] of (context?.examples ?? []).entries()) {
+    images.push({ label: `Pair ${i + 1} (${pair.gameName}), chosen by the creator (context, not a candidate)`, ...pair.chosen })
+    images.push({ label: `Pair ${i + 1}, passed over by the creator (context, not a candidate)`, ...pair.passed })
   }
   const { value, provider, model } = await askJson(
     { label: 'Thumbnail judge', system, user: judgeRequest(gameName, order.length, context), images, schema: JUDGE_SCHEMA },
