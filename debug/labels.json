@@ -100,6 +100,46 @@
         7
       ],
       "tunedOn": "nolook-v1"
+    },
+    {
+      "run": "2026-10-19T09-56-25-140Z-ecf1479c",
+      "game": "Domino game (explore, Nano Banana 2.1)",
+      "accept": [
+        3,
+        7
+      ]
+    },
+    {
+      "run": "2026-10-19T09-56-11-565Z-32f755cf",
+      "game": "Explode Noobs (explore, Nano Banana 2.1)",
+      "accept": [
+        3,
+        7
+      ]
+    },
+    {
+      "run": "2026-10-19T09-55-43-148Z-0b2cb0d9",
+      "game": "Run on a treadmill in a basement (explore, Nano Banana 2.1)",
+      "accept": [
+        5
+      ]
+    },
+    {
+      "run": "2026-10-19T09-55-26-608Z-d1c4e164",
+      "game": "Own a house in the mountains (explore, Nano Banana 2.1)",
+      "accept": [
+        1
+      ]
+    },
+    {
+      "run": "2026-10-19T09-53-41-053Z-50ec6618",
+      "game": "Swat a House (explore, Nano Banana 2.1)",
+      "accept": [
+        2,
+        4,
+        6,
+        7
+      ]
     }
   ]
 }

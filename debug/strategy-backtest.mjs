@@ -12,7 +12,9 @@
 //                 features (one vision call each, 4 s apart; rewrites the seed after each)
 //   --refresh     the same, for every explore run, replacing the features already rated
 //   --write-seed  save every example to server/selector-seed.json, the examples the app ships with
+//   --quick       skip the request-feature sets and their permutation tests (the slow part, over 20 minutes at 32 runs)
 // Writes debug/strategy-backtest_report.json.
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -314,7 +316,7 @@ function learningCurve(sizes, reps = 60) {
     return { trainingRuns: Math.min(size, heldOut.length - 1), winnerPicked: Math.round((hits / total) * 100), meanRegret: round(regret / total) }
   })
 }
-const curve = learningCurve([0, 3, 6, 9, 12, 15, 18, 21])
+const curve = learningCurve([0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30])
 
 // Where the curve is heading: the winner-picked share closes the gap to the perfect predictor's ceiling at a steady rate
 // (ln of the gap falls by a fixed amount per run). Fitted over the curve's points; a target at or above the ceiling is never reached.
@@ -389,8 +391,32 @@ function shuffled(pool, features, seed) {
 }
 
 const baseline = results.find((r) => r.policy === 'selector (shipped)')
+
+// The selector apart on runs the creator picked a winner in and runs only the judge scored. The judge's own leanings
+// (its named-game context rewards a close copy of the real game's thumbnail, which the exact-name bonus then learns)
+// show up as a gap between the two, so the exact-name bonus is scored on each too.
+const noExactBonus = approaches.find((r) => r.policy.startsWith('selector before this change'))
+const pickedIds = new Set(examples.filter((e) => e.picked).map((e) => e.id))
+const bySource = [['creator picked', true], ['judge only', false]].flatMap(([source, picked]) => {
+  const keep = (rows) => rows.filter((row) => pickedIds.has(row.id) === picked)
+  if (keep(baseline.rows).length === 0) return []
+  return [{ source, n: keep(baseline.rows).length, shipped: summarize(`selector (shipped), ${source}`, keep(baseline.rows)), noExactBonus: summarize(`no exact bonus, ${source}`, keep(noExactBonus.rows)), alwaysPlain: summarize(`always plain, ${source}`, keep(results.find((r) => r.policy === 'always plain').rows)) }]
+})
+
+// The judge behind every label the creator did not override: server/judge.mjs at its last commit, and whether the
+// working copy differs (runs record no judge version, so a run re-judged since may carry a different one).
+const judgeAt = (() => {
+  try {
+    const git = (...gitArgs) => execFileSync('git', gitArgs, { cwd: root, encoding: 'utf8' }).trim()
+    return { commit: git('log', '-1', '--format=%h', '--', 'server/judge.mjs'), changedSinceCommit: git('status', '--porcelain', '--', 'server/judge.mjs') !== '' }
+  } catch (err) {
+    console.error('Reading the judge commit failed:', err)
+    return null
+  }
+})()
+
 const featureResults = []
-if (rated >= examples.length * 0.9) {
+if (!args.has('--quick') && rated >= examples.length * 0.9) {
   for (const [name, { grid, fixed }] of FEATURE_SETS) {
     const fixedRows = loo(withParams(fixed))
     const nestedRows = nestedLoo(grid)
@@ -449,6 +475,8 @@ if (featureResults.length > 0) {
     const cell = (r) => `${r.meanRegret.toFixed(2)} (${r.ci95[0].toFixed(2)} to ${r.ci95[1].toFixed(2)}) ${String(r.winnerPicked).padStart(2)}/${String(r.within2).padStart(3)}%`.padEnd(34)
     console.log(`${f.set.padEnd(32)} ${cell(f.fixed)} ${cell(f.nested)} ${String(f.nestedMinusShipped).padStart(6)} (${f.nestedMinusShippedCi95[0]} to ${f.nestedMinusShippedCi95[1]})   ${JSON.stringify(f.chose)}${f.permutationP != null ? `   p=${f.permutationP}` : ''}`)
   }
+} else if (args.has('--quick')) {
+  console.log('\nrequest features: skipped (--quick)')
 } else {
   console.log(`\nrequest features: only ${rated} of ${examples.length} examples are rated; run \`node debug/strategy-backtest.mjs --rate\` first`)
 }
@@ -508,10 +536,16 @@ if (prospective.length > 0) {
   for (const p of prospective) console.log(`  ${p.game.slice(0, 36).padEnd(36)} ${p.type.padEnd(32)} picked ${p.arm.padEnd(8)} regret ${p.regret.toFixed(1)}`)
 }
 
+console.log(`\nby who chose the winner (judge ${judgeAt ? `${judgeAt.commit}${judgeAt.changedSinceCommit ? ', changed since' : ''}` : 'unknown'}): winner picked, within 2, mean regret`)
+for (const s of bySource) {
+  const cell = (r) => `${String(r.winnerPicked).padStart(3)}% ${String(r.within2).padStart(3)}% ${r.meanRegret.toFixed(2)}`
+  console.log(`  ${s.source.padEnd(16)} n=${String(s.n).padStart(2)}  selector ${cell(s.shipped)}   no exact bonus ${cell(s.noExactBonus)}   always plain ${cell(s.alwaysPlain)}`)
+}
+
 console.log('\nselector picks, leave-one-out:')
 for (const r of shipped.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} ${r.type.padEnd(32)} ${r.arm.padEnd(8)} regret ${r.regret.toFixed(1)}`)
 
 writeFileSync(
   join(root, 'debug', 'strategy-backtest_report.json'),
-  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, results, approaches, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
+  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, judge: judgeAt, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, results, approaches, bySource, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
 )

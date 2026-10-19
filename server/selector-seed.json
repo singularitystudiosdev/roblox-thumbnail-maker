@@ -1443,6 +1443,396 @@
     "plain": 1
    },
    "picked": true
+  },
+  {
+   "id": "2026-10-19T09-53-26-054Z-669c388a",
+   "game": "Bake a Cake",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 6,
+    "nameClarity": 4,
+    "genre": "simulator",
+    "realism": 8,
+    "abstractness": 5,
+    "knownGame": 4,
+    "nearestArt": 2,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10533638982",
+    "search": "1500885084"
+   },
+   "refNames": {
+    "nearest": "🍰 Cake Mountain 🥄",
+    "search": "Make a cake and eat it!"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 16.3,
+    "search": 4.4,
+    "meta": 12,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T09-53-41-053Z-50ec6618",
+   "game": "Swat a House",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 4,
+    "nameClarity": 4,
+    "genre": "shooter",
+    "realism": 8,
+    "abstractness": 6,
+    "knownGame": 3,
+    "nearestArt": 8,
+    "searchArt": 4
+   },
+   "refs": {
+    "nearest": "9807649116",
+    "search": "10768544078"
+   },
+   "refNames": {
+    "nearest": "[👮] Tactical: Swat Simulator",
+    "search": "[🚨] SWAT Manager"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 0,
+    "search": 5.3,
+    "meta": 0,
+    "plain": 2.7
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T09-53-56-052Z-cf5058e1",
+   "game": "Rob Grandmas House",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 3,
+    "nameClarity": 6,
+    "genre": "roleplay",
+    "realism": 8,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "9472441390",
+    "search": "10761593386"
+   },
+   "refNames": {
+    "nearest": "[🎃] 💎 ROB IT",
+    "search": "🌽 Rob The Farmer! [UPD]"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 3.3,
+    "remix": 8.1,
+    "search": 0,
+    "meta": 0,
+    "plain": 1.6
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T09-54-15-871Z-fcc010d6",
+   "game": "Print Money",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 8,
+    "nameClarity": 3,
+    "genre": "tycoon",
+    "realism": 6,
+    "abstractness": 8,
+    "knownGame": 4,
+    "nearestArt": 6,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10765568909",
+    "search": "9765294056"
+   },
+   "refNames": {
+    "nearest": "[🎃] Print Mania! ",
+    "search": "[💸] Money Printer Tycoon!"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0.3,
+    "remix": 9,
+    "search": 8.3,
+    "meta": 4,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T09-54-38-851Z-a1dbc02d",
+   "game": "bury a body",
+   "fit": {
+    "nearestFit": 7,
+    "searchFit": 3,
+    "nameClarity": 4,
+    "genre": "other",
+    "realism": 6,
+    "abstractness": 5,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 2
+   },
+   "refs": {
+    "nearest": "7823137182",
+    "search": "8745312718"
+   },
+   "refNames": {
+    "nearest": "Hide the body",
+    "search": "Hide Your Body Parts"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0.6,
+    "remix": 13.3,
+    "search": 18.3,
+    "meta": 3.3,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T09-55-00-058Z-12cec498",
+   "game": "Banana man",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 3,
+    "nameClarity": 2,
+    "genre": "other",
+    "realism": 3,
+    "abstractness": 9,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 9
+   },
+   "refs": {
+    "nearest": "1415710834",
+    "search": "10337527467"
+   },
+   "refNames": {
+    "nearest": "[🎃] Banana Eats ",
+    "search": "Banana"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2.7,
+    "remix": 1.9,
+    "search": 19.7,
+    "meta": 0,
+    "plain": 4
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T09-55-26-608Z-d1c4e164",
+   "game": "Own a house in the mountains",
+   "fit": {
+    "nearestFit": 7,
+    "searchFit": 7,
+    "nameClarity": 6,
+    "genre": "tycoon",
+    "realism": 8,
+    "abstractness": 4,
+    "knownGame": 2,
+    "nearestArt": 8,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "4925331346",
+    "search": "4518160318"
+   },
+   "refNames": {
+    "nearest": "Giga Mansion Tycoon 🏝️",
+    "search": "Mansion Tycoon 🌴🏠"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 14.9,
+    "search": 2,
+    "meta": 12,
+    "plain": 2.7
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T09-55-43-148Z-0b2cb0d9",
+   "game": "Run on a treadmill in a basement",
+   "fit": {
+    "nearestFit": 2,
+    "searchFit": 4,
+    "nameClarity": 9,
+    "genre": "simulator",
+    "realism": 8,
+    "abstractness": 2,
+    "knownGame": 2,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "9584852943",
+    "search": "10730818741"
+   },
+   "refNames": {
+    "nearest": "[🎃] +1 Speed Keyboard Escape | Candy & Chocolate",
+    "search": "💀 Run Or Die!"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 10.2,
+    "search": 2,
+    "meta": 9.6,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T09-56-11-565Z-32f755cf",
+   "game": "Explode Noobs",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 8,
+    "nameClarity": 5,
+    "genre": "other",
+    "realism": 2,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 6,
+    "searchArt": 1
+   },
+   "refs": {
+    "nearest": "9303888964",
+    "search": "7516718402"
+   },
+   "refNames": {
+    "nearest": "👊 Beat the Noob!",
+    "search": "💥 Noobs Must Die"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 5.7,
+    "remix": 0,
+    "search": 0,
+    "meta": 5,
+    "plain": 2
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T09-56-25-140Z-ecf1479c",
+   "game": "Domino game",
+   "fit": {
+    "nearestFit": 7,
+    "searchFit": 8,
+    "nameClarity": 4,
+    "genre": "other",
+    "realism": 6,
+    "abstractness": 6,
+    "knownGame": 3,
+    "nearestArt": 6,
+    "searchArt": 6
+   },
+   "refs": {
+    "nearest": "6535370051",
+    "search": "5501560386"
+   },
+   "refNames": {
+    "nearest": "Domino Engine",
+    "search": "Mega Domino Playground🔥"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 0,
+    "search": 0,
+    "meta": 2,
+    "plain": 2
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   }
  ]
 }
