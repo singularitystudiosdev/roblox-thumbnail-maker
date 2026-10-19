@@ -2219,6 +2219,49 @@
     "plain": 1
    },
    "picked": true
+  },
+  {
+   "id": "2026-10-19T11-54-29-618Z-030c8fb9",
+   "game": "Catch fish on a frozen lake",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 4,
+    "nameClarity": 8,
+    "genre": "simulator",
+    "realism": 8,
+    "abstractness": 2,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 7
+   },
+   "base": {
+    "nearestBase": 2.7,
+    "searchBase": 5.3
+   },
+   "refs": {
+    "nearest": "9906378607",
+    "search": "10526853622"
+   },
+   "refNames": {
+    "nearest": "[🎣UPDATE] Hole Fishing",
+    "search": "[🎃] Deep Fishing🎣"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 0,
+    "search": 2,
+    "meta": 0,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   }
  ]
 }

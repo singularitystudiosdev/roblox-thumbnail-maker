@@ -55,7 +55,8 @@ const FAMILY = { template: 'template', plain: 'plain', remix: 'remix', meta: 'on
 // drawn from, else the style image; 5.5 is the rubrics' own "as good as the style image" (5) plus half a point, and
 // 4.5 to 6.5 all draw a strategy the creator took on 14 or 15 of their 17 picked runs. A reference whose art fit.mjs
 // rates flatArt or under (flat 2D drawing) is never drawn from: a remake keeps its look, which is not the Roblox look.
-export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, judgeOnly: 0, features: [], featureWeight: 1, split: [], baseBar: 5.5, flatArt: 2 }
+// orderMargin: how many more picks the other strategy of an image needs before it comes first (chooseByPanel).
+export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, judgeOnly: 0, features: [], featureWeight: 1, split: [], baseBar: 5.5, flatArt: 2, orderMargin: 2 }
 
 /**
  * The request features fit.mjs rates in its one call: realism, abstractness and knownGame (1 to 10) and genre
@@ -377,10 +378,14 @@ const rankedBy = (expected) => [...ARMS].sort((a, b) => expected[a] - expected[b
 /** The examples that teach a pick for `current`: all of them, less the judge-only runs of its model when those count nothing. */
 const teaching = (current, examples, params) => examples.filter((e) => exampleWeight(current, e, forCurrent(current, examples, params)) > 0).length
 
-/** Of two strategies that start from one image, the one the creator took in more of `picks`, then the other (a tie keeps `a` first). */
-function takenMore(picks, a, b) {
+/**
+ * Of two strategies that start from one image, `a` (the default) then `b`, unless the creator took `b` in at least
+ * `margin` more of `picks`. A lead of one pick is noise: the two templates differ by two words, the creator took each
+ * 3 times in 18 picked runs, and flipping on one pick cost 2 of them leave-one-out.
+ */
+function takenMore(picks, a, b, margin) {
   const taken = (arm) => picks.filter((e) => e.regret[arm] === 0).length
-  return taken(b) > taken(a) ? [b, a] : [a, b]
+  return taken(b) >= taken(a) + margin ? [b, a] : [a, b]
 }
 
 /**
@@ -389,7 +394,8 @@ function takenMore(picks, a, b) {
  * the style image (template or plain), which rates `baseBar`. A run draws one thumbnail from each of the two best
  * sources, the best strategy of each, or, when neither reference beats the style image, both style strategies:
  * two images from one reference would only repeat each other. Which strategy of a source comes first is learned:
- * the one the creator took more often in their picked runs of this image model (every model's picks until it
+ * the exact template and remix by default (the exact template is the spec's first thumbnail), the other once the
+ * creator took it in `orderMargin` more of their picked runs of this image model (every model's picks until it
  * has some). A reference with flat 2D art (fit.mjs, `flatArt` or under) or none found is never drawn from.
  * Returns chooseArm's shape with method 'panel' and `base`: the two ratings, the bar and which art was flat.
  */
@@ -401,9 +407,9 @@ export function chooseByPanel(current, examples, params = DEFAULT_PARAMS) {
   const nearestFlat = flat(current.fit?.nearestArt)
   const searchFlat = flat(current.fit?.searchArt)
   const { nearestBase = null, searchBase = null } = current.base ?? {}
-  const style = takenMore(picks, 'template', 'plain')
+  const style = takenMore(picks, 'template', 'plain', params.orderMargin)
   const sources = [
-    { arms: takenMore(picks, 'remix', 'meta'), score: nearestBase == null || nearestFlat ? -Infinity : nearestBase },
+    { arms: takenMore(picks, 'remix', 'meta', params.orderMargin), score: nearestBase == null || nearestFlat ? -Infinity : nearestBase },
     { arms: ['search'], score: searchBase == null || searchFlat ? -Infinity : searchBase },
     { arms: style, score: params.baseBar, style: true }
   ].sort((a, b) => b.score - a.score)

@@ -1,173 +1,182 @@
 {
-  "about": "The creator's own winner picks for saved runs: run id (outputs/<run>/, kept on the machine that made it; outputs/ is not committed) and the thumbnail slots they accept as the winner. debug/rejudge.mjs re-judges every set here when given no sets. tunedOn names the judge rubric that was adjusted while looking at the set, so its score there is in-sample; a set with no tunedOn is held out and is the real test of the judge. Picks the creator made in the UI are also read straight from outputs/*/run.json userPick by debug/rejudge.mjs (a userPick run with no entry here counts as held out); an entry here wins for the same run.",
-  "labels": [
-    {
-      "run": "2026-10-19T04-05-22-531Z-e01f3485",
-      "game": "Break and Steal an Egg (High Angle set)",
-      "accept": [
-        2
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T04-07-11-327Z-b34fd74a",
-      "game": "Break and Steal an Egg (circular crop set)",
-      "accept": [
-        3
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T04-56-50-777Z-2123e943",
-      "game": "Swat a House",
-      "accept": [
-        2,
-        3
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T04-03-10-979Z-e858cac7",
-      "game": "Break and Steal an Egg (Profile / novel perspective set)",
-      "accept": [
-        3
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T04-32-39-615Z-fb958edb",
-      "game": "Bake a Cake",
-      "accept": [
-        1
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T04-50-50-238Z-d0bacafa",
-      "game": "rob a bank",
-      "accept": [
-        5
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T05-31-07-331Z-6a0804d0",
-      "game": "Rob a Bank (museum remixes)",
-      "accept": [
-        5
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T05-33-16-122Z-dfc7b5f0",
-      "game": "Rob a Bank (flat 2D template)",
-      "accept": [
-        5
-      ],
-      "tunedOn": "v8a"
-    },
-    {
-      "run": "2026-10-19T08-09-57-005Z-13633f2b",
-      "game": "Blade Ball (explore, Nano Banana 2.1)",
-      "accept": [
-        3
-      ],
-      "tunedOn": "named-v1"
-    },
-    {
-      "run": "2026-10-19T08-09-42-006Z-6e6de45e",
-      "game": "Grow a Garden (explore, Nano Banana 2.1)",
-      "accept": [
-        2
-      ],
-      "tunedOn": "named-v1"
-    },
-    {
-      "run": "2026-10-19T08-16-22-813Z-f4bf8a25",
-      "game": "Rob a Bank (explore, Nano Banana 2.1)",
-      "accept": [
-        1
-      ],
-      "tunedOn": "nolook-v1"
-    },
-    {
-      "run": "2026-10-19T08-37-14-547Z-b4e77b2f",
-      "game": "Grow a Giant Pumpkin (explore, Nano Banana 2.1)",
-      "accept": [
-        2,
-        4,
-        6,
-        7
-      ],
-      "tunedOn": "nolook-v1"
-    },
-    {
-      "run": "2026-10-19T09-56-25-140Z-ecf1479c",
-      "game": "Domino game (explore, Nano Banana 2.1)",
-      "accept": [
-        3,
-        7
-      ]
-    },
-    {
-      "run": "2026-10-19T09-56-11-565Z-32f755cf",
-      "game": "Explode Noobs (explore, Nano Banana 2.1)",
-      "accept": [
-        3,
-        7
-      ]
-    },
-    {
-      "run": "2026-10-19T09-55-43-148Z-0b2cb0d9",
-      "game": "Run on a treadmill in a basement (explore, Nano Banana 2.1)",
-      "accept": [
-        5
-      ]
-    },
-    {
-      "run": "2026-10-19T09-55-26-608Z-d1c4e164",
-      "game": "Own a house in the mountains (explore, Nano Banana 2.1)",
-      "accept": [
-        1
-      ]
-    },
-    {
-      "run": "2026-10-19T09-53-41-053Z-50ec6618",
-      "game": "Swat a House (explore, Nano Banana 2.1)",
-      "accept": [
-        2,
-        4,
-        6,
-        7
-      ]
-    },
-    {
-      "run": "2026-10-19T11-08-01-463Z-c685624d",
-      "game": "Bake a cake (explore, Nano Banana 2.1)",
-      "accept": [
-        5
-      ]
-    },
-    {
-      "run": "2026-10-19T11-07-46-465Z-93b082b2",
-      "game": "Make a burger (explore, Nano Banana 2.1)",
-      "accept": [
-        3
-      ]
-    },
-    {
-      "run": "2026-10-19T11-19-03-072Z-62af5bea",
-      "game": "Haunted House Tycoon (explore, Nano Banana 2.1)",
-      "accept": [
-        3
-      ]
-    },
-    {
-      "run": "2026-10-19T11-19-18-071Z-a49ab406",
-      "game": "Stop it Slender (explore, Nano Banana 2.1)",
-      "accept": [
-        1
-      ]
-    }
-  ]
+ "about": "The creator's own winner picks for saved runs: run id (outputs/<run>/, kept on the machine that made it; outputs/ is not committed) and the thumbnail slots they accept as the winner. debug/rejudge.mjs re-judges every set here when given no sets. tunedOn names the judge rubric that was adjusted while looking at the set, so its score there is in-sample; a set with no tunedOn is held out and is the real test of the judge. Picks the creator made in the UI are also read straight from outputs/*/run.json userPick by debug/rejudge.mjs (a userPick run with no entry here counts as held out); an entry here wins for the same run.",
+ "labels": [
+  {
+   "run": "2026-10-19T04-05-22-531Z-e01f3485",
+   "game": "Break and Steal an Egg (High Angle set)",
+   "accept": [
+    2
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T04-07-11-327Z-b34fd74a",
+   "game": "Break and Steal an Egg (circular crop set)",
+   "accept": [
+    3
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T04-56-50-777Z-2123e943",
+   "game": "Swat a House",
+   "accept": [
+    2,
+    3
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T04-03-10-979Z-e858cac7",
+   "game": "Break and Steal an Egg (Profile / novel perspective set)",
+   "accept": [
+    3
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T04-32-39-615Z-fb958edb",
+   "game": "Bake a Cake",
+   "accept": [
+    1
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T04-50-50-238Z-d0bacafa",
+   "game": "rob a bank",
+   "accept": [
+    5
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T05-31-07-331Z-6a0804d0",
+   "game": "Rob a Bank (museum remixes)",
+   "accept": [
+    5
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T05-33-16-122Z-dfc7b5f0",
+   "game": "Rob a Bank (flat 2D template)",
+   "accept": [
+    5
+   ],
+   "tunedOn": "v8a"
+  },
+  {
+   "run": "2026-10-19T08-09-57-005Z-13633f2b",
+   "game": "Blade Ball (explore, Nano Banana 2.1)",
+   "accept": [
+    3
+   ],
+   "tunedOn": "named-v1"
+  },
+  {
+   "run": "2026-10-19T08-09-42-006Z-6e6de45e",
+   "game": "Grow a Garden (explore, Nano Banana 2.1)",
+   "accept": [
+    2
+   ],
+   "tunedOn": "named-v1"
+  },
+  {
+   "run": "2026-10-19T08-16-22-813Z-f4bf8a25",
+   "game": "Rob a Bank (explore, Nano Banana 2.1)",
+   "accept": [
+    1
+   ],
+   "tunedOn": "nolook-v1"
+  },
+  {
+   "run": "2026-10-19T08-37-14-547Z-b4e77b2f",
+   "game": "Grow a Giant Pumpkin (explore, Nano Banana 2.1)",
+   "accept": [
+    2,
+    4,
+    6,
+    7
+   ],
+   "tunedOn": "nolook-v1"
+  },
+  {
+   "run": "2026-10-19T09-56-25-140Z-ecf1479c",
+   "game": "Domino game (explore, Nano Banana 2.1)",
+   "accept": [
+    3,
+    7
+   ]
+  },
+  {
+   "run": "2026-10-19T09-56-11-565Z-32f755cf",
+   "game": "Explode Noobs (explore, Nano Banana 2.1)",
+   "accept": [
+    3,
+    7
+   ]
+  },
+  {
+   "run": "2026-10-19T09-55-43-148Z-0b2cb0d9",
+   "game": "Run on a treadmill in a basement (explore, Nano Banana 2.1)",
+   "accept": [
+    5
+   ]
+  },
+  {
+   "run": "2026-10-19T09-55-26-608Z-d1c4e164",
+   "game": "Own a house in the mountains (explore, Nano Banana 2.1)",
+   "accept": [
+    1
+   ]
+  },
+  {
+   "run": "2026-10-19T09-53-41-053Z-50ec6618",
+   "game": "Swat a House (explore, Nano Banana 2.1)",
+   "accept": [
+    2,
+    4,
+    6,
+    7
+   ]
+  },
+  {
+   "run": "2026-10-19T11-08-01-463Z-c685624d",
+   "game": "Bake a cake (explore, Nano Banana 2.1)",
+   "accept": [
+    5
+   ]
+  },
+  {
+   "run": "2026-10-19T11-07-46-465Z-93b082b2",
+   "game": "Make a burger (explore, Nano Banana 2.1)",
+   "accept": [
+    3
+   ]
+  },
+  {
+   "run": "2026-10-19T11-19-03-072Z-62af5bea",
+   "game": "Haunted House Tycoon (explore, Nano Banana 2.1)",
+   "accept": [
+    3
+   ]
+  },
+  {
+   "run": "2026-10-19T11-19-18-071Z-a49ab406",
+   "game": "Stop it Slender (explore, Nano Banana 2.1)",
+   "accept": [
+    1
+   ]
+  },
+  {
+   "run": "2026-10-19T11-54-29-618Z-030c8fb9",
+   "game": "Catch fish on a frozen lake (explore, Nano Banana 2.1)",
+   "accept": [
+    4,
+    5,
+    7
+   ]
+  }
+ ]
 }

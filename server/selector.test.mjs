@@ -294,9 +294,11 @@ test('which strategy of a starting image comes first is the one the creator took
   const picked = (id, winner, m = model) => ({ ...example(id, 'Some Game', fit(5, 5, 5), winner), model: m, picked: true })
   const current = { game: 'Bake a cake', fit: { ...fit(5, 5, 5), nearestArt: 5, searchArt: 5 }, base: { nearestBase: 8, searchBase: 2 }, refs: { nearest: 'n', search: 's' }, refNames: { nearest: 'Other Game', search: 'Another Game' }, model }
   assert.deepEqual(chooseByPanel(current, []).ranked.slice(0, 2), ['remix', 'template'])
-  const metaAndPlain = [picked('a', 'meta'), picked('b', 'meta'), picked('c', 'plain')]
+  // A lead of one pick keeps the default; two flip it.
+  assert.deepEqual(chooseByPanel(current, [picked('a', 'meta'), picked('c', 'plain')]).ranked.slice(0, 2), ['remix', 'template'])
+  const metaAndPlain = [picked('a', 'meta'), picked('b', 'meta'), picked('c', 'plain'), picked('h', 'plain')]
   assert.deepEqual(chooseByPanel(current, metaAndPlain).ranked.slice(0, 2), ['meta', 'plain'])
-  assert.equal(chooseByPanel(current, metaAndPlain).learnedFrom, 3)
+  assert.equal(chooseByPanel(current, metaAndPlain).learnedFrom, 4)
   // Picks on another model count only until this one has some; judge-only runs never count.
   const elsewhere = [picked('d', 'meta', 'nano-banana-pro'), picked('e', 'meta', 'nano-banana-pro'), { ...example('f', 'Some Game', fit(5, 5, 5), 'meta'), model }]
   assert.deepEqual(chooseByPanel(current, elsewhere).ranked.slice(0, 1), ['meta'])
