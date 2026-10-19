@@ -9,9 +9,11 @@ interface StyleCardProps {
   defaultName: string
   disabled: boolean
   onUpload: (upload: StyleUpload | null) => void
+  /** Why the shown run did not use this image (a linked game or an attached image took its place), or null. */
+  unusedBecause: string | null
 }
 
-export function StyleCard({ upload, defaultName, disabled, onUpload }: StyleCardProps) {
+export function StyleCard({ upload, defaultName, disabled, onUpload, unusedBecause }: StyleCardProps) {
   const input = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +42,7 @@ export function StyleCard({ upload, defaultName, disabled, onUpload }: StyleCard
       />
       <div className="flex flex-col gap-4">
         <span className="truncate text-body font-medium">{upload?.name ?? defaultName}</span>
-        <p className="text-caption text-text-secondary">Thumbnails 1 and 5 are made in the style of this image.</p>
+        <p className="text-caption text-text-secondary">{unusedBecause ?? 'Thumbnails 1 and 5 are made in the style of this image.'}</p>
         {error && <p role="alert" className="text-caption text-destructive">{error}</p>}
       </div>
       <div className="flex flex-wrap gap-8">

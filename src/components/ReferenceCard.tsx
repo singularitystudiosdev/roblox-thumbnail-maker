@@ -7,6 +7,8 @@ interface ReferenceCardProps {
   searchReference: Reference | null
   /** The creator's attached image, when the run used it as the reference instead of a Roblox game. */
   attached: Run['attachment'] | null
+  /** The run links the creator's game, so the card shows that game rather than a nearest one. */
+  linked: boolean
   loading: boolean
 }
 
@@ -43,11 +45,13 @@ function searchLine(search: Reference) {
   return `Thumbnail 3 starts from ${search.name}${playing}. ${search.why ?? ''}`.trim()
 }
 
-export function ReferenceCard({ reference, searchReference, attached, loading }: ReferenceCardProps) {
+export function ReferenceCard({ reference, searchReference, attached, linked, loading }: ReferenceCardProps) {
   if (attached) return <AttachedCard attached={attached} />
   return (
     <section aria-labelledby="reference-title" aria-busy={loading || undefined} className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
-      <h2 id="reference-title" className="text-title font-semibold">Nearest popular game</h2>
+      <h2 id="reference-title" className="text-title font-semibold">
+        {linked ? 'Your linked game' : 'Nearest popular game'}
+      </h2>
 
       {loading && (
         <div className="flex flex-col gap-8" aria-hidden="true">

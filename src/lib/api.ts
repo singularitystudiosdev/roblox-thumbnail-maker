@@ -22,6 +22,8 @@ export interface Reference {
   thumbnail?: { index: number; count: number; why: string; pickedBy: string | null }
   /** The search meta's game only: the name searched for. */
   query?: string
+  /** The creator's own linked game, the reference for every slot. */
+  linked?: boolean
 }
 
 export interface Slot {
@@ -82,8 +84,11 @@ export interface Run {
   namedBy: 'link' | 'typed'
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
-  /** standard: the five thumbnails; attached: two from the image attached in the prompt box. Older runs have none. */
-  mode?: 'standard' | 'attached'
+  /**
+   * standard: the five thumbnails; attached: two from the image attached in the prompt box;
+   * linked: the five prompts, all from the linked game's own thumbnail. Older runs have none.
+   */
+  mode?: 'standard' | 'attached' | 'linked'
   /** The image attached in the prompt box; used: the prompt asked to use it as the reference. */
   attachment?: { name: string; imageUrl: string; used: boolean; readBy: string | null } | null
   /** The image model every slot used; runs saved before it was recorded have none and used Nano Banana 2. */

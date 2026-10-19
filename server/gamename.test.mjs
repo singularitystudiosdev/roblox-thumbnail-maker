@@ -15,7 +15,10 @@ test('a link inside a request wrapper still names the game by itself', async () 
   for (const input of [
     'Make me a thumbnail for my game https://www.roblox.com/games/107778070777162/Steal-An-Egg',
     'make a thumbnail for https://www.roblox.com/games/107778070777162/Steal-An-Egg?gameSetTypeId=1',
-    'roblox.com/games/107778070777162/Steal-An-Egg'
+    'roblox.com/games/107778070777162/Steal-An-Egg',
+    // The request after the link, as typed in the app: it named the game "Steal an Egg Make a thumbnail for my game".
+    'https://www.roblox.com/games/107778070777162/Steal-An-Egg Make a thumbnail for my game',
+    'https://www.roblox.com/games/107778070777162/Steal-An-Egg thumbnail please'
   ]) {
     const named = await resolveGameName(input, { lookupPlace: noLookup })
     assert.equal(named.gameName, 'Steal an Egg', input)

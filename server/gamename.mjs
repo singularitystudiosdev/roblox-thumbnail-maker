@@ -7,6 +7,10 @@ import { cleanTitle, findGameLink, gameFromPlace, titleFromSlug } from './roblox
 
 const LINK_MARK = 'ROBLOXGAMELINKMARK'
 
+// Words around a link that only ask for a thumbnail, before or after it: "Make a thumbnail for my game".
+const REQUEST_ONLY =
+  /^(?:(?:please|pls|can you|could you) )*(?:(?:make|create|generate|design|draw|do|give) (?:me )?)?(?:an? )?(?:(?:roblox|youtube|game|new) )*thumbnails?(?: (?:for|of))?(?: (?:my|our|the|this))?(?: roblox)?(?: game| experience)?(?: please)?[ .!:,-]*$/i
+
 /**
  * `gameName`, how it was named ('link': from the link alone, 'typed': the
  * user's words) and the link when there was one. A link inside a description
@@ -19,7 +23,8 @@ export async function resolveGameName(input, { lookupPlace = gameFromPlace } = {
 
   const title = link.slug ? titleFromSlug(link.slug) : cleanTitle((await lookupPlace(link.placeId)).name)
   const extracted = extractGameName(text.replace(link.raw, LINK_MARK))
-  const linkOnly = extracted === LINK_MARK || !extracted.replace(LINK_MARK, '').trim()
+  const around = text.replace(link.raw, ' ').replace(/\s+/g, ' ').trim()
+  const linkOnly = extracted === LINK_MARK || !extracted.replace(LINK_MARK, '').trim() || REQUEST_ONLY.test(around)
   return {
     gameName: linkOnly ? title : extracted.replace(LINK_MARK, () => title).replace(/\s+/g, ' ').trim(),
     namedBy: linkOnly ? 'link' : 'typed',

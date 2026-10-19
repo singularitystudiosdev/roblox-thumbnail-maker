@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 
 /** The reference a slot will start from, before its thumbnail lands. */
 function pendingReference(slot: Slot, run: Run) {
+  if (run.mode === 'linked') return run.reference?.name ?? 'your linked game'
   if (slot.strategy === 'typed' || slot.strategy === 'plain-attached') return run.attachment?.name ?? 'your attached image'
   if (slot.strategy === 'search') return run.searchReference?.name ?? 'searching Roblox'
   if (onRobloxReference(slot)) return run.reference?.name ?? 'finding it'

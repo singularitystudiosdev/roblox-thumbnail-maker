@@ -7,7 +7,8 @@
 // game is (judgeContext), then the winner's icon. When the creator attaches an
 // image and the prompt asks to use it as the reference (attached.mjs), the run
 // makes two thumbnails from that image instead: their prompt as typed and the
-// plain template.
+// plain template. When the prompt links the creator's game, the same five
+// prompts all start from that game's own thumbnail, with no Roblox searches.
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -22,6 +23,7 @@ import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
 import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { pickCleanestThumbnail } from './cleanest.mjs'
+import { gameFromPlace, withThumbnails } from './roblox.mjs'
 import { pickSearchTop, rankSearch } from './searchtop.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
@@ -43,6 +45,22 @@ export function planSlots(gameName) {
     { slot: REMIX_COUNT + 3, strategy: 'meta', prompt: plain },
     { slot: REMIX_COUNT + 4, strategy: 'plain', prompt: plain }
   ]
+}
+
+/**
+ * A linked run sends a standard run's five prompts, each with the linked
+ * game's own thumbnail; the three plain-template slots are then the same
+ * request, so all three are 'plain'.
+ */
+export function planLinkedSlots(gameName) {
+  return planSlots(gameName).map((slot) => (slot.strategy === 'search' || slot.strategy === 'meta' ? { ...slot, strategy: 'plain' } : slot))
+}
+
+/** The linked game's details and its cleanest thumbnail, the reference for every slot of a linked run. */
+async function linkedReference(link, gameName) {
+  const game = await gameFromPlace(link.placeId)
+  const [withThumbnail] = await withThumbnails([game])
+  return { game, picked: await pickCleanestThumbnail(withThumbnail ?? game, gameName) }
 }
 
 // Strategies that start from the nearest popular game's thumbnail, and those that start from the style
@@ -81,6 +99,8 @@ export async function runThumbnails({
   const asked = attachment ? await intent(input) : null
   const attached = asked?.useAsReference ? attachment : null
   const { gameName, namedBy, link } = await resolveGameName(attached ? asked.gameText : input)
+  // A link that is the game itself (not one cited in a description) makes that game the reference for every slot.
+  const linked = !attached && link != null && namedBy === 'link'
   const id = newRunId()
   const dir = join(outputsDir, id)
   mkdirSync(dir, { recursive: true })
@@ -91,7 +111,7 @@ export async function runThumbnails({
   }
 
   const styleRef = { name: style.name, source: style.source, imageUrl: save('style', style) }
-  const slots = attached ? planAttachedSlots(input, gameName) : planSlots(gameName)
+  const slots = attached ? planAttachedSlots(input, gameName) : linked ? planLinkedSlots(gameName) : planSlots(gameName)
   const record = {
     id,
     createdAt: new Date().toISOString(),
@@ -99,7 +119,7 @@ export async function runThumbnails({
     gameName,
     namedBy,
     link,
-    mode: attached ? 'attached' : 'standard',
+    mode: attached ? 'attached' : linked ? 'linked' : 'standard',
     attachment: attachment ? { name: attachment.name, imageUrl: save('attached', attachment), used: Boolean(attached), readBy: asked.readBy } : null,
     style: styleRef,
     imageModel: { key: model.key, label: model.label },
@@ -133,6 +153,31 @@ export async function runThumbnails({
   if (attached) {
     // Both thumbnails start from the creator's attached image; no Roblox lookups.
     await Promise.all(slots.map((slot) => generate(slot, attachment, attachment.name).then(report)))
+  } else if (linked) {
+    // Every thumbnail starts from the linked game's own thumbnail; no Roblox searches.
+    let referenceImage = style
+    try {
+      const { game, picked } = await linkedReference(link, gameName)
+      referenceImage = picked
+      record.reference = {
+        source: 'roblox',
+        linked: true,
+        universeId: game.universeId,
+        placeId: game.placeId,
+        name: game.name,
+        playing: game.playing,
+        url: game.url,
+        why: 'Your linked game: every thumbnail starts from its own thumbnail.',
+        robloxThumbnailUrl: picked.url,
+        thumbnail: { index: picked.index, count: picked.count, why: picked.why, pickedBy: picked.pickedBy },
+        imageUrl: save('reference', picked)
+      }
+    } catch (err) {
+      console.error(`The linked game's thumbnail for "${gameName}" failed; the thumbnails start from the style reference:`, err)
+    }
+    record.reference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
+    emit({ type: 'reference', reference: record.reference })
+    await Promise.all(slots.map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
   } else {
   const nearestLookup = nearestOrNull(gameName, link ? [link.title] : [])
   // The templates need only the style reference, so they start at once; the Roblox slots wait for their lookups.

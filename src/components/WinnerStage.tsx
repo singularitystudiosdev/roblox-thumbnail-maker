@@ -42,6 +42,15 @@ function steps(run: Run | null, phase: Phase) {
       judgeStep
     ] satisfies { label: string; state: StepState }[]
   }
+  if (run?.mode === 'linked') {
+    const linkedRef = run.reference
+    return [
+      { label: `Game name: ${run.gameName}`, state: 'done' },
+      { label: linkedRef ? `Your game's thumbnail: ${linkedRef.name}` : "Fetching your game's thumbnail", state: linkedRef ? 'done' : 'active' },
+      { label: `${thumbnailsLabel(run.slots.map((s) => s.slot))} from it`, state: linkedRef ? slotState(run, run.slots.map((s) => s.slot)) : 'pending' },
+      judgeStep
+    ] satisfies { label: string; state: StepState }[]
+  }
   const reference = run?.reference
   const searchReference = run?.searchReference
   // Older runs have three or two remixes and no search meta.

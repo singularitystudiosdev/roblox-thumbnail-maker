@@ -159,13 +159,26 @@ export function App() {
             )}
           </div>
           <div className="order-3 min-w-0 lg:order-none">
-            <StyleCard upload={styleUpload} defaultName={status?.styleReferenceName ?? 'Default reference'} disabled={busy} onUpload={setStyleUpload} />
+            <StyleCard
+              upload={styleUpload}
+              defaultName={status?.styleReferenceName ?? 'Default reference'}
+              disabled={busy}
+              onUpload={setStyleUpload}
+              unusedBecause={
+                run?.mode === 'linked'
+                  ? 'Not used for this run: every thumbnail started from your linked game.'
+                  : run?.mode === 'attached'
+                    ? 'Not used for this run: both thumbnails started from your attached image.'
+                    : null
+              }
+            />
           </div>
           <div className="order-4 min-w-0 lg:order-none">
             <ReferenceCard
               reference={run?.reference ?? null}
               searchReference={run?.searchReference ?? null}
               attached={run?.mode === 'attached' ? (run.attachment ?? null) : null}
+              linked={run?.mode === 'linked'}
               loading={busy && !run?.reference && run?.mode !== 'attached'}
             />
           </div>

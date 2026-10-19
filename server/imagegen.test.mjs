@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { falInput, geminiInput } from './imagegen.mjs'
-import { ON_ROBLOX_REFERENCE, ON_STYLE_REFERENCE, planSlots } from './run.mjs'
+import { ON_ROBLOX_REFERENCE, ON_STYLE_REFERENCE, planLinkedSlots, planSlots } from './run.mjs'
 
 const reference = { mimeType: 'image/png', bytes: Buffer.from('ref') }
 const b64 = Buffer.from('ref').toString('base64')
@@ -37,4 +37,10 @@ test('a run is the template, one novel perspective remix, the search meta, the m
   for (const slot of slots.slice(2)) assert.equal(slot.prompt, plain)
   assert.deepEqual(slots.filter((s) => ON_ROBLOX_REFERENCE.has(s.strategy)).map((s) => s.slot), [2, 4])
   assert.deepEqual(slots.filter((s) => ON_STYLE_REFERENCE.has(s.strategy)).map((s) => s.slot), [1, 5])
+})
+
+test('a linked run sends the same five prompts, every one with the linked game, the plain-template slots all plain', () => {
+  const linked = planLinkedSlots('KAT')
+  assert.deepEqual(linked.map((s) => [s.slot, s.strategy]), [[1, 'template'], [2, 'remix'], [3, 'plain'], [4, 'plain'], [5, 'plain']])
+  assert.deepEqual(linked.map((s) => s.prompt), planSlots('KAT').map((s) => s.prompt))
 })
