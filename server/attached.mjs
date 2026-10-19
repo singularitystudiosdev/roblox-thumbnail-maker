@@ -1,6 +1,7 @@
 // The attached-reference mode. When the creator attaches an image in the
-// prompt box and their prompt says, in any words, to use it as the reference,
-// a run makes two thumbnails from that image instead of the usual five: their
+// prompt box and their prompt uses it (says to use it as the reference, or
+// talks about what is in it: "make him have a gun"), a run makes two
+// thumbnails from that image instead of the usual five: their
 // prompt exactly as typed, and the plain template with the game name. A text
 // model reads the intent and hands back the prompt with only the words about
 // the image removed, word for word, to name the game. An attached image the
@@ -9,7 +10,7 @@ import { askJson, textRoutes } from './llm.mjs'
 import { buildPrompt, PLAIN_TEMPLATE } from './prompt.mjs'
 
 export const INTENT_SYSTEM = `You read what a creator typed when asking for a Roblox game thumbnail, with an image attached.
-- useAsReference: true when the text says, in any words, to use the attached image as the reference, base, style or starting point (for example "use this as reference", "in the style of this image", "like the attached picture", "based on my image"). False when it does not ask to use the image.
+- useAsReference: true when the text uses the attached image in any way: it says to use it as the reference, base, style or starting point ("use this as reference", "in the style of this image", "like the attached picture"), or it talks about what is in the image or asks for a change to it, so it only makes sense with the image ("make him have a gun", "give her a sword", "make it night time", "add a dragon behind them"). False only when the text never refers to the image: a game name or description that stands on its own.
 - gameText: the creator's text with only the words about the attached image removed. Keep every other word exactly as typed: the same words, order, spelling and capitals. When no words are about the image, the whole text.
 Reply as JSON: {"useAsReference": true, "gameText": "..."}`
 
@@ -19,8 +20,8 @@ const INTENT_SCHEMA = {
   required: ['useAsReference', 'gameText']
 }
 
-// Without a model: naming the image, or a reference, counts as asking for it.
-const REFERENCE_WORDS = /\b(reference|ref)\b|\b(this|my|the|attached)\s+(image|picture|pic|photo|screenshot)\b|\battached\b/i
+// Without a model: naming the image or a reference, or a person in it ("make him have a gun"), counts as asking for it.
+const REFERENCE_WORDS = /\b(reference|ref)\b|\b(this|my|the|attached)\s+(image|picture|pic|photo|screenshot)\b|\battached\b|\b(him|her|he|she|his|them|they)\b/i
 
 // The removed words must be about the image, or the model shortened the game itself.
 const IMAGE_WORD = /\b(image|picture|pic|photo|screenshot|reference|ref|attached|attachment)\b/

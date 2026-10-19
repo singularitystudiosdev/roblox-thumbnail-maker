@@ -81,7 +81,7 @@ export function PromptBox({ value, onChange, onSubmit, busy, attachment, onAttac
           <img src={attachment.dataUrl} alt={`Attached image: ${attachment.name}`} width={40} height={40} className="size-40 shrink-0 rounded-8 object-cover" />
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-label font-medium text-text-primary">{attachment.name}</span>
-            <span className="text-caption text-text-secondary">Ask to use it as the reference for two thumbnails from it.</span>
+            <span className="text-caption text-text-secondary">Ask for it, or for a change to it, and you get two thumbnails from it.</span>
           </div>
           <button
             type="button"

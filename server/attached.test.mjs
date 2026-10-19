@@ -40,6 +40,8 @@ test('without a model, words that name the image or a reference decide', async (
   assert.equal((await readAttachedIntent('Bake a Cake, use the attached picture', { ask: down })).useAsReference, true)
   assert.equal((await readAttachedIntent('Bake a Cake with this as ref', { ask: down })).useAsReference, true)
   assert.equal((await readAttachedIntent('Bake a Cake', { ask: down })).useAsReference, false)
+  // A prompt about someone in the image only makes sense with it.
+  assert.equal((await readAttachedIntent('Make him have a gun', { ask: down })).useAsReference, true)
   assert.equal((await readAttachedIntent('Bake a Cake, use the attached picture', { ask: down })).gameText, 'Bake a Cake, use the attached picture')
 })
 
