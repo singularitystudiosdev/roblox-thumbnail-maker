@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { combinePasses, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, readVerdict, renumber, shuffled } from './judge.mjs'
+import { combinePasses, JUDGE_SYSTEM, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, NAMED_MIN_PLAYING, readVerdict, renumber, shuffled } from './judge.mjs'
 
 const row = (image, n, note = 'fine') => ({ image, fitsGame: n, genreLook: n, clean: n, clickable: n, coherent: n, note })
 
@@ -109,15 +109,15 @@ test("a linked game's own thumbnail and description reach the judge; a nearest g
   assert.equal(other.name, 'Break and Steal an Egg')
   assert.deepEqual(fetched, [7])
 
-  // Without a link the popular game's thumbnail reaches the judge only as words for its look: no scene to copy.
-  const lookOf = async (image) => (assert.equal(image.mimeType, 'image/png'), 'dark, realistic, cinematic night shot')
-  const nearest = await judgeContext({ reference, link: null }, dir, { details, lookOf })
+  // Without a link the popular game reaches the judge as text only: no scene to copy, and no look to match
+  // (a bold cartoon thumbnail once lost to a realistic still life because the nearest game was realistic).
+  const nearest = await judgeContext({ reference, link: null }, dir, { details })
   assert.equal(nearest.own, false)
   assert.equal(nearest.image, null)
-  assert.equal(nearest.look, 'dark, realistic, cinematic night shot')
-  assert.match(judgeRequest('A axe game', 3, nearest), /It is a different game[\s\S]*render style its thumbnail wins with: dark, realistic, cinematic night shot/)
-  const lookless = await judgeContext({ reference, link: null }, dir, { details, lookOf: async () => Promise.reject(new Error('vision down')) })
-  assert.equal(lookless.look, '')
+  assert.equal('look' in nearest, false)
+  const request = judgeRequest('A axe game', 3, nearest)
+  assert.match(request, /It is a different game: use it only to understand this kind of game, not as the creator's game/)
+  assert.doesNotMatch(request, /render style/)
 
   assert.equal(await judgeContext({ reference: { source: 'style' }, link: null }, dir, { details }), null)
   assert.doesNotMatch(judgeRequest('Rob a Bank', 2, null), /Context/)
@@ -146,4 +146,26 @@ test("an attached reference image is the judge's context: shown last, never a ca
   assert.match(judgeRequest('Rob a Bank', 2, context), /creator attached a reference image[\s\S]*It is context, not a candidate[\s\S]*Candidates: Image 1, Image 2\.$/)
   // An attachment the prompt did not ask for is not context.
   assert.equal(await judgeContext({ ...run, attachment: { ...run.attachment, used: false } }, dir), null)
+})
+
+test('a game with the creators name is the context only when players know it', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'named-'))
+  writeFileSync(join(dir, 'reference.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]))
+  const details = async () => [{ description: 'Climb the tower.' }]
+  const popular = { source: 'roblox', name: 'Tower of Hell', universeId: 1, playing: 21937, imageUrl: '/outputs/x/reference.png' }
+  const known = await judgeContext({ gameName: 'Tower of Hell', reference: popular, link: null }, dir, { details })
+  assert.equal(known.named, true)
+  assert.match(judgeRequest('Tower of Hell', 2, known), /exactly the creator's game name[\s\S]*current Roblox thumbnail/)
+
+  // A game nobody plays is no game "players already know": the nearest game's text is the context instead.
+  const obscure = { ...popular, playing: NAMED_MIN_PLAYING - 1 }
+  const unknown = await judgeContext({ gameName: 'Tower of Hell', reference: obscure, link: null }, dir, { details })
+  assert.equal(unknown.named, undefined)
+  assert.equal(unknown.own, false)
+})
+
+test('the rubric never marks a thumbnail down for being less realistic than another game', () => {
+  assert.doesNotMatch(JUDGE_SYSTEM, /realistic, cinematic renders, a simulator/)
+  assert.match(JUDGE_SYSTEM, /realism is never a reason to score one above another/)
+  assert.match(JUDGE_SYSTEM, /flat 2D or outlined drawing scores 1 to 4/)
 })

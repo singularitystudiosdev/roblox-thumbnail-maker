@@ -10,6 +10,7 @@ import { basename, join } from 'node:path'
 import { askJson, judgeRoutes, withoutDashes } from './llm.mjs'
 import { imageMimeType } from './mime.mjs'
 import { downloadThumbnail, gameDetails, gameFromPlace, gameThumbnails } from './roblox.mjs'
+import { matchLevel } from './selector.mjs'
 
 export const CRITERIA = ['fitsGame', 'genreLook', 'clean', 'clickable', 'coherent']
 export const MAX_TOTAL = CRITERIA.length * 10
@@ -17,13 +18,15 @@ export const PASSES = 3
 const PASS_STAGGER_MS = 1000
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const DESCRIPTION_LIMIT = 700
+// A game with fewer players than this is not one "players already know by its thumbnail".
+export const NAMED_MIN_PLAYING = 500
 
 export const JUDGE_SYSTEM = `You judge Roblox game thumbnails for a creator. A good Roblox thumbnail lets a player scrolling past at small size understand the game at a glance and want to click it, and it never misleads them about what the game is.
 You get the creator's game (its name, or their description of it), context about the game, and candidate thumbnails labelled Image 1, Image 2 and so on by their position, in no particular order.
 Look closely at the whole of every image, its edges and corners included, before you score it.
 Score every candidate from 1 to 10 on:
 - fitsGame: it shows this game: its gameplay, characters, objects and setting as the name and the context describe them. A picture of a different setting, genre or story (for example a space battle for a farming game) misleads players: score it 1 to 3 however polished it is. Illustrating the words of the name literally is not enough when the context shows the game is something else. Once a thumbnail clearly shows the game it scores 9 or 10: more props, more characters or more of the name's items never earn a higher fitsGame than another thumbnail that clearly shows the game too. When the creator's words name a place or a main object, a thumbnail without it does not show the game, even when it shows the same kind of action somewhere else (digging out of a castle for a prison escape game): score it 1 to 3. The popular game in the context may be set elsewhere; the creator's words decide.
-- genreLook: it has the render style that wins for this kind of Roblox game, which the context gives (the game's own thumbnail, or the look of a popular game of its kind): a tactical shooter wins with realistic, cinematic renders, a simulator or obby with chunky, glossy cartoon ones. Match the render style and realism level only; the color palette and warm or cold lighting are free choices and never count against a thumbnail. Never judge against one house style. Roblox avatars in a Roblox-built world either way; flat 2D drawings and photos of real people score low. A flat 2D or outlined drawing scores 1 to 4 against a 3D render. 3D Roblox renders from chunky cartoon to semi-realistic are one family with equal genreLook, unless the context gives a dark, realistic, cinematic look (shooters, horror), where a bright cartoon render clashes. Small differences in polish or texture never count.
+- genreLook: it has the render style that suits this game. Roblox avatars in a Roblox-built world either way; flat 2D drawings and photos of real people score low. A flat 2D or outlined drawing scores 1 to 4 against a 3D render. 3D Roblox renders from chunky cartoon to semi-realistic or cinematic are one family with equal genreLook: a different game's thumbnail never decides which of them is right, so a bold chunky cartoon render is as good as a cinematic one for a heist, a shooter or a horror game, and realism is never a reason to score one above another. When the context shows this game's own thumbnail, match its render style and realism level; the color palette and warm or cold lighting are free choices and never count against a thumbnail. Small differences in polish or texture never count.
 - clean: the picture fills the whole 16:9 frame edge to edge; white or blank corners, borders or a picture pasted inside a frame make a broken thumbnail, so score clean 1 to 3. A dark vignette that is part of the scene (a scope, night vision goggles, a camera or a flashlight view) is a deliberate effect, not a broken frame. Words laid over the picture (a title, caption, label or banner) and watermarks are a real flaw: clean at most 5. Small words that belong to the scene, such as a sign on a wall, a word on a door or on clothing, cost one point at most, and small comic symbols such as zzz, arrows or exclamation marks barely matter. No artifacts.
 - clickable: at feed size (about 256 by 144 pixels) it stops a scrolling player. Big and close beats small and complete: the main subject and the game's signature objects shown large and close to the camera, filling the frame with strong depth between foreground and background, beat a flat or distant scene that shows everything small. A view that puts the player inside the action (over the shoulder, point of view, a low or high angle, a scope or camera view) is striking, and a character seen from behind is fine in such a view. One dominant subject beats several medium-size ones, and a busy scene full of props reads worse than one subject with a few big props. When the context shows the game's current thumbnail, a candidate that nearly repeats it adds nothing new and is less clickable than a fresh view of the same game. Score clickable by the main subject: one character or object large and close to the camera, about a third of the frame height or more, scores 8 to 10, and other characters smaller behind it add depth; the game's signature objects around it (gold, eggs, tools) are fine. Two or more characters of similar medium size side by side, with none dominant, score at most 6.
 - coherent: nothing is broken: warped bodies, duplicated or floating objects (such as two of the same tool, or a tool with no hand), impossible objects. A deliberate camera angle such as top down, close up, high angle or profile is not a flaw.
@@ -146,33 +149,23 @@ async function ownGameContext(run, dir, place, thumbnailOf) {
   return { own: true, name: game.name, playing: game.playing ?? 0, description: tidy(game.description).slice(0, DESCRIPTION_LIMIT), image }
 }
 
-const LOOK_SYSTEM = `You describe the visual look of a Roblox game thumbnail so a judge can match other thumbnails to it.
-In at most 10 words, give its render style and realism level only, for example "realistic, cinematic 3D render" or "chunky, glossy cartoon 3D render" or "flat 2D drawing".
-Never describe colors, lighting, the scene, characters, objects or story. Use no dashes.
-Reply as JSON: {"look": "..."}`
-
-const LOOK_SCHEMA = { type: 'OBJECT', properties: { look: { type: 'STRING' } }, required: ['look'] }
-
-/** A popular game's thumbnail as words for its look, so the judge can match the look without a scene to copy. */
-async function describeLook(image) {
-  const { value } = await askJson(
-    { label: 'Reference look', system: LOOK_SYSTEM, user: 'The thumbnail follows.', images: [{ label: 'Thumbnail', ...image }], schema: LOOK_SCHEMA },
-    judgeRoutes()
-  )
-  return withoutDashes(value.look).slice(0, 120)
-}
-
 /**
  * What the judge is told the game is. A linked game is the creator's own: its
  * description and current thumbnail, whichever game the remixes started from.
- * Otherwise the popular reference game's name, description and the look of its
- * thumbnail in words: shown its image, the judge rewarded remixes that copied
- * its scene. Null when there is neither.
+ * So is a reference game with the creator's very name ("Blade Ball" found by
+ * either lookup): it is the game they mean, so the judge sees what it really
+ * looks like, its own thumbnail as context, provided players know that game
+ * (NAMED_MIN_PLAYING): a game almost nobody plays has no look worth matching.
+ * Otherwise the popular reference game's name and description, as text only: its
+ * image made the judge reward remixes that copied its scene, and its look in
+ * words (tried before) made a bold cartoon thumbnail lose to a realistic still
+ * life because the nearest game happened to be realistic. A different game's
+ * look never decides this game's. Null when there is neither.
  */
 export async function judgeContext(
   run,
   dir,
-  { details = gameDetails, place = gameFromPlace, thumbnailOf = firstThumbnail, lookOf = describeLook } = {}
+  { details = gameDetails, place = gameFromPlace, thumbnailOf = firstThumbnail } = {}
 ) {
   if (run.link) {
     try {
@@ -190,6 +183,16 @@ export async function judgeContext(
       return null
     }
   }
+  const named = [run.reference, run.searchReference].find(
+    (r) => r?.source === 'roblox' && matchLevel(run.gameName, r.name) === 'exact' && (r.playing ?? 0) >= NAMED_MIN_PLAYING
+  )
+  if (named) {
+    try {
+      return await namedGameContext(named, dir, details)
+    } catch (err) {
+      console.error(`The game named "${named.name}" for the judge failed; falling back to the reference game:`, err)
+    }
+  }
   const ref = run.reference
   if (ref?.source !== 'roblox') return null
   let description = ''
@@ -198,13 +201,18 @@ export async function judgeContext(
   } catch (err) {
     console.error(`Description of "${ref.name}" for the judge failed:`, err)
   }
-  let look = ''
+  return { own: false, name: ref.name, playing: ref.playing ?? 0, description, image: null }
+}
+
+/** A reference game with the creator's very name: its description and the thumbnail the run saved of it. */
+async function namedGameContext(ref, dir, details) {
+  let description = ''
   try {
-    look = await lookOf(savedImage(dir, ref.imageUrl))
+    description = tidy((await details([ref.universeId]))[0]?.description).slice(0, DESCRIPTION_LIMIT)
   } catch (err) {
-    console.error(`The look of "${ref.name}" for the judge failed; judging on its description:`, err)
+    console.error(`Description of "${ref.name}" for the judge failed:`, err)
   }
-  return { own: false, name: ref.name, playing: ref.playing ?? 0, description, look, image: null }
+  return { own: true, named: true, name: ref.name, playing: ref.playing ?? 0, description, image: savedImage(dir, ref.imageUrl) }
 }
 
 /** The judge's user message for one pass. */
@@ -212,8 +220,18 @@ export function judgeRequest(gameName, count, context) {
   const lines = [`The creator's game: ${gameName}`]
   const about = context?.description ? ` Its Roblox description: "${context.description}"` : ''
   if (context?.own) {
-    lines.push(`Context: this is the creator's own game on Roblox, "${context.name}", with ${context.playing} playing now.${about}`)
-    if (context.image) {
+    lines.push(
+      context.named
+        ? `Context: "${context.name}" on Roblox has exactly the creator's game name, with ${context.playing} playing now: it is the game they mean.${about}`
+        : `Context: this is the creator's own game on Roblox, "${context.name}", with ${context.playing} playing now.${about}`
+    )
+    if (context.named && context.image) {
+      // The game exists: players know its world, so a thumbnail must show that world, not the name's words.
+      lines.push(
+        `The last image is its current Roblox thumbnail. Players already know this game by it: its characters, signature objects and art style are what the game looks like. Score fitsGame by whether a candidate shows that world. A generic scene that only illustrates the name's words (any garden for a gardening name, any ball for a ball name) does not show this game: fitsGame 4 at most. Looking like this game's thumbnail is right here, never a flaw, and does not count against clickable.`
+      )
+    }
+    if (context.image && !context.named) {
       lines.push(`The last image is its current Roblox thumbnail, attached so you know what the game looks like. It is context, not a candidate.`)
     }
   } else if (context?.attached) {
@@ -223,9 +241,8 @@ export function judgeRequest(gameName, count, context) {
   } else if (context) {
     lines.push(
       `Context: the most played Roblox game like the creator's is "${context.name}", with ${context.playing} playing now.${about}`,
-      `It is a different game: use it only to understand this kind of game and the look its players click on, not as the creator's game.`
+      `It is a different game: use it only to understand this kind of game, not as the creator's game.`
     )
-    if (context.look) lines.push(`The render style its thumbnail wins with: ${context.look}. Judge genreLook against that render style.`)
   }
   lines.push(`Candidates: ${Array.from({ length: count }, (_, i) => `Image ${i + 1}`).join(', ')}.`)
   return lines.join('\n\n')
