@@ -32,7 +32,7 @@ test('a run is the template, a novel perspective remix, the search meta, the met
   )
   assert.equal(
     slots[0].prompt,
-    'Make me a thumbnail for my roblox game "Rob Grandmas House" in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a thumbnail for my roblox game "Rob Grandmas House" in the style of my reference image. No text. 16:9 Ratio.'
   )
   for (const slot of slots.filter((s) => s.strategy === 'remix')) assert.equal(slot.prompt, 'Make this thumbnail but from a novel perspective. No text.')
   // The search meta, the meta and the plain template send the same words; only the attached reference differs.

@@ -3,18 +3,13 @@ import { test } from 'node:test'
 import { buildPrompt, extractGameName, PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 
 test('the template is the exact text, only GAME_NAME substituted', () => {
-  assert.equal(
-    PROMPT_TEMPLATE,
-    'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
-  )
-  assert.equal(
-    buildPrompt('  Bake a Cake '),
-    'Make me a thumbnail for my roblox game "Bake a Cake" in the style of my reference image different characters. No text. 16:9 Ratio.'
-  )
+  assert.equal(PROMPT_TEMPLATE, 'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.')
+  assert.equal(buildPrompt('  Bake a Cake '), 'Make me a thumbnail for my roblox game "Bake a Cake" in the style of my reference image. No text. 16:9 Ratio.')
   assert.equal(
     buildPrompt('A axe throwing game with a bacon hair in the thumbnail'),
-    'Make me a thumbnail for my roblox game "A axe throwing game with a bacon hair in the thumbnail" in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a thumbnail for my roblox game "A axe throwing game with a bacon hair in the thumbnail" in the style of my reference image. No text. 16:9 Ratio.'
   )
+  assert.ok(!/different characters/i.test(buildPrompt('Steal an Egg')), 'the template never asks for different characters')
 })
 
 test('the plain template is the exact text, only GAME_NAME substituted', () => {

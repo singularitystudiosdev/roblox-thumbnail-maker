@@ -5,9 +5,9 @@
 // (searchtop.mjs); thumbnail 4, the meta, sends the plain template with the
 // same Roblox reference as thumbnail 2; thumbnail 5 sends the plain template
 // with the style reference of thumbnail 1; thumbnails 6 and 7 send the remix
-// prompt again with the same Roblox reference as thumbnail 2.
-export const PROMPT_TEMPLATE =
-  'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
+// prompt again with the same Roblox reference as thumbnail 2. The template no
+// longer asks for "different characters": the creator dropped that wording.
+export const PROMPT_TEMPLATE = 'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
 
 export const PLAIN_TEMPLATE = 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
 

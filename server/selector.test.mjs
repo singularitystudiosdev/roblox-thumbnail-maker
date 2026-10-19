@@ -116,7 +116,7 @@ test('examples are every explore run read fresh, the shipped seed filling in onl
 test('a picked run draws one thumbnail of each of its top two strategies, each with its exact prompt; a top-up draws the next two', () => {
   assert.deepEqual(planPickedSlots('Steal an Egg', ['meta', 'template']), [
     { slot: 1, strategy: 'meta', prompt: 'Make me a thumbnail for my game "Steal an Egg" in the style of my reference image. No text. 16:9 Ratio.' },
-    { slot: 2, strategy: 'template', prompt: 'Make me a thumbnail for my roblox game "Steal an Egg" in the style of my reference image different characters. No text. 16:9 Ratio.' }
+    { slot: 2, strategy: 'template', prompt: 'Make me a thumbnail for my roblox game "Steal an Egg" in the style of my reference image. No text. 16:9 Ratio.' }
   ])
   assert.deepEqual(planPickedSlots('Steal an Egg', ['remix', 'plain'], 3).map((s) => [s.slot, s.prompt]), [
     [3, 'Make this thumbnail but from a novel perspective. No text.'],
