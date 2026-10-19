@@ -220,6 +220,27 @@
    "accept": [
     2
    ]
+  },
+  {
+   "run": "2026-10-19T12-31-19-959Z-36b66ba6",
+   "game": "Horror Hotel (picked, Nano Banana 2.1)",
+   "accept": [
+    1
+   ]
+  },
+  {
+   "run": "2026-10-19T12-31-19-961Z-13494a7c",
+   "game": "Zombie Survivors (picked, Nano Banana 2.1)",
+   "accept": [
+    2
+   ]
+  },
+  {
+   "run": "2026-10-19T12-29-23-602Z-6c670020",
+   "game": "Hockey 5v5 (picked, Nano Banana 2.1)",
+   "accept": [
+    2
+   ]
   }
  ]
 }
