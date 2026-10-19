@@ -89,7 +89,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     let referenceImage = style
     if (nearest) {
       try {
-        const picked = await pickCleanestThumbnail(nearest)
+        const picked = await pickCleanestThumbnail(nearest, gameName)
         referenceImage = picked
         record.reference = {
           source: 'roblox',

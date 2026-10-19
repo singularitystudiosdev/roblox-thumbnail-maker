@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  isPopular,
   keywordQuery,
   MIN_PLAYING,
   mergeResults,
@@ -13,7 +14,18 @@ import {
   wholeNameMatches
 } from './nearest.mjs'
 
-const game = (name, playing, universeId = name) => ({ name, playing, universeId })
+const game = (name, playing, universeId = name, visits) => ({ name, playing, universeId, ...(visits == null ? {} : { visits }) })
+
+// Real "Domino game" search hits, 2026-10-19 05:40Z: every domino game sat under 300 playing.
+const DOMINOES = [
+  game('[UPD] Paint to Get Rich 🎨', 10985, 'paint', 44_700_000),
+  game('Chaos Jenga', 2900, 'jenga', 124_500_000),
+  game('Mansion Tycoon 🌴🏠', 2565, 'mansion', 662_100_000),
+  game('Domino Engine', 252, 'engine', 46_200_000),
+  game('Domino Empire', 96, 'empire', 6_900_000),
+  game('Mega Domino Playground🔥', 94, 'mega', 52_200_000),
+  game('Domino Playground', 7, 'playground', 111_000_000)
+]
 
 // Real "Bake a Cake" search hits, 2026-10-19: the old pick was Bake a GIANT Cake! with 0 playing.
 const CAKES = [
@@ -46,10 +58,14 @@ test('nearness is the best share of one query found in the title', () => {
   assert.equal(nearness(['axe throwing'], 'Brookhaven 🏡RP'), 0)
 })
 
-test(`games with ${MIN_PLAYING} players or fewer are never a reference`, () => {
+test(`popular is over ${MIN_PLAYING} playing, or an established game with 100 playing in a quiet hour`, () => {
   assert.equal(MIN_PLAYING, 300)
   assert.deepEqual(popularOnly([game('Busy', 301), game('Edge', 300), game('Empty', 0)]).map((g) => g.name), ['Busy'])
   assert.ok(!popularOnly(CAKES).some((g) => g.name === 'Bake a GIANT Cake!'))
+  assert.ok(isPopular(game('Domino Engine', 252, 'engine', 46_200_000)))
+  assert.ok(!isPopular(game('Mega Domino Playground🔥', 94, 'mega', 52_200_000)), 'too few playing even for an established game')
+  assert.ok(!isPopular(game('Small and new', 250, 'small', 900_000)), 'quiet and not established')
+  assert.ok(!isPopular(game('No visit count', 250)))
 })
 
 test('titles holding the whole name are the same kind of game', () => {
@@ -59,27 +75,51 @@ test('titles holding the whole name are the same kind of game', () => {
   assert.deepEqual(wholeNameMatches(['the game'], eggs), [])
 })
 
-test('players decide within a tier; related games only count when no game of the same kind qualifies', () => {
-  const same = [game('Close but small', 400), game('Same kind, busy', 9000)]
-  assert.equal(mostPlayedOf([['same', same], ['related', [game('Related, huge', 900000)]]]).game.name, 'Same kind, busy')
-  assert.deepEqual(mostPlayedOf([['same', []], ['related', [game('R1', 500), game('R2', 700)]]]), { tier: 'related', count: 2, game: game('R2', 700) })
-  assert.equal(mostPlayedOf([['same', []], ['related', []]]), null)
+test('players decide within the same kind; a related stand-in is the closest popular one, not the biggest', async () => {
+  assert.deepEqual(mostPlayedOf([game('Close but small', 400), game('Same kind, busy', 9000)]), { count: 2, game: game('Same kind, busy', 9000) })
+  assert.equal(mostPlayedOf([]), null)
+  // Real late-night axe hits, 2026-10-19: the only axe game was quiet, and the most played related game was a hangout game.
+  const axes = [game('+1 Axe Throwing', 18), game('Throw a KNIFE!', 400), game('Brookhaven 🏡RP', 206642)]
+  const sort = async (_n, games) => ({ same: [games[0]], related: [games[1], games[2]], sortedBy: 'stub model' })
+  const picked = await pickNearestPopular('axe throwing', ['axe throwing'], ['axe throwing'], axes, { sort })
+  assert.equal(picked.game.name, 'Throw a KNIFE!')
+  assert.equal(picked.tier, 'related')
+  assert.equal(picked.why, 'No popular game of the same kind; the closest popular game in a related genre, with over 300 playing.')
+  // A quiet game of the same kind is never the pick, and no related game means no Roblox reference.
+  const none = await pickNearestPopular('axe throwing', ['axe throwing'], ['axe throwing'], axes, { sort: async () => ({ same: [], related: [], sortedBy: 'stub' }) })
+  assert.equal(none, null)
 })
 
 test('the model sorts the kinds, players pick: Bake a Cake gets Bake or Die, not an empty game', async () => {
-  const popular = popularOnly(CAKES)
   // The model's sort: baking games are the same kind, other cooking and food games related.
   const sort = async (_name, games) => ({
-    same: games.filter((g) => /Bake or Die|Cake Mountain/.test(g.name)),
+    same: games.filter((g) => /Bake or Die|Cake Mountain|GIANT Cake/.test(g.name)),
     related: games.filter((g) => /CHEFS|Pancake|Mukbang/.test(g.name)),
     sortedBy: 'stub model'
   })
-  const picked = await pickNearestPopular('Bake a Cake', ['Bake a Cake'], ['bake cake'], popular, { sort })
+  const picked = await pickNearestPopular('Bake a Cake', ['Bake a Cake'], ['bake cake'], CAKES, { sort })
   assert.equal(picked.game.name, '🎃 Bake or Die 💀')
   assert.equal(picked.tier, 'same')
-  assert.equal(picked.why, 'The most played of 2 games of the same kind with over 300 players.')
-  const lone = await pickNearestPopular('Bake a Cake', [], [], popular, { sort: async (_n, games) => ({ same: [games[1]], related: [], sortedBy: 'stub' }) })
-  assert.equal(lone.why, 'The only game of the same kind with over 300 players.')
+  assert.equal(picked.why, 'The most played of 2 popular games of the same kind, with over 300 playing.')
+  const lone = await pickNearestPopular('Bake a Cake', [], [], CAKES, { sort: async (_n, games) => ({ same: [games[1]], related: [], sortedBy: 'stub' }) })
+  assert.equal(lone.why, 'The only popular game of the same kind, with over 300 playing.')
+})
+
+test('Domino game gets Domino Engine: the sort sees the quiet domino games, and an established one counts', async () => {
+  let shown = []
+  // The model's sort, given every candidate: dominoes are the same kind, Jenga only related.
+  const sort = async (_name, games) => {
+    shown = games.map((g) => g.name)
+    return { same: games.filter((g) => /Domino/.test(g.name)), related: games.filter((g) => /Jenga/.test(g.name)), sortedBy: 'stub model' }
+  }
+  const picked = await pickNearestPopular('Domino game', ['Domino game'], ['domino'], DOMINOES, { sort })
+  assert.ok(shown.includes('Domino Playground'), 'the sort is shown games under the floor too')
+  assert.equal(picked.game.name, 'Domino Engine')
+  assert.equal(picked.tier, 'same')
+  assert.equal(picked.why, 'The only popular game of the same kind, with 252 playing now and 46.2M visits.')
+  // With no domino game popular at all, a related game is the fallback, never the quiet domino games.
+  const quiet = DOMINOES.filter((g) => g.name !== 'Domino Engine')
+  assert.equal((await pickNearestPopular('Domino game', ['Domino game'], ['domino'], quiet, { sort })).game.name, 'Chaos Jenga')
 })
 
 test('without a model, shared words sort the games; none qualifying means no Roblox reference', async () => {

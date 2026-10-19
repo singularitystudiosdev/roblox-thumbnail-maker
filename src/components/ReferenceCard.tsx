@@ -7,8 +7,10 @@ interface ReferenceCardProps {
 }
 
 function caption(reference: Reference) {
-  if (reference.source === 'style') return 'No Roblox game like this one has over 300 players right now, so the remixes start from your reference image.'
-  const pool = reference.candidateCount ? `${reference.candidateCount} of the games Roblox search returned have over 300 players.` : ''
+  if (reference.source === 'style') return 'No popular Roblox game is like this one right now, so the remixes start from your reference image.'
+  const pool = reference.candidateCount
+    ? `${reference.candidateCount} of the games Roblox search returned are popular: over 300 playing, or over 10M visits with 100 playing.`
+    : ''
   return [reference.why, pool].filter(Boolean).join(' ')
 }
 

@@ -148,7 +148,7 @@ export function titleFromSlug(slug) {
     .join(' ')
 }
 
-/** Name, description and live player count for each universe id. */
+/** Name, description, live player count and lifetime visits for each universe id. */
 export async function gameDetails(universeIds) {
   if (universeIds.length === 0) return []
   const payload = await getJson(`${GAMES_URL}?universeIds=${universeIds.join(',')}`)
@@ -158,8 +158,21 @@ export async function gameDetails(universeIds) {
     name: d.name ?? '',
     description: d.description ?? '',
     playing: d.playing ?? 0,
+    visits: d.visits ?? 0,
     url: `https://www.roblox.com/games/${d.rootPlaceId}`
   }))
+}
+
+// Universes per games request; Roblox refuses long lists.
+const DETAILS_BATCH = 50
+
+/** Adds lifetime `visits` to each game, one request per DETAILS_BATCH games. */
+export async function withVisits(games) {
+  const visits = new Map()
+  for (let i = 0; i < games.length; i += DETAILS_BATCH) {
+    for (const d of await gameDetails(games.slice(i, i + DETAILS_BATCH).map((g) => g.universeId))) visits.set(d.universeId, d.visits)
+  }
+  return games.map((g) => (visits.has(g.universeId) ? { ...g, visits: visits.get(g.universeId) } : g))
 }
 
 /** The game a roblox.com link points at. */
