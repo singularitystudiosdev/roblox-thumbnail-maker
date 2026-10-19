@@ -1,5 +1,5 @@
 import { Download, Trophy } from 'lucide-react'
-import { onRobloxReference, providerLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
+import { onRobloxReference, providerLabel, runModelLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
 import { cn } from '../lib/cn'
 
 /** The reference a slot will start from, before its thumbnail lands. */
@@ -80,7 +80,7 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         </p>
         {thumbnail?.provider && (
           <p className="text-caption text-text-secondary">
-            Nano Banana 2 on {providerLabel(thumbnail.provider)} in {Math.round(thumbnail.ms / 1000)}s
+            {runModelLabel(run)} on {providerLabel(thumbnail.provider)} in {Math.round(thumbnail.ms / 1000)}s
           </p>
         )}
         {score && (

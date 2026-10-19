@@ -77,6 +77,8 @@ export interface Run {
   namedBy: 'link' | 'typed'
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
+  /** The image model every slot used; runs saved before the switch have none and used Nano Banana 2. */
+  imageModel?: { key: string; label: string }
   reference: Reference | null
   /** The search meta's game; runs saved before it have none. */
   searchReference?: Reference | null
@@ -97,12 +99,21 @@ export type RunEvent =
   | { type: 'done'; run: Run }
   | { type: 'error'; error: string }
 
+/** One model the image switch offers; falOnly: Google's API has no id for it. */
+export interface ImageModelOption {
+  key: string
+  label: string
+  falOnly: boolean
+}
+
 export interface Status {
   geminiKeys: number
   falKeys: number
   imageProvider: string
   imageModel: string
   falModel: string
+  imageModels: ImageModelOption[]
+  defaultImageModel: string
   styleReferenceName: string
 }
 
@@ -122,11 +133,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** Starts a run and hands each NDJSON event to `onEvent` as it arrives. */
-async function run(prompt: string, style: StyleUpload | null, onEvent: (event: RunEvent) => void) {
+async function run(prompt: string, style: StyleUpload | null, imageModel: string, onEvent: (event: RunEvent) => void) {
   const res = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, style })
+    body: JSON.stringify({ prompt, style, imageModel })
   })
   if (!res.ok || !res.body) {
     const body = await res.json().catch((err) => {
@@ -187,6 +198,9 @@ export function formatAgo(iso: string) {
 }
 
 export const providerLabel = (provider: Thumbnail['provider']) => (provider === 'gemini' ? 'Gemini API' : 'fal.ai')
+
+/** The image model a run used. */
+export const runModelLabel = (run: Run) => run.imageModel?.label ?? 'Nano Banana 2'
 
 export function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'thumbnail'

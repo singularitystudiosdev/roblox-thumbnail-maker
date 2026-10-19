@@ -3,6 +3,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { imageMimeType } from './mime.mjs'
+import { DEFAULT_IMAGE_MODEL, imageModel, imageModels } from './imagemodels.mjs'
 import { PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { GameNotFound } from './roblox.mjs'
 import { listRuns, rejudgeRun, RUN_ID, runThumbnails } from './run.mjs'
@@ -62,6 +63,8 @@ async function handleRun(req, res, root, outputsDir) {
   const body = await readJson(req)
   if (typeof body.prompt !== 'string' || !body.prompt.trim()) throw new BadRequest('Type your game name, a description or its Roblox link first.')
   if (body.prompt.length > 2000) throw new BadRequest('Keep the prompt under 2000 characters.')
+  const model = imageModel(body.imageModel ?? DEFAULT_IMAGE_MODEL)
+  if (!model) throw new BadRequest(`Unknown image model "${body.imageModel}". Pick one of: ${Object.keys(imageModels()).join(', ')}.`)
   const style = styleFor(root, body.style)
 
   res.statusCode = 200
@@ -73,7 +76,7 @@ async function handleRun(req, res, root, outputsDir) {
     if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`)
   }
   try {
-    await runThumbnails({ input: body.prompt.trim(), style, outputsDir, emit })
+    await runThumbnails({ input: body.prompt.trim(), style, outputsDir, emit, model })
   } catch (err) {
     if (!(err instanceof GameNotFound)) console.error('Run failed:', err)
     emit({ type: 'error', error: err.message })
@@ -124,6 +127,8 @@ export function createApi(root) {
           imageProvider: c.imageProvider,
           imageModel: c.imageModel,
           falModel: c.falModel,
+          imageModels: Object.entries(imageModels()).map(([key, m]) => ({ key, label: m.label, falOnly: !m.gemini })),
+          defaultImageModel: DEFAULT_IMAGE_MODEL,
           textModel: c.textModel,
           judgeModels: c.judgeModels,
           styleReferenceName: c.styleReferenceName,

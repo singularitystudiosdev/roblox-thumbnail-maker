@@ -12,6 +12,7 @@ import { basename, join } from 'node:path'
 import { resolveGameName } from './gamename.mjs'
 import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
+import { imageModel } from './imagemodels.mjs'
 import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
 import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
@@ -55,9 +56,10 @@ async function nearestOrNull(gameName, extraNames) {
 
 /**
  * `style`: { bytes, mimeType, name, source: 'bundled' | 'upload' }, the image
- * the two templates are styled after. Returns the saved run record.
+ * the two templates are styled after; `model`: the image model every slot uses
+ * (imageModel(), Nano Banana 2 by default). Returns the saved run record.
  */
-export async function runThumbnails({ input, style, outputsDir, emit = () => {}, random = Math.random }) {
+export async function runThumbnails({ input, style, outputsDir, emit = () => {}, random = Math.random, model = imageModel() }) {
   const started = Date.now()
   const { gameName, namedBy, link } = await resolveGameName(input)
   const id = newRunId()
@@ -79,6 +81,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     namedBy,
     link,
     style: styleRef,
+    imageModel: { key: model.key, label: model.label },
     reference: null,
     searchReference: null,
     slots,
@@ -92,7 +95,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     const t0 = Date.now()
     const base = { slot: slot.slot, strategy: slot.strategy, prompt: slot.prompt, referenceName }
     try {
-      const image = await generateThumbnail(slot.prompt, referenceImage)
+      const image = await generateThumbnail(slot.prompt, referenceImage, model)
       images.set(slot.slot, image)
       return { ...base, imageUrl: save(`thumbnail-${slot.slot}`, image), provider: image.provider, model: image.model, ms: Date.now() - t0 }
     } catch (err) {
