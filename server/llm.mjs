@@ -83,12 +83,15 @@ export async function askJson(request, routes) {
   throw new Error(`${ask.label} failed on every model: ${failures.join(' | ')}`)
 }
 
+// fal.ai first: every judge verdict, kind sort and search pick checked against the creator's own
+// picks ran on fal's Claude models. Gemini is the fallback, so topping up its credit does not
+// silently move them to a model nobody has checked.
 export const textRoutes = () => [
-  { provider: 'gemini', model: config().textModel },
-  { provider: 'fal', model: config().falTextModel }
+  { provider: 'fal', model: config().falTextModel },
+  { provider: 'gemini', model: config().textModel }
 ]
 
 export const judgeRoutes = () => [
-  ...config().judgeModels.map((model) => ({ provider: 'gemini', model })),
-  { provider: 'fal', model: config().falJudgeModel, reasoning: true }
+  { provider: 'fal', model: config().falJudgeModel, reasoning: true },
+  ...config().judgeModels.map((model) => ({ provider: 'gemini', model }))
 ]
