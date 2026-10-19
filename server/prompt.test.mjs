@@ -71,4 +71,20 @@ test('a request wrapper is stripped down to the name', () => {
 test('a quoted name or a pasted full prompt yields just the name', () => {
   assert.equal(extractGameName('Make a thumbnail for "Lava Leap" please'), 'Lava Leap')
   assert.equal(extractGameName(buildPrompt('Steal an Egg')), 'Steal an Egg')
+  assert.equal(extractGameName('"Bake a Cake"'), 'Bake a Cake')
+  assert.equal(extractGameName('my game is called "Pet Rock"'), 'Pet Rock')
+  assert.equal(extractGameName('Steal an Egg in the style of my reference image'), 'Steal an Egg')
+})
+
+test('style words, "no text" and quotes inside a description stay part of it', () => {
+  // Each of these was cut short or reduced to its quote before the fix.
+  for (const description of [
+    'A farming game based on Stardew Valley',
+    'A tycoon game in the style of Pixar with robots',
+    'An obby with no text on the screen',
+    'A game with a "Pet Rock" and bacon hair',
+    '"Pet Rock" with a bacon hair'
+  ]) {
+    assert.equal(extractGameName(description), description)
+  }
 })
