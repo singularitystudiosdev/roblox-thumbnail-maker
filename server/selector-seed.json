@@ -1833,6 +1833,240 @@
     "plain": 1
    },
    "picked": true
+  },
+  {
+   "id": "2026-10-19T11-07-46-465Z-93b082b2",
+   "game": "Make a burger",
+   "fit": {
+    "nearestFit": 5,
+    "searchFit": 9,
+    "nameClarity": 4,
+    "genre": "simulator",
+    "realism": 8,
+    "abstractness": 5,
+    "knownGame": 3,
+    "nearestArt": 6,
+    "searchArt": 6
+   },
+   "refs": {
+    "nearest": "6497966193",
+    "search": "7498898979"
+   },
+   "refNames": {
+    "nearest": "🍔 Burgeria Tycoon",
+    "search": "[🎃] Burgerz🍔"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2.3,
+    "remix": 3.5,
+    "search": 0,
+    "meta": 2,
+    "plain": 2
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T11-08-01-463Z-c685624d",
+   "game": "Bake a cake",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 8,
+    "nameClarity": 5,
+    "genre": "simulator",
+    "realism": 8,
+    "abstractness": 5,
+    "knownGame": 4,
+    "nearestArt": 2,
+    "searchArt": 4
+   },
+   "refs": {
+    "nearest": "10533638982",
+    "search": "290834808"
+   },
+   "refNames": {
+    "nearest": "🍰 Cake Mountain 🥄",
+    "search": "Make some yummy cake! [Halloween"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 18.4,
+    "search": 11.3,
+    "meta": 15.6,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T11-08-16-463Z-05ba606f",
+   "game": "Live inside a spider's cage",
+   "fit": {
+    "nearestFit": 2,
+    "searchFit": 9,
+    "nameClarity": 6,
+    "genre": "survival",
+    "realism": 3,
+    "abstractness": 4,
+    "knownGame": 5,
+    "nearestArt": 1,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "1776914212",
+    "search": "1643450259"
+   },
+   "refNames": {
+    "nearest": "Spider",
+    "search": "LIVE INSIDE A SPIDER CAGE!"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0.7,
+    "remix": 17.1,
+    "search": 4,
+    "meta": 17,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T11-18-48-072Z-b2f943af",
+   "game": "Escape IT in the sewers",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 3,
+    "nameClarity": 5,
+    "genre": "horror",
+    "realism": 4,
+    "abstractness": 5,
+    "knownGame": 4,
+    "nearestArt": 8,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10766214469",
+    "search": "7690412163"
+   },
+   "refNames": {
+    "nearest": "UNDERFLOW [UPD 2]",
+    "search": "Dead Sewers🌊[Alpha]"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2.7,
+    "remix": 6.9,
+    "search": 3,
+    "meta": 9.3,
+    "plain": 0
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": false
+  },
+  {
+   "id": "2026-10-19T11-19-03-072Z-62af5bea",
+   "game": "Haunted House Tycoon",
+   "fit": {
+    "nearestFit": 3,
+    "searchFit": 9,
+    "nameClarity": 6,
+    "genre": "tycoon",
+    "realism": 3,
+    "abstractness": 4,
+    "knownGame": 4,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "1811388660",
+    "search": "10547090414"
+   },
+   "refNames": {
+    "nearest": "Horror Tycoon",
+    "search": "🏚️Haunted Mansion Tycoon👻"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 2,
+    "search": 0,
+    "meta": 2,
+    "plain": 2
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
+  },
+  {
+   "id": "2026-10-19T11-19-18-071Z-a49ab406",
+   "game": "Stop it Slender",
+   "fit": {
+    "nearestFit": 3,
+    "searchFit": 10,
+    "nameClarity": 5,
+    "genre": "horror",
+    "realism": 4,
+    "abstractness": 6,
+    "knownGame": 8,
+    "nearestArt": 7,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "3124818385",
+    "search": "23601173"
+   },
+   "refNames": {
+    "nearest": "Slendytubbies VS Redux",
+    "search": "Stop it, Slender! 2 [🎃]"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 16.2,
+    "search": 17,
+    "meta": 13.3,
+    "plain": 2.7
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   }
  ]
 }
