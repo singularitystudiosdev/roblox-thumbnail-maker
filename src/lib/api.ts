@@ -1,45 +1,85 @@
-/** The style reference: the most-played Roblox game near the name, or the bundled image when none is found. */
-export interface Reference {
-  source: 'roblox' | 'fallback'
+/** The image thumbnail 1 is made "in the style of": the bundled one or the user's upload. */
+export interface StyleRef {
   name: string
-  thumbnailUrl: string
+  source: 'bundled' | 'upload'
+  imageUrl: string
+}
+
+/** The nearest, most popular Roblox game, whose thumbnail thumbnails 2 and 3 remix. */
+export interface Reference {
+  source: 'roblox' | 'style'
+  name: string
+  imageUrl: string
   universeId?: number
   placeId?: number
   playing?: number
   url?: string
-  nearCount?: number
-  /** The name Roblox was searched for. */
-  query?: string
+  queries?: string[]
+  candidateCount?: number
+  pickedBy?: string
+  why?: string
+  /** Which of the game page's thumbnails was picked as the cleanest, and why. */
+  thumbnail?: { index: number; count: number; why: string; pickedBy: string | null }
 }
 
-/** The Roblox game whose description the title was written from. */
-export interface DescribedFrom {
-  name: string
-  url: string
-  playing: number
-}
-
-export interface Plan {
-  gameName: string
+export interface Slot {
+  slot: number
+  strategy: 'template' | 'remix'
   prompt: string
-  reference: Reference
-  describedFrom: DescribedFrom | null
-  namedBy: 'gemini' | 'fal' | 'fallback' | 'typed'
 }
 
-export interface Generation {
+export interface Thumbnail extends Slot {
+  referenceName: string
+  imageUrl?: string
+  provider?: 'gemini' | 'fal'
+  model?: string
+  ms: number
+  error?: string
+}
+
+export interface Score {
+  slot: number
+  coherent: number
+  fitsName: number
+  clean: number
+  clickable: number
+  total: number
+  note: string
+}
+
+export interface Judge {
+  winnerSlot: number | null
+  reason?: string
+  scores?: Score[]
+  provider?: string | null
+  model?: string | null
+  error?: string
+}
+
+export interface Run {
   id: string
   createdAt: string
-  imageUrl: string
+  input: string
   gameName: string
-  prompt: string
-  resolution: string
-  reference: Partial<Reference> & { name: string }
-  describedFrom?: DescribedFrom | null
-  provider: 'gemini' | 'fal'
-  model: string
-  ms: number
+  namedBy: 'link' | 'typed'
+  link: { placeId: string; title: string; url: string } | null
+  style: StyleRef
+  reference: Reference | null
+  slots: Slot[]
+  thumbnails: Thumbnail[]
+  judge: Judge | null
+  winnerSlot?: number | null
+  ms?: number
 }
+
+export type RunEvent =
+  | { type: 'plan'; run: Run }
+  | { type: 'reference'; reference: Reference }
+  | { type: 'thumbnail'; thumbnail: Thumbnail }
+  | { type: 'judging' }
+  | { type: 'judge'; judge: Judge }
+  | { type: 'done'; run: Run }
+  | { type: 'error'; error: string }
 
 export interface Status {
   geminiKeys: number
@@ -47,13 +87,16 @@ export interface Status {
   imageProvider: string
   imageModel: string
   falModel: string
-  textModel: string
-  falTextModel: string
-  fallbackReferenceName: string
+  styleReferenceName: string
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } })
+export interface StyleUpload {
+  dataUrl: string
+  name: string
+}
+
+async function request<T>(path: string): Promise<T> {
+  const res = await fetch(path)
   const body = await res.json().catch((err) => {
     console.error(`${path} returned a non-JSON body`, err)
     return null
@@ -62,19 +105,48 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
+/** Starts a run and hands each NDJSON event to `onEvent` as it arrives. */
+async function run(prompt: string, style: StyleUpload | null, onEvent: (event: RunEvent) => void) {
+  const res = await fetch('/api/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, style })
+  })
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch((err) => {
+      console.error('/api/run returned a non-JSON error body', err)
+      return null
+    })
+    throw new Error(body?.error ?? `Request failed with HTTP ${res.status}. Check the server terminal.`)
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += value
+    let newline = buffer.indexOf('\n')
+    while (newline >= 0) {
+      const line = buffer.slice(0, newline).trim()
+      buffer = buffer.slice(newline + 1)
+      if (line) onEvent(JSON.parse(line) as RunEvent)
+      newline = buffer.indexOf('\n')
+    }
+  }
+  if (buffer.trim()) onEvent(JSON.parse(buffer) as RunEvent)
+}
+
 export const api = {
-  plan: (prompt: string, keepName = false) => request<Plan>('/api/plan', { method: 'POST', body: JSON.stringify({ prompt, keepName }) }),
-  generate: (input: { gameName: string; reference: Reference; describedFrom: DescribedFrom | null }) =>
-    request<Generation>('/api/generate', { method: 'POST', body: JSON.stringify(input) }),
-  history: () => request<{ items: Generation[] }>('/api/history'),
+  run,
+  runs: () => request<{ items: Run[] }>('/api/runs'),
   status: () => request<Status>('/api/status')
 }
 
-/** Saved results predate the per-game lookup too: those used the bundled image or carried no `source`. */
-export function referenceOf(item: Generation): Reference {
-  const ref = item.reference
-  if (ref.thumbnailUrl?.startsWith('https://')) return { ...ref, source: 'roblox', thumbnailUrl: ref.thumbnailUrl }
-  return { source: 'fallback', name: ref.name, thumbnailUrl: '/api/reference' }
+/** "High Angle" from "Make this thumbnail but High Angle. No text."; "Exact template" for slot 1. */
+export function strategyLabel(slot: Slot) {
+  if (slot.strategy === 'template') return 'Exact template'
+  const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'
+  return `Remix: ${angle[0].toUpperCase()}${angle.slice(1)}`
 }
 
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })
@@ -88,7 +160,8 @@ export function formatAgo(iso: string) {
   return 'just now'
 }
 
-export const providerLabel = (provider: Generation['provider']) => (provider === 'gemini' ? 'Gemini API' : 'fal.ai')
+export const providerLabel = (provider: Thumbnail['provider']) => (provider === 'gemini' ? 'Gemini API' : 'fal.ai')
 
-/** Older saved results came from Nano Banana Pro; everything new is Nano Banana 2. */
-export const modelLabel = (model: string) => (/pro/i.test(model) ? 'Nano Banana Pro' : 'Nano Banana 2')
+export function slugify(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'thumbnail'
+}

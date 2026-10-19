@@ -3,20 +3,24 @@ import { formatCount, type Reference } from '../lib/api'
 
 interface ReferenceCardProps {
   reference: Reference | null
-  gameName: string
   loading: boolean
 }
 
-function caption(reference: Reference, gameName: string) {
-  if (reference.source === 'fallback') return `No Roblox game matches “${gameName}”, so the default reference is used.`
-  const of = reference.nearCount === 1 ? 'the only close match' : `the most played of ${reference.nearCount ?? 'the'} close matches`
-  return `Picked as ${of} for “${gameName}” on Roblox.`
+function caption(reference: Reference) {
+  if (reference.source === 'style') return 'Roblox had no game close to this name, so the remixes start from your reference image.'
+  const pool = reference.candidateCount ? `Picked from ${reference.candidateCount} Roblox search results.` : ''
+  return [reference.why, pool].filter(Boolean).join(' ')
 }
 
-export function ReferenceCard({ reference, gameName, loading }: ReferenceCardProps) {
+function thumbnailCaption({ index, count, why }: NonNullable<Reference['thumbnail']>) {
+  if (count <= 1) return 'Its only thumbnail.'
+  return `Thumbnail ${index} of ${count} on its page, the cleanest with the least text. ${why}`
+}
+
+export function ReferenceCard({ reference, loading }: ReferenceCardProps) {
   return (
     <section aria-labelledby="reference-title" aria-busy={loading || undefined} className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
-      <h2 id="reference-title" className="text-title font-semibold">Reference image</h2>
+      <h2 id="reference-title" className="text-title font-semibold">Nearest popular game</h2>
 
       {loading && (
         <div className="flex flex-col gap-8" aria-hidden="true">
@@ -27,13 +31,13 @@ export function ReferenceCard({ reference, gameName, loading }: ReferenceCardPro
       )}
 
       {!loading && !reference && (
-        <p className="text-label text-text-secondary">Each game name gets the most-played matching Roblox game as its style reference.</p>
+        <p className="text-label text-text-secondary">Thumbnails 2 and 3 remix the thumbnail of the nearest, most played Roblox game to yours.</p>
       )}
 
       {!loading && reference && (
         <>
           <img
-            src={reference.thumbnailUrl}
+            src={reference.imageUrl}
             alt={`Reference thumbnail: ${reference.name}`}
             width={768}
             height={432}
@@ -61,7 +65,8 @@ export function ReferenceCard({ reference, gameName, loading }: ReferenceCardPro
               </a>
             )}
           </div>
-          <p className="text-caption text-text-secondary">{caption(reference, gameName)}</p>
+          <p className="text-caption text-text-secondary">{caption(reference)}</p>
+          {reference.thumbnail && <p className="text-caption text-text-secondary">{thumbnailCaption(reference.thumbnail)}</p>}
         </>
       )}
     </section>

@@ -1,46 +1,51 @@
 // Nano Banana 2, two routes to the same model: the Gemini API directly, or
-// fal.ai's hosted endpoint when every Gemini key is out of quota or credit.
-// Output settings are fixed to what Nano Banana Studio (localhost:8890) sends:
-// at 2K the model drifts from the reference's 3D render into a painterly style.
+// fal.ai's hosted endpoint when Gemini fails (out of quota or credit, or no
+// image back). Each call is one prompt plus one reference image, nothing else.
+// fal output is 1K, the Gemini route's default size (1376x768); at 2K the
+// model drifts from the reference's 3D render into a painterly style.
 import { config } from './env.mjs'
 import { falRun } from './fal.mjs'
 import { generateContent, ProviderUnavailable } from './gemini.mjs'
+import { imageMimeType } from './mime.mjs'
 
-export const OUTPUT_RESOLUTION = '0.5K'
+export const OUTPUT_RESOLUTION = '1K'
+// Roblox thumbnails are 16:9; both routes are asked for it outright.
+export const ASPECT_RATIO = '16:9'
 
 async function download(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
   if (!res.ok) throw new Error(`Image download failed: HTTP ${res.status} for ${new URL(url).hostname}`)
-  return { bytes: Buffer.from(await res.arrayBuffer()), mimeType: res.headers.get('content-type')?.split(';')[0] ?? 'image/png' }
+  const bytes = Buffer.from(await res.arrayBuffer())
+  return { bytes, mimeType: imageMimeType(bytes, res.headers.get('content-type')) }
 }
 
-/** fal request body, field for field the one Nano Banana Studio sends. */
+/** fal request body: the prompt, one image, the reference as a data URL. */
 export function falInput(prompt, reference) {
   return {
     prompt,
     num_images: 1,
-    aspect_ratio: 'auto',
+    aspect_ratio: ASPECT_RATIO,
     output_format: 'png',
     resolution: OUTPUT_RESOLUTION,
     image_urls: [`data:${reference.mimeType};base64,${reference.bytes.toString('base64')}`]
   }
 }
 
-// Like Nano Banana Studio's Google call: prompt then image, no size or aspect config.
+/** Gemini request body: prompt then reference image, image output only, 16:9. */
+export function geminiInput(prompt, reference) {
+  return {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }, { inlineData: { mimeType: reference.mimeType, data: reference.bytes.toString('base64') } }]
+      }
+    ],
+    generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: ASPECT_RATIO } }
+  }
+}
+
 async function viaGemini(prompt, reference) {
-  const body = await generateContent(
-    config().imageModel,
-    {
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }, { inlineData: { mimeType: reference.mimeType, data: reference.bytes.toString('base64') } }]
-        }
-      ],
-      generationConfig: { responseModalities: ['IMAGE'] }
-    },
-    240000
-  )
+  const body = await generateContent(config().imageModel, geminiInput(prompt, reference), 240000)
   const parts = body?.candidates?.[0]?.content?.parts ?? []
   const image = parts.filter((p) => p.inlineData && !p.thought).at(-1)
   if (!image) throw new Error(`${config().imageModel} returned no image (finish: ${body?.candidates?.[0]?.finishReason ?? 'unknown'})`)
@@ -67,8 +72,9 @@ export async function generateThumbnail(prompt, reference) {
   try {
     return await viaGemini(prompt, reference)
   } catch (err) {
-    if (mode === 'gemini' || !(err instanceof ProviderUnavailable)) throw err
-    console.warn(`${err.message}. Falling back to fal.ai.`)
+    if (mode === 'gemini' || config().falKeys.length === 0) throw err
+    if (err instanceof ProviderUnavailable) console.warn(`${err.message}. Falling back to fal.ai.`)
+    else console.error('Nano Banana 2 via Gemini failed, retrying on fal.ai:', err)
     return viaFal(prompt, reference)
   }
 }

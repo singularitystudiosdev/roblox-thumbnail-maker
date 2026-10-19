@@ -25,7 +25,7 @@ if (!existsSync(join(dist, 'index.html'))) {
   process.exit(1)
 }
 
-const port = Number(process.env.PORT ?? 4317)
+const port = Number(process.env.PORT ?? 4327)
 createServer((req, res) => api(req, res, () => serveStatic(req, res))).listen(port, () => {
   console.log(`Roblox Thumbnail Maker on http://localhost:${port}`)
 })

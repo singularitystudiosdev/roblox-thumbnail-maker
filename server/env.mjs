@@ -29,7 +29,7 @@ function keychainValue(service) {
 }
 
 function listEnv(name, fallback) {
-  return (process.env[name] ?? fallback).split(',').map((s) => s.trim()).filter(Boolean)
+  return (process.env[name] || fallback).split(',').map((s) => s.trim()).filter(Boolean)
 }
 
 /** Every distinct key for a provider, env first, then keychain services in order. */
@@ -50,13 +50,15 @@ export function config() {
   cached = {
     geminiKeys: resolveKeys('GEMINI_API_KEY', 'GEMINI_KEYCHAIN_SERVICES', 'gemini-api-key,nano-banana-gemini-key'),
     falKeys: resolveKeys('FAL_KEY', 'FAL_KEYCHAIN_SERVICES', 'cosmos-fal,fal-key'),
-    imageProvider: process.env.IMAGE_PROVIDER ?? 'auto',
-    imageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image',
-    falModel: process.env.FAL_IMAGE_MODEL ?? 'fal-ai/nano-banana-2/edit',
-    textModel: process.env.GEMINI_TEXT_MODEL ?? 'gemini-3.5-flash',
-    falTextModel: process.env.FAL_TEXT_MODEL ?? 'anthropic/claude-haiku-5.5',
-    referenceImage: process.env.REFERENCE_IMAGE ?? 'reference/day-67-prison-dig.png',
-    referenceName: process.env.REFERENCE_NAME ?? 'DAY #67 prison dig'
+    imageProvider: process.env.IMAGE_PROVIDER || 'auto',
+    imageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image',
+    falModel: process.env.FAL_IMAGE_MODEL || 'fal-ai/nano-banana-2/edit',
+    textModel: process.env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash',
+    judgeModels: listEnv('GEMINI_JUDGE_MODELS', 'gemini-3.1-pro-preview,gemini-3.5-flash'),
+    falTextModel: process.env.FAL_TEXT_MODEL || 'anthropic/claude-haiku-5.5',
+    falJudgeModel: process.env.FAL_JUDGE_MODEL || 'anthropic/claude-sonnet-5.5',
+    styleReference: process.env.STYLE_REFERENCE || 'reference/day-67-prison-dig.png',
+    styleReferenceName: process.env.STYLE_REFERENCE_NAME || 'DAY #67 prison dig'
   }
   return cached
 }

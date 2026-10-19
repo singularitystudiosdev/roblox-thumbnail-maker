@@ -1,8 +1,35 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
-import { closestTitleMatch, gamesFromSearch, isAllowedReferenceUrl, nameTokens, parseGameUrl, pickReference } from './roblox.mjs'
+import { afterEach, test } from 'node:test'
+import {
+  cleanTitle,
+  downloadThumbnail,
+  findGameLink,
+  gameFromPlace,
+  GameNotFound,
+  gamesFromSearch,
+  isAllowedReferenceUrl,
+  nameTokens,
+  sameWord,
+  searchGames,
+  titleFromSlug,
+  withThumbnails
+} from './roblox.mjs'
 
-const game = (name, playing) => ({ name, playing })
+const realFetch = globalThis.fetch
+afterEach(() => {
+  globalThis.fetch = realFetch
+})
+
+/** Answers each request with the JSON the matching handler returns, and records the URLs asked for. */
+function stubFetch(handler) {
+  const urls = []
+  globalThis.fetch = async (url) => {
+    urls.push(String(url))
+    const { status = 200, body } = handler(String(url))
+    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  }
+  return urls
+}
 
 test('omni-search payload flattens to games, sponsored slots dropped', () => {
   const games = gamesFromSearch({
@@ -17,71 +44,87 @@ test('omni-search payload flattens to games, sponsored slots dropped', () => {
 
 test('name words drop filler, emoji and plurals', () => {
   assert.deepEqual(nameTokens('[🎃] Rob a Bank💰'), ['rob', 'bank'])
-  assert.deepEqual(nameTokens('Make a Cake And Feed the Giant Noobs!'), ['make', 'cake', 'feed', 'giant', 'noob'])
-})
-
-test('an unrelated high-CCU result is never picked over a near one', () => {
-  // Real "Grow a Garden" results, 2026-10-18: Steal An Egg sits 4th with 923k players.
-  const picked = pickReference('Grow a Garden', [
-    game('[🎃] Grow a Garden 🌶️', 19149),
-    game('[UPD] Grow a Tornado (Custom Interceptors)', 873),
-    game('Grow a Garden 2', 1777),
-    game('Steal An Egg', 923531),
-    game('[💀] Steal a Brainrot', 122286)
-  ])
-  assert.equal(picked.game.name, '[🎃] Grow a Garden 🌶️')
-  assert.equal(picked.nearCount, 3)
+  assert.deepEqual(nameTokens('A axe throwing game with a bacon hair in the thumbnail'), ['axe', 'throwing', 'bacon', 'hair'])
 })
 
 test('word stems count as near, words merely containing the name do not', () => {
-  const picked = pickReference('Bake a Cake', [
-    game('Make a Cake!', 41),
-    game('Bakers Valley', 57),
-    game('[🥞] Paint a Pancake', 5127),
-    game('🎃 Bake or Die 💀', 5324),
-    game('Bakery Simulator', 13)
-  ])
-  assert.equal(picked.game.name, '🎃 Bake or Die 💀')
-  assert.equal(picked.nearCount, 4)
+  assert.ok(sameWord('bake', 'bakery'))
+  assert.ok(sameWord('throw', 'throwing'))
+  assert.ok(!sameWord('cake', 'pancake'))
+  assert.ok(!sameWord('axe', 'axes2'))
 })
 
-test('with no near result there is no Roblox reference, however popular the hits', () => {
-  // Real search for a nonsense name, 2026-10-18: generic top games come back.
-  assert.equal(pickReference('Zzyzxqv Blorp', [game('Brookhaven 🏡RP', 295958), game('Steal a Brainrot', 122286)]), null)
-  assert.equal(pickReference('Rob a Bank', []), null)
-  assert.equal(pickReference('the game', [game('The Game', 5)]), null)
+test('a roblox.com game link yields its place id, slug and exact text', () => {
+  assert.deepEqual(findGameLink('Make a thumbnail for https://www.roblox.com/games/107778070777162/Steal-An-Egg please'), {
+    placeId: '107778070777162',
+    slug: 'Steal-An-Egg',
+    raw: 'https://www.roblox.com/games/107778070777162/Steal-An-Egg'
+  })
+  assert.equal(findGameLink('roblox.com/games/920587237').slug, null)
+  assert.equal(findGameLink('https://www.roblox.com/de/games/606849621/Jailbreak').placeId, '606849621')
+  assert.equal(findGameLink('https://www.roblox.com/games/1/unnamed').slug, null)
+  assert.deepEqual(findGameLink('https://www.roblox.com/games/start?placeId=2753915549'), {
+    placeId: '2753915549',
+    slug: null,
+    raw: 'https://www.roblox.com/games/start?placeId=2753915549'
+  })
 })
 
-test('a CCU tie keeps Roblox relevance order', () => {
-  assert.equal(pickReference('Rob a Bank', [game('Rob It', 50), game('Bank Heist', 50)]).game.name, 'Rob It')
+test('text without a roblox.com game link has none', () => {
+  assert.equal(findGameLink('Rob a Bank'), null)
+  assert.equal(findGameLink('https://example.com/games/123/Fake'), null)
 })
 
-test('a roblox.com game link yields its place id, other text does not', () => {
-  assert.equal(parseGameUrl('Make a thumbnail for my game https://www.roblox.com/games/114326934417838/Break-and-Steal-an-Egg'), '114326934417838')
-  assert.equal(parseGameUrl('roblox.com/games/920587237'), '920587237')
-  assert.equal(parseGameUrl('https://www.roblox.com/de/games/606849621/Jailbreak'), '606849621')
-  assert.equal(parseGameUrl('https://www.roblox.com/games/start?placeId=2753915549'), '2753915549')
-  assert.equal(parseGameUrl('Rob a Bank'), null)
-  assert.equal(parseGameUrl('https://example.com/games/123'), null)
+test('a slug reads as a title: minor words lowercase, caps kept', () => {
+  assert.equal(titleFromSlug('Steal-An-Egg'), 'Steal an Egg')
+  assert.equal(titleFromSlug('steal-an-egg'), 'Steal an Egg')
+  assert.equal(titleFromSlug('Break-and-Steal-an-Egg'), 'Break and Steal an Egg')
+  assert.equal(titleFromSlug('A-Dusty-Trip'), 'A Dusty Trip')
+  assert.equal(titleFromSlug('DOORS'), 'DOORS')
+  assert.equal(titleFromSlug('Pet-Simulator-99'), 'Pet Simulator 99')
+  // A malformed escape stays as typed.
+  assert.equal(titleFromSlug('bad%E0'), 'bad%E0')
 })
 
-test('the game the user means is the closest title, not the most played', () => {
-  // Real "Break and Steal an Egg" search results, 2026-10-18.
-  const results = [game('Break and Steal an Egg', 104045), game('Steal An Egg', 913663), game('[🧟EVENT] Break a Brainrot Egg!', 5022)]
-  assert.equal(closestTitleMatch('Break and Steal an Egg', results).name, 'Break and Steal an Egg')
-  assert.equal(closestTitleMatch('Rob a Bank', [game('Rob A Jewellery Store Obby', 112), game('[🎃] Rob a Bank💰', 7)]).name, '[🎃] Rob a Bank💰')
+test('Roblox title decoration is removed', () => {
+  assert.equal(cleanTitle('[🥚] Steal An Egg!'), 'Steal An Egg')
+  assert.equal(cleanTitle('Grow a Garden 🌶️ (READ DESC)'), 'Grow a Garden')
 })
 
-test('a title sharing too few words is a different game, so none is matched', () => {
-  assert.equal(closestTitleMatch('Lava Leap', [game('The Floor Is LAVA!🔥', 2365)]), null)
-  assert.equal(closestTitleMatch('surf giant waves with sharks', [game('SharkBite 2', 5000), game('Surf', 10)]), null)
-  assert.equal(closestTitleMatch('Rob a Bank', []), null)
+test('search sends the query encoded and returns game rows', async () => {
+  const urls = stubFetch(() => ({
+    body: { searchResults: [{ contentGroupType: 'Game', contents: [{ universeId: 7, rootPlaceId: 70, name: 'Axe Throwing', playerCount: 9 }] }] }
+  }))
+  const games = await searchGames('axe throwing & more')
+  assert.match(urls[0], /searchQuery=axe%20throwing%20%26%20more&/)
+  assert.deepEqual(games.map((g) => [g.universeId, g.url]), [[7, 'https://www.roblox.com/games/70']])
 })
 
-test('only https Roblox CDN references are allowed', () => {
+test('games whose thumbnail is not ready are dropped', async () => {
+  const urls = stubFetch(() => ({
+    body: {
+      data: [
+        { universeId: 1, thumbnails: [{ state: 'Completed', imageUrl: 'https://tr.rbxcdn.com/one' }] },
+        { universeId: 2, thumbnails: [{ state: 'Pending', imageUrl: null }] }
+      ]
+    }
+  }))
+  const games = await withThumbnails([{ universeId: 1, name: 'One' }, { universeId: 2, name: 'Two' }])
+  assert.match(urls[0], /universeIds=1,2&.*size=768x432/)
+  assert.deepEqual(games, [{ universeId: 1, name: 'One', thumbnailUrl: 'https://tr.rbxcdn.com/one' }])
+  assert.deepEqual(await withThumbnails([]), [])
+})
+
+test('a link to a place that is not a game is the user input at fault', async () => {
+  stubFetch(() => ({ status: 404, body: { errors: [] } }))
+  await assert.rejects(gameFromPlace('123'), GameNotFound)
+})
+
+test('only https Roblox CDN references are allowed', async () => {
   assert.ok(isAllowedReferenceUrl('https://tr.rbxcdn.com/180DAY-abc/768/432/Image/Png/noFilter'))
   assert.ok(!isAllowedReferenceUrl('http://tr.rbxcdn.com/x'))
   assert.ok(!isAllowedReferenceUrl('https://rbxcdn.com.evil.test/x'))
   assert.ok(!isAllowedReferenceUrl('http://169.254.169.254/latest'))
   assert.ok(!isAllowedReferenceUrl(undefined))
+  await assert.rejects(downloadThumbnail('http://169.254.169.254/latest'), /Roblox CDN/)
 })

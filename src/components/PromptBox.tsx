@@ -25,7 +25,7 @@ export function PromptBox({ value, onChange, onSubmit, busy }: PromptBoxProps) {
       className="flex flex-col rounded-16 border border-border-default bg-bg-surface focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand"
     >
       <label htmlFor="prompt" className="px-16 pt-12 text-label font-medium text-text-secondary">
-        Game name or Roblox link
+        Game name, description or Roblox link
       </label>
       <textarea
         id="prompt"
@@ -33,7 +33,8 @@ export function PromptBox({ value, onChange, onSubmit, busy }: PromptBoxProps) {
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         rows={4}
-        placeholder="Rob a Bank, or https://www.roblox.com/games/…"
+        maxLength={2000}
+        placeholder="Steal an Egg, a description of your game, or https://www.roblox.com/games/…"
         className="min-h-96 resize-none bg-transparent px-16 py-8 text-body text-text-primary placeholder:text-text-quaternary focus:outline-none"
       />
       <div className="flex items-center justify-end gap-12 px-12 pb-12">
@@ -42,7 +43,7 @@ export function PromptBox({ value, onChange, onSubmit, busy }: PromptBoxProps) {
         </span>
         <Button type="submit" variant="primary" size="lg" loading={busy} disabled={!value.trim()} aria-keyshortcuts="Meta+Enter Control+Enter">
           {!busy && <ImagePlus className="size-16" aria-hidden="true" />}
-          Generate
+          Make 3 thumbnails
         </Button>
       </div>
     </form>

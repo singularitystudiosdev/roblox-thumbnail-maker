@@ -2,7 +2,7 @@
   "name": "roblox-thumbnail-maker",
   "private": true,
   "version": "0.1.0",
-  "description": "Prompt to Roblox game name to a Nano Banana 2 thumbnail styled after a fixed reference image",
+  "description": "One prompt, three Nano Banana 2 Roblox thumbnails (the exact template plus two remixes of the nearest popular game), and a judge-picked winner",
   "type": "module",
   "engines": {
     "node": ">=20"

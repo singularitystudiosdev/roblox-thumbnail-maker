@@ -18,6 +18,6 @@ function thumbnailApi() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), thumbnailApi()],
-  server: { port: Number(process.env.PORT ?? 4317), watch: { ignored: ['**/outputs/**'] } },
-  preview: { port: Number(process.env.PORT ?? 4317) }
+  server: { port: Number(process.env.PORT ?? 4327), watch: { ignored: ['**/outputs/**'] } },
+  preview: { port: Number(process.env.PORT ?? 4327) }
 })
