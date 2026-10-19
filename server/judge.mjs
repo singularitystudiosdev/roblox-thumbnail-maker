@@ -11,7 +11,7 @@ import { askJson, judgeRoutes, withoutDashes } from './llm.mjs'
 import { imageMimeType } from './mime.mjs'
 import { downloadThumbnail, gameDetails, gameFromPlace, gameThumbnails } from './roblox.mjs'
 
-export const CRITERIA = ['fitsGame', 'robloxStyle', 'clean', 'clickable', 'coherent']
+export const CRITERIA = ['fitsGame', 'genreLook', 'clean', 'clickable', 'coherent']
 export const MAX_TOTAL = CRITERIA.length * 10
 export const PASSES = 3
 const PASS_STAGGER_MS = 1000
@@ -23,13 +23,13 @@ You get the creator's game (its name, or their description of it), context about
 Look closely at the whole of every image, its edges and corners included, before you score it.
 Score every candidate from 1 to 10 on:
 - fitsGame: it shows this game: its gameplay, characters, objects and setting as the name and the context describe them. A picture of a different setting, genre or story (for example a space battle for a farming game) misleads players: score it 1 to 3 however polished it is. Illustrating the words of the name literally is not enough when the context shows the game is something else.
-- robloxStyle: it looks like a thumbnail on the Roblox front page: bright saturated colors, a simple background, chunky Roblox avatars and a blocky Roblox world. Dark, gritty, realistic or movie poster renders score low.
-- clean: the picture fills the whole 16:9 frame edge to edge; a circular or vignette crop, white or blank corners, borders or a picture inside a frame make a broken thumbnail, so score clean 1 to 3. Also no words anywhere (on screen, on signs or on clothing), no watermarks or artifacts. Small comic symbols such as zzz, arrows or exclamation marks barely matter.
-- clickable: at feed size (about 256 by 144 pixels) one big subject reads at a glance and gives a reason to click. Big and close beats small and complete: the game's signature objects shown large and close, filling the frame with depth and drama, beat a distant scene that shows everything small. Things partly hidden behind the subject are fine.
+- genreLook: it has the look that wins for this kind of Roblox game, which the context gives (the game's own thumbnail, or the look of a popular game of its kind): a tactical shooter wins with dark, realistic, cinematic shots, a simulator or obby with bright, saturated, chunky ones. Judge the look against the context, never against one house style. Roblox avatars in a Roblox-built world either way; flat 2D drawings and photos of real people score low.
+- clean: the picture fills the whole 16:9 frame edge to edge; white or blank corners, borders or a picture pasted inside a frame make a broken thumbnail, so score clean 1 to 3. A dark vignette that is part of the scene (a scope, night vision goggles, a camera or a flashlight view) is a deliberate effect, not a broken frame. Also no words anywhere (on screen, on signs or on clothing), no watermarks or artifacts. Small comic symbols such as zzz, arrows or exclamation marks barely matter.
+- clickable: at feed size (about 256 by 144 pixels) it stops a scrolling player: one big subject that reads at a glance, or a striking, unusual view or effect they have not seen on the other thumbnails. Big and close beats small and complete: the game's signature objects shown large and close, filling the frame with depth and drama, beat a distant scene that shows everything small. Things partly hidden behind the subject are fine.
 - coherent: nothing is broken: warped bodies, duplicated or floating objects (such as two of the same tool, or a tool with no hand), impossible objects. A deliberate camera angle such as top down, close up, high angle or profile is not a flaw.
 Pick the winner: fitsGame decides first, because a thumbnail that misleads players cannot win. Among the thumbnails that fit the game, pick the best on the other four together.
 Refer to candidates only as "Image" and their number. Write each note and the reason as one or two plain sentences without dashes.
-Reply as JSON: {"scores":[{"image":1,"fitsGame":1,"robloxStyle":1,"clean":1,"clickable":1,"coherent":1,"note":"..."}],"winner":1,"reason":"..."}`
+Reply as JSON: {"scores":[{"image":1,"fitsGame":1,"genreLook":1,"clean":1,"clickable":1,"coherent":1,"note":"..."}],"winner":1,"reason":"..."}`
 
 const SCORE_SCHEMA = {
   type: 'OBJECT',
@@ -91,10 +91,11 @@ export function readVerdict(value, order) {
 export const FITS_GAME_MIN = 5
 
 /**
- * Scores are each slot's mean over the passes, and the winner is what they say:
- * the highest mean total among thumbnails that fit the game (all of them when
- * none does), more pass votes breaking a tie. So the page never shows a loser
- * with a higher score than the winner.
+ * Scores are each slot's mean over the passes. The winner is the judge's own
+ * pick: the thumbnail most passes chose, among those that fit the game (all of
+ * them when none does). The summed marks miss what makes one of several good
+ * thumbnails stand out, so they only break a tie in votes, or decide when no
+ * pass chose a thumbnail that fits.
  */
 export function combinePasses(passes) {
   const votes = new Map()
@@ -107,11 +108,11 @@ export function combinePasses(passes) {
     return { slot, ...Object.fromEntries([...CRITERIA, 'total'].map((k) => [k, mean(k)])), note: voted.scores.find((s) => s.slot === slot)?.note ?? rows[0].note }
   })
   const fitting = scores.filter((s) => s.fitsGame >= FITS_GAME_MIN)
-  const rank = (s) => [s.total, votes.get(s.slot) ?? 0]
+  const rank = (s) => [votes.get(s.slot) ?? 0, s.total]
   const best = (fitting.length > 0 ? fitting : scores).reduce((a, b) => {
-    const [ta, va] = rank(a)
-    const [tb, vb] = rank(b)
-    return tb > ta || (tb === ta && vb > va) ? b : a
+    const [va, ta] = rank(a)
+    const [vb, tb] = rank(b)
+    return vb > va || (vb === va && tb > ta) ? b : a
   })
   const winnerSlot = best.slot
   const reason = passes.find((p) => p.winnerSlot === winnerSlot)?.reason ?? `Thumbnail ${winnerSlot} scored best across the judge's passes. ${best.note}`
@@ -145,13 +146,34 @@ async function ownGameContext(run, dir, place, thumbnailOf) {
   return { own: true, name: game.name, playing: game.playing ?? 0, description: tidy(game.description).slice(0, DESCRIPTION_LIMIT), image }
 }
 
+const LOOK_SYSTEM = `You describe the visual look of a Roblox game thumbnail so a judge can match other thumbnails to it.
+In at most 12 words, give its lighting, colors and render style, for example "dark, realistic, cinematic night shot with muted colors" or "bright, saturated, chunky cartoon under a sunny sky".
+Never describe the scene, characters, objects or story. Use no dashes.
+Reply as JSON: {"look": "..."}`
+
+const LOOK_SCHEMA = { type: 'OBJECT', properties: { look: { type: 'STRING' } }, required: ['look'] }
+
+/** A popular game's thumbnail as words for its look, so the judge can match the look without a scene to copy. */
+async function describeLook(image) {
+  const { value } = await askJson(
+    { label: 'Reference look', system: LOOK_SYSTEM, user: 'The thumbnail follows.', images: [{ label: 'Thumbnail', ...image }], schema: LOOK_SCHEMA },
+    judgeRoutes()
+  )
+  return withoutDashes(value.look).slice(0, 120)
+}
+
 /**
  * What the judge is told the game is. A linked game is the creator's own: its
  * description and current thumbnail, whichever game the remixes started from.
- * Otherwise the popular reference game comes as text only, so copying it earns
- * nothing. Null when there is neither.
+ * Otherwise the popular reference game's name, description and the look of its
+ * thumbnail in words: shown its image, the judge rewarded remixes that copied
+ * its scene. Null when there is neither.
  */
-export async function judgeContext(run, dir, { details = gameDetails, place = gameFromPlace, thumbnailOf = firstThumbnail } = {}) {
+export async function judgeContext(
+  run,
+  dir,
+  { details = gameDetails, place = gameFromPlace, thumbnailOf = firstThumbnail, lookOf = describeLook } = {}
+) {
   if (run.link) {
     try {
       return await ownGameContext(run, dir, place, thumbnailOf)
@@ -167,7 +189,13 @@ export async function judgeContext(run, dir, { details = gameDetails, place = ga
   } catch (err) {
     console.error(`Description of "${ref.name}" for the judge failed:`, err)
   }
-  return { own: false, name: ref.name, playing: ref.playing ?? 0, description, image: null }
+  let look = ''
+  try {
+    look = await lookOf(savedImage(dir, ref.imageUrl))
+  } catch (err) {
+    console.error(`The look of "${ref.name}" for the judge failed; judging on its description:`, err)
+  }
+  return { own: false, name: ref.name, playing: ref.playing ?? 0, description, look, image: null }
 }
 
 /** The judge's user message for one pass. */
@@ -182,8 +210,9 @@ export function judgeRequest(gameName, count, context) {
   } else if (context) {
     lines.push(
       `Context: the most played Roblox game like the creator's is "${context.name}", with ${context.playing} playing now.${about}`,
-      `It is a different game: use it only to understand this kind of game, not as the creator's game.`
+      `It is a different game: use it only to understand this kind of game and the look its players click on, not as the creator's game.`
     )
+    if (context.look) lines.push(`The look its thumbnail wins with: ${context.look}. Judge genreLook against that look.`)
   }
   lines.push(`Candidates: ${Array.from({ length: count }, (_, i) => `Image ${i + 1}`).join(', ')}.`)
   return lines.join('\n\n')

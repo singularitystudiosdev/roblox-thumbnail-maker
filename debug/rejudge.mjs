@@ -26,18 +26,24 @@ function loadRun(runId) {
 }
 
 for (const spec of cases) {
+  // "<runId>=2" or, when either is a good pick, "<runId>=2|3".
   const [runId, expectedArg] = spec.split('=')
-  const expected = Number(expectedArg)
+  const accepted = expectedArg.split('|').map(Number)
+  const expected = accepted[0]
   const { run, dir, entries } = loadRun(runId)
   const context = judge.judgeContext ? await judge.judgeContext(run, dir) : null
   console.log(`\n=== ${run.gameName} (${runId}), expect ${expected}, context: ${context ? 'yes' : 'none'}`)
-  const outcomes = await Promise.allSettled(
-    Array.from({ length: trials }, async (_, i) => {
-      const t0 = Date.now()
+  // Trials run one after another: saved runs send their thumbnails as bytes, and fal refuses big bursts.
+  const outcomes = []
+  for (let i = 0; i < trials; i++) {
+    const t0 = Date.now()
+    try {
       const verdict = await judge.judgeThumbnails(run.gameName, entries, { context })
-      return { trial: i + 1, ms: Date.now() - t0, ...verdict }
-    })
-  )
+      outcomes.push({ status: 'fulfilled', value: { trial: i + 1, ms: Date.now() - t0, ...verdict } })
+    } catch (reason) {
+      outcomes.push({ status: 'rejected', reason })
+    }
+  }
   const rows = outcomes.map((o, i) => {
     if (o.status === 'rejected') {
       console.error(`trial ${i + 1} failed:`, o.reason)
@@ -47,14 +53,14 @@ for (const spec of cases) {
     const totals = Object.fromEntries((v.scores ?? []).map((s) => [s.slot, s.total]))
     const passPicks = (v.passes ?? []).map((p) => `${p.winnerSlot}@${p.order.join('')}`).join(' ')
     console.log(
-      `trial ${v.trial}: winner ${v.winnerSlot} ${v.winnerSlot === expected ? 'PASS' : 'FAIL'} | passes ${passPicks || JSON.stringify(v.order)} | totals ${JSON.stringify(totals)} | ${v.model} ${v.ms}ms`
+      `trial ${v.trial}: winner ${v.winnerSlot} ${accepted.includes(v.winnerSlot) ? "PASS" : "FAIL"} | passes ${passPicks || JSON.stringify(v.order)} | totals ${JSON.stringify(totals)} | ${v.model} ${v.ms}ms`
     )
     console.log(`  reason: ${v.reason}`)
-    return { trial: v.trial, winnerSlot: v.winnerSlot, pass: v.winnerSlot === expected, order: v.order, totals, passes: v.passes, model: v.model, ms: v.ms, reason: v.reason, scores: v.scores }
+    return { trial: v.trial, winnerSlot: v.winnerSlot, pass: accepted.includes(v.winnerSlot), order: v.order, totals, passes: v.passes, model: v.model, ms: v.ms, reason: v.reason, scores: v.scores }
   })
   const passed = rows.filter((r) => r.pass).length
-  console.log(`--- ${passed}/${trials} picked ${expected}`)
-  report.cases.push({ runId, gameName: run.gameName, expected, passed, rows })
+  console.log(`--- ${passed}/${trials} picked ${accepted.join(" or ")}`)
+  report.cases.push({ runId, gameName: run.gameName, accepted, passed, rows })
 }
 
 writeFileSync(join(root, 'debug', 'rejudge_report.json'), JSON.stringify(report, null, 2))

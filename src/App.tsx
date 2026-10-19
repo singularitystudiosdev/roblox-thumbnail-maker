@@ -27,6 +27,13 @@ function useElapsed(running: boolean) {
   return elapsed
 }
 
+/** "Picked in 2 of 3 judge passes. " when the judge ran several passes; the winner is their pick, not the top score. */
+function votesLine(run: Run) {
+  const { votes, passes, winnerSlot } = run.judge ?? {}
+  if (!votes || !passes || passes.length < 2 || winnerSlot == null) return ''
+  return `Picked in ${votes[winnerSlot] ?? 0} of ${passes.length} judge passes. `
+}
+
 /** The run with one streamed event folded in. */
 function applyEvent(run: Run | null, event: RunEvent): Run | null {
   if (event.type === 'plan' || event.type === 'done') return event.run
@@ -159,7 +166,8 @@ export function App() {
                     <p className="flex items-start gap-8 text-label text-text-primary">
                       <Trophy className="mt-2 size-16 shrink-0 text-brand" aria-hidden="true" />
                       <span>
-                        Thumbnail {winner.slot} ({strategyLabel(winner)}) wins. {run.judge.reason}
+                        Thumbnail {winner.slot} ({strategyLabel(winner)}) wins. {votesLine(run)}
+                        {run.judge.reason}
                       </span>
                     </p>
                   )}

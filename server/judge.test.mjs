@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { combinePasses, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, readVerdict, renumber, shuffled } from './judge.mjs'
 
-const row = (image, n, note = 'fine') => ({ image, fitsGame: n, robloxStyle: n, clean: n, clickable: n, coherent: n, note })
+const row = (image, n, note = 'fine') => ({ image, fitsGame: n, genreLook: n, clean: n, clickable: n, coherent: n, note })
 
 test('scores and the winner keep the slot numbers the judge saw, whatever the order', () => {
   // Shown in the order 3, 1, 2: Image 1 is slot 3.
@@ -50,20 +50,24 @@ const pass = (winnerSlot, totals, fits = {}) => ({
   reason: `pass for ${winnerSlot}`,
   scores: Object.entries(totals).map(([slot, total]) => ({
     slot: Number(slot),
-    ...Object.fromEntries(['fitsGame', 'robloxStyle', 'clean', 'clickable', 'coherent'].map((c) => [c, total / 5])),
+    ...Object.fromEntries(['fitsGame', 'genreLook', 'clean', 'clickable', 'coherent'].map((c) => [c, total / 5])),
     ...(fits[slot] != null ? { fitsGame: fits[slot] } : {}),
     total,
     note: `note ${slot}`
   }))
 })
 
-test('the winner is the highest mean total, so no loser shows a higher score', () => {
-  // The live run that showed it: votes went 2 to 1 for slot 3, mean totals favoured slot 2.
+test("the judge's votes pick the winner, not the summed marks", () => {
+  // As on the Swat set: most passes pick the striking one while the summed marks of the good ones sit a point apart.
   const combined = combinePasses([pass(3, { 2: 41, 3: 42 }), pass(3, { 2: 42, 3: 41 }), pass(2, { 2: 43, 3: 37 })])
-  assert.equal(combined.winnerSlot, 2)
+  assert.equal(combined.winnerSlot, 3)
   assert.deepEqual(combined.votes, { 3: 2, 2: 1 })
-  assert.equal(combined.reason, 'pass for 2')
+  assert.equal(combined.reason, 'pass for 3')
   assert.deepEqual(combined.scores.map((s) => [s.slot, s.total]), [[2, 42], [3, 40]])
+})
+
+test('a split vote goes to the higher mean total', () => {
+  assert.equal(combinePasses([pass(1, { 1: 30, 2: 40 }), pass(2, { 1: 30, 2: 40 })]).winnerSlot, 2)
 })
 
 test('a thumbnail that misleads players cannot win on its other marks', () => {
@@ -71,8 +75,8 @@ test('a thumbnail that misleads players cannot win on its other marks', () => {
   assert.equal(combined.winnerSlot, 2)
   assert.equal(combined.minFitsGame, 5)
   assert.match(combined.reason, /^Thumbnail 2 scored best across the judge's passes\. note 2$/)
-  // When none fits, the totals still decide.
-  assert.equal(combinePasses([pass(2, { 1: 30, 2: 20 }, { 1: 2, 2: 2 })]).winnerSlot, 1)
+  // When none fits, the vote still decides among all of them.
+  assert.equal(combinePasses([pass(2, { 1: 30, 2: 20 }, { 1: 2, 2: 2 })]).winnerSlot, 2)
 })
 
 test('equal totals go to the thumbnail more passes voted for', () => {
@@ -105,10 +109,15 @@ test("a linked game's own thumbnail and description reach the judge; a nearest g
   assert.equal(other.name, 'Break and Steal an Egg')
   assert.deepEqual(fetched, [7])
 
-  const nearest = await judgeContext({ reference, link: null }, dir, { details })
+  // Without a link the popular game's thumbnail reaches the judge only as words for its look: no scene to copy.
+  const lookOf = async (image) => (assert.equal(image.mimeType, 'image/png'), 'dark, realistic, cinematic night shot')
+  const nearest = await judgeContext({ reference, link: null }, dir, { details, lookOf })
   assert.equal(nearest.own, false)
   assert.equal(nearest.image, null)
-  assert.match(judgeRequest('A axe game', 3, nearest), /It is a different game/)
+  assert.equal(nearest.look, 'dark, realistic, cinematic night shot')
+  assert.match(judgeRequest('A axe game', 3, nearest), /It is a different game[\s\S]*look its thumbnail wins with: dark, realistic, cinematic night shot/)
+  const lookless = await judgeContext({ reference, link: null }, dir, { details, lookOf: async () => Promise.reject(new Error('vision down')) })
+  assert.equal(lookless.look, '')
 
   assert.equal(await judgeContext({ reference: { source: 'style' }, link: null }, dir, { details }), null)
   assert.doesNotMatch(judgeRequest('Rob a Bank', 2, null), /Context/)

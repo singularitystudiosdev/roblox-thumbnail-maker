@@ -55,6 +55,8 @@ export interface Judge {
   /** Below this mean fitsGame a thumbnail is ruled out whatever its total. */
   minFitsGame?: number
   votes?: Record<string, number>
+  /** Each judge pass: the slot it picked and the order it saw. */
+  passes?: { winnerSlot: number; order: number[]; totals: Record<string, number> }[]
   context?: { own: boolean; name: string; withImage: boolean } | null
   provider?: string | null
   model?: string | null
