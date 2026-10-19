@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { planPickedSlots } from './run.mjs'
 import { readFit, hasFeatures } from './fit.mjs'
-import { ARMS, DEFAULT_PARAMS, builtOnExact, chooseArm, coWinners, drawNoise, exampleOf, expectedRegrets, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
+import { ARMS, DEFAULT_PARAMS, builtOnExact, chooseArm, coWinners, drawNoise, exampleOf, expectedRegrets, fallbackArm, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
 
 const fit = (nearestFit, searchFit, nameClarity) => ({ nearestFit, searchFit, nameClarity })
 const regret = (winner, others = 6) => Object.fromEntries(ARMS.map((a) => [a, a === winner ? 0 : others]))
@@ -223,4 +223,20 @@ test('noise between draws and the strategies the judge cannot tell from the best
   assert.ok(co.includes('meta') && co.includes('search') && !co.includes('plain'))
   // The creator\'s pick ends the doubt.
   assert.deepEqual(coWinners(exampleOf({ ...run, userPick: { slot: 4 }, selection: { fit: fit(9, 8, 5) } }), 2), ['meta'])
+})
+
+test('a run whose references could not be rated takes the strategy with the lowest mean regret on its image model', () => {
+  const withModel = (e, model) => ({ ...e, model })
+  const examples = [
+    withModel(example('a', 'Rob a Bank', fit(5, 5, 5), 'plain'), 'nano-banana-2.1'),
+    withModel(example('b', 'Bake a Cake', fit(5, 5, 5), 'plain'), 'nano-banana-2.1'),
+    withModel(example('c', 'Doors', fit(5, 5, 5), 'template'), 'nano-banana-2.1'),
+    withModel(example('d', 'Blade Ball', fit(5, 5, 5), 'meta'), 'nano-banana-pro'),
+    withModel(example('e', 'Grow a Garden', fit(5, 5, 5), 'meta'), 'nano-banana-pro'),
+    withModel(example('f', 'Tower of Hell', fit(5, 5, 5), 'meta'), 'nano-banana-pro')
+  ]
+  assert.deepEqual([fallbackArm(examples, 'nano-banana-2.1').arm, fallbackArm(examples, 'nano-banana-2.1').runnerUp], ['plain', 'template'])
+  assert.equal(fallbackArm(examples, 'nano-banana-pro').arm, 'meta')
+  assert.equal(fallbackArm(examples, 'another-model').arm, 'meta')
+  assert.equal(fallbackArm([], 'nano-banana-2.1').arm, 'meta')
 })

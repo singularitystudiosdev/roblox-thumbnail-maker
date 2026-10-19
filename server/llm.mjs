@@ -5,13 +5,39 @@ import { config } from './env.mjs'
 import { falRun } from './fal.mjs'
 import { generateContent } from './gemini.mjs'
 
-/** The JSON object in a model reply, tolerating ```json fences or prose around it. */
+/** Where the object opening at `start` closes (its braces balanced, strings skipped), or -1. */
+function objectEnd(reply, start) {
+  let depth = 0
+  let inString = false
+  for (let i = start; i < reply.length; i++) {
+    const ch = reply[i]
+    if (inString) {
+      if (ch === '\\') i++
+      else if (ch === '"') inString = false
+    } else if (ch === '"') inString = true
+    else if (ch === '{') depth++
+    else if (ch === '}' && --depth === 0) return i
+  }
+  return -1
+}
+
+/**
+ * The first JSON object in a model reply, tolerating ```json fences, prose around it and a second
+ * object after it (Claude sometimes restates its answer).
+ */
 export function parseJsonReply(text) {
   const reply = String(text ?? '')
-  const start = reply.indexOf('{')
-  const end = reply.lastIndexOf('}')
-  if (start < 0 || end <= start) throw new Error(`No JSON object in the model reply: ${reply.slice(0, 200)}`)
-  return JSON.parse(reply.slice(start, end + 1))
+  let lastError = null
+  for (let start = reply.indexOf('{'); start >= 0; start = reply.indexOf('{', start + 1)) {
+    const end = objectEnd(reply, start)
+    if (end < 0) break
+    try {
+      return JSON.parse(reply.slice(start, end + 1))
+    } catch (err) {
+      lastError = err
+    }
+  }
+  throw new Error(`No JSON object in the model reply: ${reply.slice(0, 200)}`, { cause: lastError ?? undefined })
 }
 
 /** Text a person reads: no dashes as punctuation, whatever the model wrote. */

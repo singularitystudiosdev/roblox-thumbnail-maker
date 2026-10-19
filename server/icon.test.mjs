@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import sharp from 'sharp'
-import { ICON_ASPECT_RATIO, ICON_SIZE, makeIcon } from './icon.mjs'
+import { ICON_ASPECT_RATIO, ICON_SIZE, looksTiled, makeIcon } from './icon.mjs'
 import { ICON_PROMPT } from './prompt.mjs'
 
 const model = { key: 'nano-banana-2', label: 'Nano Banana 2', gemini: 'g', fal: 'f' }
@@ -60,4 +60,42 @@ test('when the redraw fails, the whole thumbnail is fitted into the square: both
   const [lr] = await pixel(icon.bytes, 20, 256)
   const [rr] = await pixel(icon.bytes, 491, 256)
   assert.ok(lr > 200 && rr > 200, `edge subjects kept: red ${lr} and ${rr}`)
+})
+
+// A busy 16:9 scene with no repeats: random blocks of colour.
+async function scene(width = 1376, height = 768) {
+  let seed = 3
+  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const blocks = await Promise.all(
+    Array.from({ length: 40 }, async () => ({
+      input: await solid(40 + Math.floor(random() * 300), 40 + Math.floor(random() * 300), `#${Math.floor(random() * 0xffffff).toString(16).padStart(6, '0')}`),
+      left: Math.floor(random() * (width - 40)),
+      top: Math.floor(random() * (height - 40))
+    }))
+  )
+  return sharp(await solid(width, height, '#202833')).composite(blocks).png().toBuffer()
+}
+
+// The scene stacked `copies` times into a square, the strip pattern a bad redraw makes.
+async function stacked(copies) {
+  const strip = await sharp(await scene()).resize(1024, Math.round(1024 / copies), { fit: 'fill' }).png().toBuffer()
+  const height = Math.round(1024 / copies)
+  return sharp(await solid(1024, height * copies, '#000000'))
+    .composite(Array.from({ length: copies }, (_, i) => ({ input: strip, left: 0, top: i * height })))
+    .png()
+    .toBuffer()
+}
+
+test('a redraw that stacks the thumbnail in strips is seen as tiled; a busy scene and a flat square are not', async () => {
+  assert.equal(await looksTiled(await stacked(2)), true)
+  assert.equal(await looksTiled(await stacked(3)), true)
+  assert.equal(await looksTiled(await scene(1024, 1024)), false)
+  assert.equal(await looksTiled(await solid(1024, 1024, '#336699')), false)
+})
+
+test('a tiled redraw is dropped and the thumbnail is fitted whole instead', async () => {
+  const generate = async () => ({ bytes: await stacked(2), mimeType: 'image/png' })
+  const icon = await makeIcon(await thumbnail(), model, { generate })
+  assert.equal(icon.redrawn, false)
+  assert.deepEqual(await pixel(icon.bytes, 20, 256), [255, 204, 0])
 })

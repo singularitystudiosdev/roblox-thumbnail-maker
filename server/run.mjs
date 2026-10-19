@@ -31,7 +31,7 @@ import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt
 import { pickCleanestThumbnail } from './cleanest.mjs'
 import { gameFromPlace, withThumbnails } from './roblox.mjs'
 import { pickSearchTop, rankSearch } from './searchtop.mjs'
-import { chooseArm, loadExamples, refNamesOf, refsOf } from './selector.mjs'
+import { chooseArm, fallbackArm, loadExamples, refNamesOf, refsOf } from './selector.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
 const extOf = (mimeType) => EXT[mimeType] ?? 'png'
@@ -154,7 +154,8 @@ async function searchReferenceInto({ record, gameName, style, styleRef, save, em
 
 /**
  * The selector's pick from the rated references (fit.mjs) and every explore run so far
- * (selector.mjs). A failed rating picks meta, the best single strategy in the backtest.
+ * (selector.mjs). A failed rating picks the strategy with the lowest mean regret in the explore runs
+ * of the run's image model (selector.mjs fallbackArm).
  */
 async function selectionFor(record, outputsDir, explore, nearestImage, searchImage) {
   let fit = null
@@ -164,10 +165,11 @@ async function selectionFor(record, outputsDir, explore, nearestImage, searchIma
       search: searchImage && { ...searchImage, name: record.searchReference.name }
     })
   } catch (err) {
-    console.error(`Rating the references for "${record.gameName}" failed; the pick falls back to meta:`, err)
+    console.error(`Rating the references for "${record.gameName}" failed; the pick falls back to the best strategy overall:`, err)
   }
   const examples = loadExamples(outputsDir)
-  const choice = fit ? chooseArm({ game: record.gameName, fit, refs: refsOf(record), refNames: refNamesOf(record), model: record.imageModel?.key ?? null }, examples) : { arm: 'meta', runnerUp: 'template', expected: null, closest: [] }
+  const model = record.imageModel?.key ?? null
+  const choice = fit ? chooseArm({ game: record.gameName, fit, refs: refsOf(record), refNames: refNamesOf(record), model }, examples) : fallbackArm(examples, model)
   return { explore, fit, ...choice, examples: examples.length }
 }
 

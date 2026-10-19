@@ -19,15 +19,45 @@ export async function squareFit(bytes) {
   return sharp(fill).composite([{ input: whole, gravity: 'center' }]).png().toBuffer()
 }
 
+// How closely a tiled image matches itself shifted by one tile, as a share of its own contrast. Two stacked copies
+// of a thumbnail score under 0.01 and three about 0.18; the 62 icons saved so far score 0.40 (a studded floor) and up.
+const TILED_BELOW = 0.25
+const TILE_GRID = 128
+
+/**
+ * Whether `bytes` repeats itself: shifted down or across by an eighth to a half of its size, it matches itself
+ * almost exactly. A redraw that stacked copies of the thumbnail into the square looks like this.
+ */
+export async function looksTiled(bytes) {
+  const size = TILE_GRID
+  const data = await sharp(bytes).resize(size, size, { fit: 'fill' }).greyscale().raw().toBuffer()
+  const mean = data.reduce((sum, v) => sum + v, 0) / data.length
+  const spread = data.reduce((sum, v) => sum + Math.abs(v - mean), 0) / data.length
+  if (spread < 4) return false // a nearly flat image has nothing to repeat
+  const shiftedDiff = (dx, dy) => {
+    let sum = 0
+    for (let y = 0; y + dy < size; y++) for (let x = 0; x + dx < size; x++) sum += Math.abs(data[y * size + x] - data[(y + dy) * size + x + dx])
+    return sum / ((size - dx) * (size - dy))
+  }
+  let closest = Infinity
+  for (let shift = size / 8; shift <= size / 2; shift++) closest = Math.min(closest, shiftedDiff(0, shift), shiftedDiff(shift, 0))
+  return closest / spread < TILED_BELOW
+}
+
 /**
  * The icon for a thumbnail `image` ({ bytes, mimeType, sourceUrl }) drawn by
  * `model` (imagemodels.mjs). `redrawn` says whether the model made the square;
- * `generate` is swappable in tests.
+ * a redraw that tiled the thumbnail is dropped for the fit. `generate` is
+ * swappable in tests.
  */
 export async function makeIcon(image, model, { generate = generateImage } = {}) {
   let square = null
   try {
     square = await generate(ICON_PROMPT, image, model, { aspectRatio: ICON_ASPECT_RATIO })
+    if (await looksTiled(square.bytes)) {
+      console.warn(`The square icon redraw by ${model.label} repeats the thumbnail in strips; fitting the thumbnail whole into the square instead.`)
+      square = null
+    }
   } catch (err) {
     console.error(`The square icon redraw by ${model.label} failed; fitting the thumbnail whole into the square:`, err)
   }

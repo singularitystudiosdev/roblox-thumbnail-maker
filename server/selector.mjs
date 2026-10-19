@@ -357,6 +357,19 @@ export function chooseArm(current, examples, params = DEFAULT_PARAMS) {
   return { arm, runnerUp, type: typeOf(current), expected: Object.fromEntries(ARMS.map((a) => [a, Math.round(expected[a] * 10) / 10])), closest }
 }
 
+/**
+ * The pick when a run's references could not be rated: the strategy with the lowest mean regret over the
+ * examples drawn with `model` (every example when none was), and its runner-up. With no examples, meta.
+ */
+export function fallbackArm(examples, model = null) {
+  const same = examples.filter((e) => model != null && e.model === model)
+  const pool = same.length > 0 ? same : examples
+  if (pool.length === 0) return { arm: 'meta', runnerUp: 'template', expected: null, closest: [] }
+  const mean = Object.fromEntries(ARMS.map((a) => [a, pool.reduce((sum, e) => sum + e.regret[a], 0) / pool.length]))
+  const arm = lowest(mean)
+  return { arm, runnerUp: lowest({ ...mean, [arm]: Infinity }), expected: Object.fromEntries(ARMS.map((a) => [a, Math.round(mean[a] * 10) / 10])), closest: [] }
+}
+
 /** The prompt's type as the pick read it, with the Roblox game that has its exact name, if one does. */
 function typeOf(current) {
   const named = ['nearest', 'search'].map((w) => current.refNames?.[w]).find((name) => name && matchLevel(current.game, name) === 'exact')
