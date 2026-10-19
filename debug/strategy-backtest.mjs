@@ -146,6 +146,18 @@ async function rateBaseExamples(examples) {
   }
 }
 
+// The backtest replays saved runs: the shipped seed names them, their images and verdicts live in outputs/.
+const seeded = existsSync(seedFile) ? JSON.parse(readFileSync(seedFile, 'utf8')).examples : []
+const missing = seeded.filter((e) => !existsSync(join(outputsDir, e.id, 'run.json')))
+if (missing.length > 0) {
+  console.error(
+    `${missing.length} of the ${seeded.length} runs the selector seed names are not in ${outputsDir} (first: ${missing[0].id}). ` +
+      'This backtest replays those saved runs and their judge verdicts, which stay on the machine that made them (outputs/ is not in git). ' +
+      'Run it there, or copy that outputs/ folder here first.'
+  )
+  process.exit(1)
+}
+
 let examples = loadExamples(outputsDir, seedFile)
 if (args.has('--rate') || args.has('--refresh')) await rateExamples(examples, { refresh: args.has('--refresh') })
 if (args.has('--rate-base')) await rateBaseExamples(examples)
