@@ -1,7 +1,7 @@
 // The one prompt the image model ever receives: fixed text, only GAME_NAME
-// substituted. Nothing else from the user's text reaches it.
+// substituted (inside quotes). Nothing else from the user's text reaches it.
 export const PROMPT_TEMPLATE =
-  'Make me a thumbnail for my game GAME_NAME in the style of my reference image different characters. No text. 16:9 Ratio.'
+  'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
 
 const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 

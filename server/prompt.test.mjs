@@ -2,14 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { buildPrompt, extractGameName, PROMPT_TEMPLATE } from './prompt.mjs'
 
-test('prompt is the fixed text with only GAME_NAME substituted', () => {
+test('prompt is the fixed text with only the quoted GAME_NAME substituted', () => {
   assert.equal(
     PROMPT_TEMPLATE,
-    'Make me a thumbnail for my game GAME_NAME in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
   assert.equal(
-    buildPrompt('  Rob a Bank '),
-    'Make me a thumbnail for my game Rob a Bank in the style of my reference image different characters. No text. 16:9 Ratio.'
+    buildPrompt('  Bake a Cake '),
+    'Make me a thumbnail for my game "Bake a Cake" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
 })
 
@@ -31,7 +31,7 @@ test('a request wrapper is stripped down to the name', () => {
   assert.equal(extractGameName('Make me a roblox thumbnail for my game Rob a Bank'), 'Rob a Bank')
   assert.equal(
     buildPrompt(extractGameName('Make me a roblox thumbnail for my game Rob a Bank')),
-    'Make me a thumbnail for my game Rob a Bank in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a thumbnail for my game "Rob a Bank" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
   assert.equal(extractGameName('make a thumbnail for my game called Grow a Garden.'), 'Grow a Garden')
   assert.equal(extractGameName('Can you create a thumbnail for Pet Sim 99'), 'Pet Sim 99')
