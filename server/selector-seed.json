@@ -2262,6 +2262,49 @@
     "plain": 1
    },
    "picked": true
+  },
+  {
+   "id": "2026-10-19T12-18-02-658Z-1cd9caba",
+   "game": "Build a Treehouse",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 8,
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 6,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 7,
+    "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 3.7,
+    "searchBase": 8
+   },
+   "refs": {
+    "nearest": "10458789587",
+    "search": "3098010073"
+   },
+   "refNames": {
+    "nearest": "[🏰] Build a House",
+    "search": "🌳Super Treehouse Tycoon 2"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 18.7,
+    "search": 4,
+    "meta": 12.7,
+    "plain": 7
+   },
+   "drawn": {
+    "template": 1,
+    "remix": 3,
+    "search": 1,
+    "meta": 1,
+    "plain": 1
+   },
+   "picked": true
   }
  ]
 }
