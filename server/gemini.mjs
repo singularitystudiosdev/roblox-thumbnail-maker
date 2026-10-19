@@ -44,15 +44,3 @@ export async function generateContent(model, request, timeoutMs = 60000) {
   }
   throw new ProviderUnavailable(`Gemini ${model} unavailable on every key: ${failures.join(' | ')}`)
 }
-
-/** Text call that must come back as JSON matching `schema`. */
-export async function generateJson(systemText, userText, schema) {
-  const body = await generateContent(config().textModel, {
-    systemInstruction: { parts: [{ text: systemText }] },
-    contents: [{ role: 'user', parts: [{ text: userText }] }],
-    generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2 }
-  })
-  const text = body?.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text ?? '').join('')
-  if (!text) throw new Error(`Gemini ${config().textModel} returned no text (finish: ${body?.candidates?.[0]?.finishReason})`)
-  return JSON.parse(text)
-}

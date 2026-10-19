@@ -38,7 +38,7 @@ export function ResultStage({ phase, result, gameName, modelName, elapsed, error
       {phase === 'idle' && !result && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-16 p-24 text-center">
           <p className="max-w-prose text-body text-text-secondary">
-            Describe a game and its thumbnail lands here, styled after your reference image.
+            Type your game name and its thumbnail lands here, styled after your reference image.
           </p>
           <Button onClick={onExample}>Try an example</Button>
         </div>
@@ -60,7 +60,7 @@ export function ResultStage({ phase, result, gameName, modelName, elapsed, error
         />
       )}
 
-      {phase === 'planning' && <Working label="Naming your game" elapsed={elapsed} />}
+      {phase === 'planning' && <Working label="Reading your game name" elapsed={elapsed} />}
       {phase === 'generating' && <Working label={`${modelName} is drawing ${gameName}`} elapsed={elapsed} />}
 
       {phase === 'error' && (

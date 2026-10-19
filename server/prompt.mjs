@@ -1,30 +1,31 @@
 // The one prompt the image model ever receives: fixed text, only GAME_NAME
-// substituted. The user's own description never reaches it.
-export const PROMPT_TEMPLATE =
-  'Make me a thumbnail for my game GAME_NAME in the style of my reference image different characters. No text. 16:9 Ratio.'
+// substituted (inside quotes). Nothing else from the user's text reaches it.
+export const PROMPT_TEMPLATE = 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
+
+const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 
 export function buildPrompt(gameName) {
-  const name = gameName.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
+  const name = stripQuotes(gameName)
   if (!name) throw new Error('A game name is required to build the prompt.')
   return PROMPT_TEMPLATE.replace('GAME_NAME', name)
 }
 
-const STOP_WORDS = new Set(
-  'a an and about for from game games i in into is it like make me my of on or roblox the thumbnail to where with want you your called named'.split(' ')
-)
+// Double quotes only: an apostrophe ("Grandma's House") is part of a name, not a quote.
+const QUOTED_NAME = /["“”]([^"“”]+)["“”]/
+// "Make me a roblox thumbnail for", "can you create a thumbnail for", "thumbnail for"
+const REQUEST_PREFIX =
+  /^(?:(?:please|pls|can you|could you)\s+)*(?:(?:make|create|generate|design|draw|do|give)\s+(?:me\s+)?)?(?:an?\s+)?(?:(?:roblox|youtube|game|new)\s+)*thumbnails?\s+(?:for|of)\s+/i
+// "my game", "the roblox game", "my game is called", "a game called"; never a bare "a game where ..."
+const GAME_PREFIX =
+  /^(?:(?:my|our|the)\s+(?:roblox\s+)?(?:game|experience)(?:\s+(?:is\s+)?(?:called|named|titled))?|(?:an?\s+)?(?:roblox\s+)?(?:game|experience)\s+(?:called|named|titled))\s*[:-]?\s+/i
+// A pasted full prompt: " in the style of my reference image. No text. 16:9 Ratio."
+const PROMPT_SUFFIX = /(?:\s+(?:in the style of|styled (?:like|after)|based on)\b.*|[.!]?\s*no text\b.*)$/i
 
-const titleCase = (word) => word.charAt(0).toUpperCase() + word.slice(1)
-
-/** Used when the text model is unreachable: a stated name, else a title built from the prompt's keywords. */
-export function heuristicParse(prompt) {
-  const quoted = prompt.match(/["“']([^"”']{2,40})["”']/)
-  const called = prompt.match(/\b(?:called|named|titled)\s+([A-Z0-9][\w'!: -]{1,40}?)(?=[,.;!?]|\s+(?:about|where|that|with)\b|$)/)
-  const myGame = prompt.match(/\bmy game\s+([A-Z0-9][\w'!: -]{1,40}?)(?=[,.;!?]|\s+(?:is|where|about|that|with)\b|$)/i)
-  const gameName = (quoted?.[1] ?? called?.[1] ?? myGame?.[1] ?? '').trim() || null
-  const words = prompt
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w && !STOP_WORDS.has(w))
-  return { gameName, suggestedName: gameName ?? (words.slice(0, 4).map(titleCase).join(' ') || 'My Game') }
+/** The game name exactly as typed, minus any "make me a thumbnail for my game" wrapper around it. */
+export function extractGameName(input) {
+  const text = input.trim()
+  const quoted = text.match(QUOTED_NAME)?.[1]?.trim()
+  if (quoted) return quoted
+  const name = text.replace(REQUEST_PREFIX, '').replace(GAME_PREFIX, '').replace(PROMPT_SUFFIX, '').replace(/[\s.,;:]+$/, '')
+  return stripQuotes(name) || text
 }

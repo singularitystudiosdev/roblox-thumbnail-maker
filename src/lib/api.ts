@@ -1,7 +1,5 @@
 export interface Plan {
   gameName: string
-  nameWasGiven: boolean
-  parsedBy: 'gemini' | 'fal' | 'keywords'
   prompt: string
 }
 
@@ -24,7 +22,6 @@ export interface Status {
   imageProvider: string
   imageModel: string
   falModel: string
-  textModel: string
   referenceName: string
   referenceUrl: string
 }

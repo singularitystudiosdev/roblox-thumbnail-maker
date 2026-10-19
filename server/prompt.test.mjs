@@ -1,16 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildPrompt, heuristicParse, PROMPT_TEMPLATE } from './prompt.mjs'
+import { buildPrompt, extractGameName, PROMPT_TEMPLATE } from './prompt.mjs'
 
-test('prompt is the fixed text with only GAME_NAME substituted', () => {
-  assert.equal(
-    PROMPT_TEMPLATE,
-    'Make me a thumbnail for my game GAME_NAME in the style of my reference image different characters. No text. 16:9 Ratio.'
-  )
-  assert.equal(
-    buildPrompt('  Rob a Bank '),
-    'Make me a thumbnail for my game Rob a Bank in the style of my reference image different characters. No text. 16:9 Ratio.'
-  )
+test('prompt is the fixed text with only the quoted GAME_NAME substituted', () => {
+  assert.equal(PROMPT_TEMPLATE, 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.')
+  assert.equal(buildPrompt('  Rob a Bank '), 'Make me a thumbnail for my game "Rob a Bank" in the style of my reference image. No text. 16:9 Ratio.')
 })
 
 test('a name that already carries quotes is not double-quoted', () => {
@@ -27,17 +21,32 @@ test('an empty game name is refused', () => {
   assert.throws(() => buildPrompt('""'))
 })
 
-test('heuristic parse keeps a stated name, else builds one from keywords', () => {
-  assert.equal(heuristicParse('a game called Cell Block Breakout about escaping prison').gameName, 'Cell Block Breakout')
-  const unnamed = heuristicParse('a game where you rob a bank with your friends')
-  assert.equal(unnamed.gameName, null)
-  assert.equal(unnamed.suggestedName, 'Rob Bank Friends')
+test('a request wrapper is stripped down to the name', () => {
+  assert.equal(extractGameName('Make me a roblox thumbnail for my game Rob a Bank'), 'Rob a Bank')
+  assert.equal(
+    buildPrompt(extractGameName('Make me a roblox thumbnail for my game Rob a Bank')),
+    'Make me a thumbnail for my game "Rob a Bank" in the style of my reference image. No text. 16:9 Ratio.'
+  )
+  assert.equal(extractGameName('make a thumbnail for my game called Grow a Garden.'), 'Grow a Garden')
+  assert.equal(extractGameName('Can you create a thumbnail for Pet Sim 99'), 'Pet Sim 99')
+  assert.equal(extractGameName('My game is called Rob Grandma\'s House'), 'Rob Grandma\'s House')
 })
 
-test('heuristic parse reads "My game NAME is ..." as the stated name', () => {
-  assert.equal(heuristicParse('My game Lava Leap is an obby where the floor turns to lava').gameName, 'Lava Leap')
+test('anything without a wrapper is used exactly as typed', () => {
+  assert.equal(extractGameName('Rob a Bank'), 'Rob a Bank')
+  assert.equal(extractGameName('  rob a BANK  '), 'rob a BANK')
+  assert.equal(extractGameName('A game where you rob a bank'), 'A game where you rob a bank')
+  assert.equal(extractGameName('Natural Disaster Survival!'), 'Natural Disaster Survival!')
 })
 
-test('heuristic parse falls back to My Game when the prompt has no keywords', () => {
-  assert.deepEqual(heuristicParse('make me a game'), { gameName: null, suggestedName: 'My Game' })
+test('a quoted name or a pasted full prompt yields just the name', () => {
+  assert.equal(extractGameName('Make a thumbnail for "Lava Leap" please'), 'Lava Leap')
+  assert.equal(
+    extractGameName('Make me a thumbnail for my game "Rob a Bank" in the style of my reference image. No text. 16:9 Ratio.'),
+    'Rob a Bank'
+  )
+  assert.equal(
+    extractGameName('Make me a thumbnail for my game Rob a Bank in the style of my reference image. No text. 16:9 Ratio.'),
+    'Rob a Bank'
+  )
 })

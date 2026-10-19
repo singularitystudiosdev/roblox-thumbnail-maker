@@ -4,8 +4,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, wri
 import { basename, extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { generateThumbnail, OUTPUT_RESOLUTION } from './imagegen.mjs'
-import { planThumbnail } from './planner.mjs'
-import { buildPrompt } from './prompt.mjs'
+import { buildPrompt, extractGameName } from './prompt.mjs'
 
 const MAX_BODY = 64 * 1024
 const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' }
@@ -98,8 +97,9 @@ export function createApi(root) {
       const route = `${req.method} ${url.pathname}`
       if (route === 'POST /api/plan') {
         const { prompt } = await readJson(req)
-        if (typeof prompt !== 'string' || prompt.trim().length < 3) throw new BadRequest('Describe your game in a few words first.')
-        return sendJson(res, 200, await planThumbnail(prompt))
+        if (typeof prompt !== 'string' || !prompt.trim()) throw new BadRequest('Type your game name first.')
+        const gameName = extractGameName(prompt)
+        return sendJson(res, 200, { gameName, prompt: buildPrompt(gameName) })
       }
       if (route === 'POST /api/generate') return sendJson(res, 200, await handleGenerate(req, root, outputsDir))
       if (route === 'GET /api/reference') {
@@ -115,7 +115,6 @@ export function createApi(root) {
           imageProvider: c.imageProvider,
           imageModel: c.imageModel,
           falModel: c.falModel,
-          textModel: c.textModel,
           referenceName: c.referenceName,
           referenceUrl: '/api/reference'
         })

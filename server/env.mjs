@@ -53,8 +53,6 @@ export function config() {
     imageProvider: process.env.IMAGE_PROVIDER ?? 'auto',
     imageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image',
     falModel: process.env.FAL_IMAGE_MODEL ?? 'fal-ai/nano-banana-2/edit',
-    textModel: process.env.GEMINI_TEXT_MODEL ?? 'gemini-3.5-flash',
-    falTextModel: process.env.FAL_TEXT_MODEL ?? 'google/gemini-2.5-flash',
     referenceImage: process.env.REFERENCE_IMAGE ?? 'reference/day-67-prison-dig.png',
     referenceName: process.env.REFERENCE_NAME ?? 'DAY #67 prison dig'
   }

@@ -8,11 +8,7 @@ import { ReferenceCard } from './components/ReferenceCard'
 import { ResultStage, type Phase } from './components/ResultStage'
 import { api, modelLabel, providerLabel, type Generation, type Status } from './lib/api'
 
-const EXAMPLES = [
-  'A game where you and your friends rob a bank and escape the cops',
-  'My game Lava Leap is an obby where the floor turns to lava every 10 seconds',
-  'A pet simulator where you hatch eggs to collect glowing space creatures'
-]
+const EXAMPLES = ['Rob a Bank', 'Make me a roblox thumbnail for my game Lava Leap', 'Grow a Garden']
 const MODEL_NAME = 'Nano Banana 2'
 
 function useElapsed(running: boolean) {
