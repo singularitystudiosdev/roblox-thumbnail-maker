@@ -1,0 +1,13 @@
+{
+  "about": "The creator's own winner picks for saved runs: run id (outputs/<run>/, kept on the machine that made it; outputs/ is not committed) and the thumbnail slots they accept as the winner. debug/rejudge.mjs re-judges every set here when given no sets. tunedOn names the judge rubric that was adjusted while looking at the set, so its score there is in-sample; a set with no tunedOn is held out and is the real test of the judge.",
+  "labels": [
+    { "run": "2026-10-19T04-05-22-531Z-e01f3485", "game": "Break and Steal an Egg (High Angle set)", "accept": [2], "tunedOn": "v8a" },
+    { "run": "2026-10-19T04-07-11-327Z-b34fd74a", "game": "Break and Steal an Egg (circular crop set)", "accept": [3], "tunedOn": "v8a" },
+    { "run": "2026-10-19T04-56-50-777Z-2123e943", "game": "Swat a House", "accept": [2, 3], "tunedOn": "v8a" },
+    { "run": "2026-10-19T04-03-10-979Z-e858cac7", "game": "Break and Steal an Egg (Profile / novel perspective set)", "accept": [3], "tunedOn": "v8a" },
+    { "run": "2026-10-19T04-32-39-615Z-fb958edb", "game": "Bake a Cake", "accept": [1], "tunedOn": "v8a" },
+    { "run": "2026-10-19T04-50-50-238Z-d0bacafa", "game": "rob a bank", "accept": [5], "tunedOn": "v8a" },
+    { "run": "2026-10-19T05-31-07-331Z-6a0804d0", "game": "Rob a Bank (museum remixes)", "accept": [5], "tunedOn": "v8a" },
+    { "run": "2026-10-19T05-33-16-122Z-dfc7b5f0", "game": "Rob a Bank (flat 2D template)", "accept": [5], "tunedOn": "v8a" }
+  ]
+}

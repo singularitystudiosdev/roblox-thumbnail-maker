@@ -1,9 +1,12 @@
 // Re-judges saved runs many times to measure how consistently the judge picks
 // the expected winner. Mirrors production: same judge module, same inputs a run
 // gives it (its thumbnails, plus its game context when the judge takes one).
-// Usage: node debug/rejudge.mjs <trials> <runId>=<expectedSlot> [...]
+// Usage: node debug/rejudge.mjs [trials] [<runId>=<expectedSlot>[|<slot>] ...]
+// With no sets given it re-judges every labelled set in debug/labels.json and
+// totals the sets the judge was tuned on apart from the held-out ones. Change
+// the judge only after running it this way.
 // Writes debug/rejudge_report.json with one entry per trial.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadDotEnv } from '../server/env.mjs'
@@ -14,8 +17,11 @@ const judge = await import('../server/judge.mjs')
 // A candidate rubric to try instead of the shipped one: JUDGE_SYSTEM_FILE=/path/to/rubric.txt
 const system = process.env.JUDGE_SYSTEM_FILE ? readFileSync(process.env.JUDGE_SYSTEM_FILE, 'utf8') : undefined
 
-const [trialsArg, ...cases] = process.argv.slice(2)
+const [trialsArg, ...given] = process.argv.slice(2)
 const trials = Number(trialsArg) || 5
+const labels = JSON.parse(readFileSync(join(root, 'debug', 'labels.json'), 'utf8')).labels
+const tunedOn = new Map(labels.map((l) => [l.run, l.tunedOn ?? null]))
+const cases = given.length > 0 ? given : labels.map((l) => `${l.run}=${l.accept.join('|')}`)
 const report = { startedAt: new Date().toISOString(), trials, judgeExports: Object.keys(judge), cases: [] }
 
 function loadRun(runId) {
@@ -32,6 +38,11 @@ for (const spec of cases) {
   const [runId, expectedArg] = spec.split('=')
   const accepted = expectedArg.split('|').map(Number)
   const expected = accepted[0]
+  if (!existsSync(join(root, 'outputs', runId, 'run.json'))) {
+    console.warn(`\n=== ${runId}: not in this machine's outputs/, skipped`)
+    report.cases.push({ runId, accepted, skipped: 'not in outputs/' })
+    continue
+  }
   const { run, dir, entries } = loadRun(runId)
   const context = judge.judgeContext ? await judge.judgeContext(run, dir) : null
   console.log(`\n=== ${run.gameName} (${runId}), expect ${expected}, context: ${context ? 'yes' : 'none'}`)
@@ -62,7 +73,21 @@ for (const spec of cases) {
   })
   const passed = rows.filter((r) => r.pass).length
   console.log(`--- ${passed}/${trials} picked ${accepted.join(" or ")}`)
-  report.cases.push({ runId, gameName: run.gameName, accepted, passed, rows })
+  report.cases.push({ runId, gameName: run.gameName, accepted, passed, rows, tunedOn: tunedOn.get(runId) ?? null })
+}
+
+// Sets the judge was tuned on measure fit; held-out sets measure accuracy.
+const judged = report.cases.filter((c) => !c.skipped)
+for (const [label, sets] of [
+  ['tuned on (in-sample)', judged.filter((c) => c.tunedOn)],
+  ['held out', judged.filter((c) => !c.tunedOn)]
+]) {
+  if (sets.length === 0) continue
+  const allTrials = sets.reduce((n, c) => n + c.rows.length, 0)
+  const passedTrials = sets.reduce((n, c) => n + c.passed, 0)
+  const setsAll = sets.filter((c) => c.passed === c.rows.length).length
+  console.log(`\n${label}: ${setsAll}/${sets.length} sets passed every trial, ${passedTrials}/${allTrials} trials`)
+  report[label.split(' ')[0] === 'tuned' ? 'inSample' : 'heldOut'] = { sets: sets.length, setsAllTrials: setsAll, trials: allTrials, passedTrials }
 }
 
 writeFileSync(join(root, 'debug', 'rejudge_report.json'), JSON.stringify(report, null, 2))
