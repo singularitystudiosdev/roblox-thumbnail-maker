@@ -140,6 +140,20 @@
         6,
         7
       ]
+    },
+    {
+      "run": "2026-10-19T11-08-01-463Z-c685624d",
+      "game": "Bake a cake (explore, Nano Banana 2.1)",
+      "accept": [
+        5
+      ]
+    },
+    {
+      "run": "2026-10-19T11-07-46-465Z-93b082b2",
+      "game": "Make a burger (explore, Nano Banana 2.1)",
+      "accept": [
+        3
+      ]
     }
   ]
 }
