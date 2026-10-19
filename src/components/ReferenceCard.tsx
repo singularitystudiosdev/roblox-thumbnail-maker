@@ -63,7 +63,7 @@ export function ReferenceCard({ reference, searchReference, attached, linked, lo
 
       {!loading && !reference && (
         <p className="text-label text-text-secondary">
-          Thumbnails 2 and 4 start from the thumbnail of a popular Roblox game like yours; thumbnail 3 from the top game of a plain Roblox search.
+          Thumbnails 2, 4, 6 and 7 start from the thumbnail of a popular Roblox game like yours; thumbnail 3 from the top game of a plain Roblox search.
         </p>
       )}
 

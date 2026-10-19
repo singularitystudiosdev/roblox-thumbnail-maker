@@ -43,8 +43,8 @@ test('the remix prompt is novel perspective, word for word; every other angle is
   assert.equal(REMIX_PROMPT, 'Make this thumbnail but from a novel perspective. No text.')
 })
 
-test('a run draws the novel perspective remix once', () => {
-  assert.equal(REMIX_COUNT, 1)
+test('a run draws the novel perspective remix three times', () => {
+  assert.equal(REMIX_COUNT, 3)
 })
 
 test('a description is the game name, word for word', () => {

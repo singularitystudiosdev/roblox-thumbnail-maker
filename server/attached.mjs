@@ -1,7 +1,7 @@
 // The attached-reference mode. When the creator attaches an image in the
 // prompt box and their prompt uses it (says to use it as the reference, or
 // talks about what is in it: "make him have a gun"), a run makes two
-// thumbnails from that image instead of the usual five: their
+// thumbnails from that image instead of the usual seven: their
 // prompt exactly as typed, and the plain template with the game name. A text
 // model reads the intent and hands back the prompt with only the words about
 // the image removed, word for word, to name the game. An attached image the

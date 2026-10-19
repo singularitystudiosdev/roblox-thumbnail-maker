@@ -154,7 +154,7 @@ export function App() {
             <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => start()} busy={busy} attachment={attachment} onAttach={setAttachment} />
             {run?.attachment && !run.attachment.used && (
               <p role="status" className="px-4 pt-8 text-caption text-text-secondary">
-                Your attached image was not used: the prompt did not ask to use it as a reference, so this is the usual five thumbnails.
+                Your attached image was not used: the prompt did not ask to use it as a reference, so this is the usual seven thumbnails.
               </p>
             )}
           </div>
@@ -227,7 +227,7 @@ export function App() {
                   )}
                   <Button onClick={() => start(prompt || run.input)}>
                     <RefreshCw className="size-16" aria-hidden="true" />
-                    {attachment ? 'Make more' : 'Make 5 more'}
+                    Make more
                   </Button>
                 </div>
               </div>

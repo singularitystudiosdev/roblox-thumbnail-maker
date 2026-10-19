@@ -85,7 +85,7 @@ export interface Run {
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
   /**
-   * standard: the five thumbnails; attached: two from the image attached in the prompt box;
+   * standard: the seven thumbnails; attached: two from the image attached in the prompt box;
    * linked: five novel perspective remixes of the linked game's own thumbnail. Older runs have none.
    */
   mode?: 'standard' | 'attached' | 'linked'

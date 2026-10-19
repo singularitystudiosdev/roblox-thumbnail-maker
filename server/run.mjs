@@ -1,9 +1,9 @@
-// One run: the game name, then five Nano Banana Pro thumbnails at once
+// One run: the game name, then seven Nano Banana Pro thumbnails at once
 // (1 and 5: the exact and the plain template, each with the style reference;
-// 2: the novel perspective remix prompt, and 4: the meta, the plain template,
-// each with the cleanest thumbnail of the popular reference game; 3: the
-// search meta, the plain template with the top game of a plain Roblox search
-// for the name, never the same game as 2 and 4), then the judge, told what the
+// 2, 6 and 7: the novel perspective remix prompt, and 4: the meta, the plain
+// template, each with the cleanest thumbnail of the popular reference game;
+// 3: the search meta, the plain template with the top game of a plain Roblox
+// search for the name, never the same game as 2 and 4), then the judge, told what the
 // game is (judgeContext), then the winner's icon. When the creator attaches an
 // image and the prompt asks to use it as the reference (attached.mjs), the run
 // makes two thumbnails from that image instead: their prompt as typed and the
@@ -36,15 +36,20 @@ function newRunId() {
   return `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
 }
 
-/** The slots of a run and the exact prompt each sends: the template, REMIX_COUNT remixes, the search meta, the meta, then the plain template. */
+/**
+ * The slots of a run and the exact prompt each sends: the template, a remix, the search meta, the meta,
+ * the plain template, then the other REMIX_COUNT - 1 remixes, after the five so their numbers stay put.
+ */
 export function planSlots(gameName) {
   const plain = buildPrompt(gameName, PLAIN_TEMPLATE)
+  const remix = (slot) => ({ slot, strategy: 'remix', prompt: REMIX_PROMPT })
   return [
     { slot: 1, strategy: 'template', prompt: buildPrompt(gameName) },
-    ...Array.from({ length: REMIX_COUNT }, (_, i) => ({ slot: i + 2, strategy: 'remix', prompt: REMIX_PROMPT })),
-    { slot: REMIX_COUNT + 2, strategy: 'search', prompt: plain },
-    { slot: REMIX_COUNT + 3, strategy: 'meta', prompt: plain },
-    { slot: REMIX_COUNT + 4, strategy: 'plain', prompt: plain }
+    remix(2),
+    { slot: 3, strategy: 'search', prompt: plain },
+    { slot: 4, strategy: 'meta', prompt: plain },
+    { slot: 5, strategy: 'plain', prompt: plain },
+    ...Array.from({ length: REMIX_COUNT - 1 }, (_, i) => remix(i + 6))
   ]
 }
 

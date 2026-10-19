@@ -24,18 +24,21 @@ test('Gemini body: the prompt then the reference, image output at 16:9', () => {
   })
 })
 
-test('a run is the template, one novel perspective remix, the search meta, the meta and the plain template', () => {
+test('a run is the template, a novel perspective remix, the search meta, the meta, the plain template and two more remixes', () => {
   const slots = planSlots('Rob Grandmas House')
-  assert.deepEqual(slots.map((s) => [s.slot, s.strategy]), [[1, 'template'], [2, 'remix'], [3, 'search'], [4, 'meta'], [5, 'plain']])
+  assert.deepEqual(
+    slots.map((s) => [s.slot, s.strategy]),
+    [[1, 'template'], [2, 'remix'], [3, 'search'], [4, 'meta'], [5, 'plain'], [6, 'remix'], [7, 'remix']]
+  )
   assert.equal(
     slots[0].prompt,
     'Make me a thumbnail for my roblox game "Rob Grandmas House" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
-  assert.equal(slots[1].prompt, 'Make this thumbnail but from a novel perspective. No text.')
+  for (const slot of slots.filter((s) => s.strategy === 'remix')) assert.equal(slot.prompt, 'Make this thumbnail but from a novel perspective. No text.')
   // The search meta, the meta and the plain template send the same words; only the attached reference differs.
   const plain = 'Make me a thumbnail for my game "Rob Grandmas House" in the style of my reference image. No text. 16:9 Ratio.'
-  for (const slot of slots.slice(2)) assert.equal(slot.prompt, plain)
-  assert.deepEqual(slots.filter((s) => ON_ROBLOX_REFERENCE.has(s.strategy)).map((s) => s.slot), [2, 4])
+  for (const slot of slots.slice(2, 5)) assert.equal(slot.prompt, plain)
+  assert.deepEqual(slots.filter((s) => ON_ROBLOX_REFERENCE.has(s.strategy)).map((s) => s.slot), [2, 4, 6, 7])
   assert.deepEqual(slots.filter((s) => ON_STYLE_REFERENCE.has(s.strategy)).map((s) => s.slot), [1, 5])
 })
 

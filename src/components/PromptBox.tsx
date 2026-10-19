@@ -120,7 +120,7 @@ export function PromptBox({ value, onChange, onSubmit, busy, attachment, onAttac
             aria-keyshortcuts="Meta+Enter Control+Enter"
           >
             {!busy && <ImagePlus className="size-16" aria-hidden="true" />}
-            {attachment ? 'Make thumbnails' : 'Make 5 thumbnails'}
+            Make thumbnails
           </Button>
         </div>
       </div>

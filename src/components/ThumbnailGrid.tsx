@@ -12,7 +12,7 @@ function pendingReference(slot: Slot, run: Run) {
 }
 import { buttonClasses } from './Button'
 
-const COUNT_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four', 5: 'five' }
+const COUNT_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven' }
 
 interface ThumbnailGridProps {
   run: Run
@@ -137,7 +137,7 @@ export function ThumbnailGrid({ run, busy, shownSlot, onShow }: ThumbnailGridPro
       <h2 id="all-thumbnails-title" className="text-title font-semibold">
         {run.slots.length === 2 ? 'Both thumbnails' : `All ${COUNT_WORDS[run.slots.length] ?? run.slots.length} thumbnails`}
       </h2>
-      {/* Five sit three then two, older runs of four two by two, of three in one row. */}
+      {/* Seven sit three, three then one, five three then two, older runs of four two by two, of three in one row. */}
       <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 4 || run.slots.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
         {run.slots.map((slot) => (
           <Tile key={slot.slot} run={run} slot={slot} busy={busy} shown={shownSlot === slot.slot} onShow={onShow} />

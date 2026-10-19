@@ -4,7 +4,8 @@
 // meta, sends the plain template with the top game of a plain Roblox search
 // (searchtop.mjs); thumbnail 4, the meta, sends the plain template with the
 // same Roblox reference as thumbnail 2; thumbnail 5 sends the plain template
-// with the style reference of thumbnail 1.
+// with the style reference of thumbnail 1; thumbnails 6 and 7 send the remix
+// prompt again with the same Roblox reference as thumbnail 2.
 export const PROMPT_TEMPLATE =
   'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
 
@@ -16,7 +17,7 @@ export const REMIX_PROMPT = 'Make this thumbnail but from a novel perspective. N
 // "continuing the same scene" sentence the model once filled the new height with a repeated strip.
 export const ICON_PROMPT =
   'Resize this image to a 1:1 square. Keep everything in it fully in frame and unchanged: every character and object whole, nothing cut off. Fill the new space by continuing the same scene, never by repeating or tiling any part of the image. No text.'
-export const REMIX_COUNT = 1
+export const REMIX_COUNT = 3
 
 export const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 
