@@ -1,0 +1,51 @@
+/* reduced-motion.css: the global guard. Import once, in the global stylesheet,
+   before any component CSS that declares transitions or animations.
+
+   Feature status: prefers-reduced-motion is Baseline widely available.
+   Source: web-standards.md §3,
+   https://api.webstatus.dev/v1/features?q=prefers-reduced-motion.
+
+   Requirement: WCAG 2.2 SC 2.3.3 Animation from Interactions (AAA): motion
+   animation triggered by interaction can be disabled unless essential;
+   sufficient techniques C39 / SCR40 use prefers-reduced-motion in CSS or JS.
+   Source: web-standards.md §1,
+   https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html.
+
+   design-motion's floor requires a guard that applies to EACH animated or
+   moving element, and check-ui.mjs judges it per element: a motion-reduce: twin
+   or a motion-safe: variant on that element, an @media (prefers-reduced-motion:
+   reduce) rule in the same file that stops the element's own selector (the
+   universal rule below counts for the file it sits in), or a reduced-motion
+   read of the code's own gating it. The words `prefers-reduced-motion` in
+   another file, or in a comment, guard nothing. This global file protects the
+   page at runtime when it is imported, but the check does not count it for a
+   component in another file, so the component templates carry their own short
+   guard blocks. The universal rule below does not match the view-transition
+   pseudo-elements either (::view-transition-old(root)); view-transition.css
+   guards its own. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* What the guard should mean, beyond zeroing durations: Apple's Reduce Motion
+   response is the model: tighten springs to reduce bounce, track gestures
+   directly instead of animating them, avoid animating depth changes on z,
+   replace x/y/z transitions with fades, and avoid animating into or out of
+   blurs. A fade is still motion: under reduced motion, entrance transitions
+   are removed rather than re-curved.
+   Source: apple-hig.md §11,
+   https://developer.apple.com/design/human-interface-guidelines/accessibility. */
+@media (prefers-reduced-motion: reduce) {
+  [data-motion="fade-in"],
+  [data-motion="slide-in"] {
+    transition: none;
+  }
+}

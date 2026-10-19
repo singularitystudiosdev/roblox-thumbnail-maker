@@ -1,0 +1,9 @@
+{
+  "overrides": [
+    {
+      "files": ["src/components/PromptBox.tsx"],
+      "allow": ["outline-none-no-replacement"]
+    }
+  ],
+  "note": "The PromptBox textarea drops its own outline because the wrapping container draws the 2px ring with focus-within:outline-2 outline-brand"
+}

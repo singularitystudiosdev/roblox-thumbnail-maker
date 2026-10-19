@@ -1,0 +1,48 @@
+/* focus-ring.css: the 2px keyboard focus ring used by every design-web template.
+   Import once (global CSS entry), then put the `.focus-ring` class on any
+   focusable element. Variable names for color are the app's semantic color layer
+   (design-tokens, tokens/semantic/color.tokens.json, structure only, no hex). */
+
+/* Width 2px: WCAG 2.2 SC 2.4.13 Focus Appearance (AAA) requires a focus
+   indicator area of at least a 2 CSS-px-thick perimeter of the component and a
+   3:1 change between the same pixels in the focused vs unfocused state. A solid
+   2px outline is the simplest pass; inset indicators need to be thicker than
+   2px, and shadows or glows outside the component do not count.
+   Source: web-standards.md §1, https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html. */
+:root {
+  --focus-ring-width: 2px;
+  /* Offset 2px is judgment, not a published value: the SC constrains the ring's
+     thickness and contrast, not its offset. It is kept small so the ring stays
+     adjacent enough to satisfy the "same pixels" 3:1 comparison. */
+  --focus-ring-offset: 2px;
+  /* Ring color must reach 3:1 against what it crosses: SC 1.4.11 Non-text
+     Contrast (AA) requires state indicators at >= 3:1 against adjacent colors,
+     and 2.4.13 requires the 3:1 focused/unfocused change.
+     Sources: web-standards.md §1,
+     https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html and
+     https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html,
+     both. Default to the app's border-strong or the
+     control's own on-color; currentColor is the safe fallback. */
+  --focus-ring-color: currentColor;
+}
+
+.focus-ring:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Focus Not Obscured: SC 2.4.11 (AA): the focused component must not be
+   entirely hidden by author-created content; 2.4.12 (AAA) extends this to no
+   part of it. A semi-transparent or dimming overlay over a focused item fails
+   2.4.12, so dialogs and sheets must move focus into themselves on open.
+   Source: web-standards.md §1,
+   https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html and
+   https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-enhanced.html,
+   both. */
+
+/* Never ship a bare `outline: none` without a replacement ring in the same
+   rule; design-review's check-ui.mjs fails it. */
+
+/* Do not animate the ring: keyboard-initiated actions get no motion.
+   Source: design-motion, "The floor", Rauno via frontier-product-market.md §3,
+   https://rauno.me/craft/interaction-design. */

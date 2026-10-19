@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+@import './styles/tokens.css';
+@import './styles/reduced-motion.css';
+@import './styles/focus-ring.css';
+
+/* App layer over design-tokens: the look plan's palette fills the semantic
+   color slots, and the type ramp is this app's own (display/title/body/label/caption). */
+@theme {
+  /* Numeric utilities are literal px (p-16 = 16px), matching the tokens' --spacing-N names. */
+  --spacing: 1px;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+  --font-sans: 'Geist', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+
+  --color-bg-canvas: #13151b;
+  --color-bg-surface: #1c1f27;
+  --color-bg-sunken: #13151b;
+  --color-border-default: #2c303b;
+  --color-border-strong: color-mix(in oklab, #a3a9b6 45%, #1c1f27);
+  --color-text-primary: #eef0f4;
+  --color-text-secondary: #a3a9b6;
+  --color-text-tertiary: #a3a9b6;
+  --color-text-quaternary: color-mix(in oklab, #a3a9b6 62%, #13151b);
+  --color-brand: #ffc93c;
+  --color-on-brand: #13151b;
+  /* Status only: errors. */
+  --color-destructive: #ff6b6b;
+  --color-on-destructive: #13151b;
+
+  --text-display: 28px;
+  --text-display--line-height: 32px;
+  --text-display--letter-spacing: -0.6px;
+  --text-title: 18px;
+  --text-title--line-height: 24px;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-label: 14px;
+  --text-label--line-height: 20px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+}
+
+:root {
+  --focus-ring-color: #ffc93c;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
