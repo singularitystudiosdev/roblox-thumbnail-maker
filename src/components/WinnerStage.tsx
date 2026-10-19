@@ -1,6 +1,6 @@
 import { Check, Circle, LoaderCircle, Trophy, X } from 'lucide-react'
 import { useState } from 'react'
-import { armLabel, isPicked, onRobloxReference, onStyleReference, slotsLabel, strategyLabel, type Run } from '../lib/api'
+import { armsLabel, drawnArms, isPicked, onRobloxReference, onStyleReference, slotsLabel, strategyLabel, type Run } from '../lib/api'
 import { cn } from '../lib/cn'
 import { Button } from './Button'
 
@@ -33,12 +33,12 @@ function pickedSteps(run: Run | null, judgeStep: { label: string; state: StepSta
     { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
     { label: searchReference ? `Top search game: ${searchReference.name}` : 'Searching Roblox', state: searchReference ? 'done' : run ? 'active' : 'pending' },
-    { label: selection ? `Picked: ${armLabel(selection.arm)}` : 'Rating them and picking a strategy', state: selection ? 'done' : looked ? 'active' : 'pending' },
-    { label: 'Thumbnails 1 and 2 with it', state: selection && run ? slotState(run, [1, 2]) : 'pending' },
+    { label: selection ? `Picked: ${armsLabel(drawnArms(selection))}` : 'Rating them and picking two strategies', state: selection ? 'done' : looked ? 'active' : 'pending' },
+    { label: selection && new Set(drawnArms(selection)).size > 1 ? 'Thumbnails 1 and 2, one with each' : 'Thumbnails 1 and 2 with it', state: selection && run ? slotState(run, [1, 2]) : 'pending' },
     ...(selection?.topUp && run
       ? [
           {
-            label: `Both under ${selection.topUp.below} of 50: thumbnails 3 and 4 with ${armLabel(selection.topUp.arm)}`,
+            label: `Both under ${selection.topUp.below} of 50: thumbnails 3 and 4 with ${armsLabel(selection.topUp.arms ?? [selection.topUp.arm])}`,
             state: slotState(run, [3, 4])
           } satisfies { label: string; state: StepState }
         ]

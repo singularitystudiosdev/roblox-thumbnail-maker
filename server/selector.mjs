@@ -1,7 +1,8 @@
-// Picks the one strategy a run draws twice, instead of drawing all seven
-// thumbnails and judging them all. Every past run that drew every strategy
-// (an "explore" run) is an example: how far each strategy fell short of that
-// run's winner, in judge points out of 50 (its regret).
+// Picks the two strategies a run draws, one thumbnail each, instead of drawing
+// all seven thumbnails and judging them all. Every past run that drew every
+// strategy (an "explore" run) is an example: how far each strategy fell short of
+// that run's winner, in judge points out of 50 (its regret); the creator's own
+// pick, where they made one, decides the winner.
 //
 // What a strategy is judged on is what it starts from: meta and search send
 // the same plain template, so "the plain template on game X's thumbnail" is
@@ -38,7 +39,12 @@ const FAMILY = { template: 'template', plain: 'plain', remix: 'remix', meta: 'on
 // each as one more dimension of distance; split: features that also split the typed prior by a low or high
 // half. Both empty by default: the backtest found none that beat the memory without them
 // (debug/strategy-backtest.mjs, "request features").
-export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, features: [], featureWeight: 1, split: [] }
+// judgeOnly: how much a run of this image model counts when only the judge labelled it (the creator picked no winner
+// there), once the creator has picked in any run of the model; until then judge labels count fully. The pick is for
+// the creator, and the judge's taste (it disagreed with them on about a third of their picks) is what the judge-only
+// runs teach. On the creator's 13 picked Nano Banana 2.1 runs, leave-one-out, the two strategies a run draws included
+// one they took in 10 at 0 against 8 at 1, and 0 was chosen in every nested fold.
+export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, judgeOnly: 0, features: [], featureWeight: 1, split: [] }
 
 /**
  * The request features fit.mjs rates in its one call: realism, abstractness and knownGame (1 to 10) and genre
@@ -260,7 +266,7 @@ const ROLE = { template: 'template', plain: 'plain', remix: 'remix', meta: 'onGa
  * closely, in a prompt of the same match and length, each level shrunk toward the coarser one.
  */
 function typedPrior(arm, here, examples, flat, params) {
-  const points = examples.flatMap((e) => ARMS.filter((a) => ROLE[a] === ROLE[arm]).map((a) => ({ value: e.regret[a], w: modelWeight(here, e.model ?? null, params), ...situation(e, a) })))
+  const points = examples.flatMap((e) => ARMS.filter((a) => ROLE[a] === ROLE[arm]).map((a) => ({ value: e.regret[a], w: exampleWeight(here, e, params), ...situation(e, a) })))
   const keys = [
     (p) => p.level,
     (p) => `${p.level}|${p.type.match}`,
@@ -279,6 +285,16 @@ function typedPrior(arm, here, examples, flat, params) {
 /** An example drawn with the run's own image model counts fully; one from another model counts `otherModel`. */
 const modelWeight = (current, model, params) => (current.model == null || model == null || model === current.model ? 1 : (params.otherModel ?? 1))
 
+/** How much a past run counts: its image model's weight, times `judgeOnly` when it is of this model and only the judge labelled it. */
+const exampleWeight = (current, example, params) =>
+  modelWeight(current, example?.model ?? null, params) * (example?.picked || example?.model !== current.model ? 1 : (params.judgeOnly ?? 1))
+
+/** `params` for `current`: runs only the judge labelled count `judgeOnly` once the creator has picked in a run of its image model, else fully. */
+function forCurrent(current, examples, params) {
+  const creatorPicked = examples.some((e) => e.picked && e.model === (current.model ?? null))
+  return creatorPicked ? params : { ...params, judgeOnly: 1 }
+}
+
 /** Mean squared distance over the chosen request features both runs were rated on (0 when none was). */
 function featureDistance(current, point, params) {
   const parts = (params.features ?? [])
@@ -295,7 +311,7 @@ function likeness(current, point, params) {
     : (current.fit - point.fit) / 9
   const d2 = params.nameWeight * nameDistance ** 2 + params.fitWeight * fitDistance ** 2 + (params.featureWeight ?? 1) * featureDistance(current, point, params)
   const sameRef = current.ref != null && current.ref !== 'style' && current.ref === point.ref
-  return Math.exp(-d2 / (2 * params.bandwidth ** 2)) * (sameRef ? params.refBoost : 1) * modelWeight(current, point.model, params)
+  return Math.exp(-d2 / (2 * params.bandwidth ** 2)) * (sameRef ? params.refBoost : 1) * exampleWeight(current, point.example, params)
 }
 
 /** The strategy built on the reference game that has the prompt's exact name: remix on the nearest game, else search on the search game; null when no game has it. */
@@ -305,7 +321,8 @@ export function builtOnExact(item) {
 }
 
 /** Expected regret per strategy for a run `current` ({ game, fit, refs }) from `examples`. */
-export function expectedRegrets(current, examples, params = DEFAULT_PARAMS) {
+export function expectedRegrets(current, examples, given = DEFAULT_PARAMS) {
+  const params = forCurrent(current, examples, given)
   const tokens = nameTokens(current.game)
   const built = builtOnExact(current)
   return Object.fromEntries(
@@ -317,8 +334,11 @@ export function expectedRegrets(current, examples, params = DEFAULT_PARAMS) {
       const total = weights.reduce((sum, w) => sum + w, 0)
       const weighted = points.reduce((sum, p, i) => sum + weights[i] * p.value, 0)
       const own = points.filter((p) => p.arm === arm)
-      const ownWeight = own.reduce((sum, p) => sum + modelWeight(here, p.model, params), 0)
-      const flat = own.reduce((sum, p) => sum + modelWeight(here, p.model, params) * p.value, 0) / ownWeight
+      const ownWeight = own.reduce((sum, p) => sum + exampleWeight(here, p.example, params), 0)
+      const flat =
+        ownWeight > 0
+          ? own.reduce((sum, p) => sum + exampleWeight(here, p.example, params) * p.value, 0) / ownWeight
+          : own.reduce((sum, p) => sum + p.value, 0) / own.length
       const prior = params.slope ? priorLine(points)(here.fit) : params.typed ? typedPrior(arm, here, examples, flat, params) : flat
       return [arm, (weighted + params.prior * prior) / (total + params.prior) - (arm === built ? (params.exactBonus ?? 0) : 0)]
     })
@@ -326,7 +346,8 @@ export function expectedRegrets(current, examples, params = DEFAULT_PARAMS) {
 }
 
 /** The past runs most like `current` for `arm`, closest first, for the reason shown with the pick. */
-export function closestExamples(current, arm, examples, count = 3, params = DEFAULT_PARAMS) {
+export function closestExamples(current, arm, examples, count = 3, given = DEFAULT_PARAMS) {
+  const params = forCurrent(current, examples, given)
   const here = { tokens: nameTokens(current.game), fits: fitsOf(current), model: current.model ?? null, ...situation(current, arm) }
   const best = new Map()
   for (const p of evidenceFor(arm, examples, params, here.ref)) {
@@ -338,23 +359,31 @@ export function closestExamples(current, arm, examples, count = 3, params = DEFA
 
 const lowest = (expected) => ARMS.reduce((best, a) => (expected[a] < expected[best] ? a : best), 'meta')
 
+/** Every strategy, the lowest expected regret first. */
+const rankedBy = (expected) => [...ARMS].sort((a, b) => expected[a] - expected[b] || ARMS.indexOf(a) - ARMS.indexOf(b))
+
+/** The examples that teach a pick for `current`: all of them, less the judge-only runs of its model when those count nothing. */
+const teaching = (current, examples, params) => examples.filter((e) => exampleWeight(current, e, forCurrent(current, examples, params)) > 0).length
+
 /**
- * The strategy to draw for a run `current` ({ game, fit, refs }): the lowest expected regret, and the
- * runner-up a top-up round draws. With no examples, meta, the best single strategy in the backtest.
- * Returns { arm, runnerUp, expected, closest: [{ id, game, winner, weight }] }.
+ * The strategies to draw for a run `current` ({ game, fit, refs }), by expected regret: `arm` first, then
+ * `runnerUp` (a picked run draws one thumbnail of each), then the rest in `ranked` (a top-up round draws the
+ * next two). With no examples, meta then template. Returns { arm, runnerUp, ranked, expected, learnedFrom,
+ * closest: [{ id, game, winner, weight }] }.
  */
 export function chooseArm(current, examples, params = DEFAULT_PARAMS) {
-  if (examples.length === 0) return { arm: 'meta', runnerUp: 'template', type: typeOf(current), expected: null, closest: [] }
+  if (examples.length === 0) return { arm: 'meta', runnerUp: 'template', ranked: ['meta', 'template', 'plain', 'remix', 'search'], type: typeOf(current), expected: null, learnedFrom: 0, closest: [] }
   const expected = expectedRegrets(current, examples, params)
-  const arm = lowest(expected)
-  const runnerUp = lowest({ ...expected, [arm]: Infinity })
+  const ranked = rankedBy(expected)
+  const [arm, runnerUp] = ranked
   const closest = closestExamples(current, arm, examples, 3, params).map(({ example, weight }) => ({
     id: example.id,
     game: example.game,
     winner: lowest(example.regret),
     weight: Math.round(weight * 100) / 100
   }))
-  return { arm, runnerUp, type: typeOf(current), expected: Object.fromEntries(ARMS.map((a) => [a, Math.round(expected[a] * 10) / 10])), closest }
+  const rounded = Object.fromEntries(ARMS.map((a) => [a, Math.round(expected[a] * 10) / 10]))
+  return { arm, runnerUp, ranked, type: typeOf(current), expected: rounded, learnedFrom: teaching(current, examples, params), closest }
 }
 
 /**
@@ -364,10 +393,10 @@ export function chooseArm(current, examples, params = DEFAULT_PARAMS) {
 export function fallbackArm(examples, model = null) {
   const same = examples.filter((e) => model != null && e.model === model)
   const pool = same.length > 0 ? same : examples
-  if (pool.length === 0) return { arm: 'meta', runnerUp: 'template', expected: null, closest: [] }
+  if (pool.length === 0) return { arm: 'meta', runnerUp: 'template', ranked: ['meta', 'template', 'plain', 'remix', 'search'], expected: null, learnedFrom: 0, closest: [] }
   const mean = Object.fromEntries(ARMS.map((a) => [a, pool.reduce((sum, e) => sum + e.regret[a], 0) / pool.length]))
-  const arm = lowest(mean)
-  return { arm, runnerUp: lowest({ ...mean, [arm]: Infinity }), expected: Object.fromEntries(ARMS.map((a) => [a, Math.round(mean[a] * 10) / 10])), closest: [] }
+  const ranked = rankedBy(mean)
+  return { arm: ranked[0], runnerUp: ranked[1], ranked, expected: Object.fromEntries(ARMS.map((a) => [a, Math.round(mean[a] * 10) / 10])), learnedFrom: pool.length, closest: [] }
 }
 
 /** The prompt's type as the pick read it, with the Roblox game that has its exact name, if one does. */

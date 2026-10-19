@@ -63,15 +63,19 @@ export interface Selection {
   arm: Arm
   /** How the pick read the prompt: a Roblox game has its exact name (`game`), shares words with it, or neither; a description or a short name. */
   type?: { match: 'exact' | 'near' | 'none'; descriptive: boolean; game: string | null }
-  /** The next best strategy, which a top-up round draws. */
+  /** The next best strategy. */
   runnerUp?: Arm
-  /** Both picked thumbnails scored under `below` (of 50), best `best`: two more were drawn with `arm`. */
-  topUp?: { arm: Arm; best: number; below: number } | null
+  /** Every strategy, the best first. */
+  ranked?: Arm[]
+  /** The strategies the run drew, one thumbnail each; runs from before this drew `arm` twice. */
+  arms?: Arm[]
+  /** Both picked thumbnails scored under `below` (of 50), best `best`: two more were drawn, one each of `arms` (older runs: two of `arm`). */
+  topUp?: { arm: Arm; arms?: Arm[]; best: number; below: number } | null
   /** Judge points out of 50 each strategy is expected to fall short of drawing all seven. */
   expected: Record<Arm, number> | null
   /** The past explore runs most like this prompt and the strategy that won each. */
   closest: { id: string; game: string; winner: Arm; weight: number }[]
-  /** How many explore runs the pick learned from. */
+  /** How many explore runs the pick learned from: once the creator has picked, only runs they picked in (and other models' runs). */
   examples: number
 }
 
@@ -242,6 +246,12 @@ export function strategyLabel(slot: Slot) {
 
 /** A strategy by the name its tiles carry. */
 export const armLabel = (arm: Arm) => strategyLabel({ slot: 0, strategy: arm, prompt: arm === 'remix' ? 'Make this thumbnail but from a novel perspective. No text.' : '' })
+
+/** The strategies a picked run drew, one per thumbnail in order; runs from before drew their pick twice. */
+export const drawnArms = (selection: Selection): Arm[] => selection.arms ?? [selection.arm, selection.arm]
+
+/** "Plain template" or "Remix: novel perspective and Plain template": distinct strategies in words. */
+export const armsLabel = (arms: Arm[]) => [...new Set(arms)].map(armLabel).join(' and ')
 
 /** A typed-name run that draws only the selector's pick (before the pick lands, it has no slots yet). */
 export const isPicked = (run: Run) => (run.mode ?? 'standard') === 'standard' && (run.selection ? !run.selection.explore : run.slots.length === 0)

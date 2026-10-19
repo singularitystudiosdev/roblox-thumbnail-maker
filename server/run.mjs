@@ -85,11 +85,23 @@ async function nearestOrNull(gameName, extraNames) {
   }
 }
 
-/** A picked run: PICK_COUNT thumbnails of the one strategy the selector expects to lose the least. */
+/**
+ * A picked run: one thumbnail of each of the PICK_COUNT strategies the selector expects to lose the least, so
+ * a miss on the first is covered by the second at the same cost as two of one. `arms` in that order; `first`
+ * numbers the first slot (a top-up round continues after the slots drawn).
+ */
 export const PICK_COUNT = 2
-export function planPickedSlots(gameName, arm) {
-  const prompt = arm === 'template' ? buildPrompt(gameName) : arm === 'remix' ? REMIX_PROMPT : buildPrompt(gameName, PLAIN_TEMPLATE)
-  return Array.from({ length: PICK_COUNT }, (_, i) => ({ slot: i + 1, strategy: arm, prompt }))
+export function planPickedSlots(gameName, arms, first = 1) {
+  const promptFor = (arm) => (arm === 'template' ? buildPrompt(gameName) : arm === 'remix' ? REMIX_PROMPT : buildPrompt(gameName, PLAIN_TEMPLATE))
+  return arms.map((arm, i) => ({ slot: first + i, strategy: arm, prompt: promptFor(arm) }))
+}
+
+/** The strategies a picked run draws, best first, and those a top-up round draws after them. */
+export function pickedArms(selection) {
+  const ranked = selection.ranked ?? [selection.arm, selection.runnerUp].filter(Boolean)
+  const drawn = ranked.slice(0, PICK_COUNT)
+  while (drawn.length < PICK_COUNT) drawn.push(selection.arm)
+  return { drawn, topUp: ranked.slice(PICK_COUNT, PICK_COUNT * 2) }
 }
 
 /** The nearest popular game's cleanest thumbnail, saved as record.reference; null when there is none (the style reference stands in). */
@@ -170,12 +182,12 @@ async function selectionFor(record, outputsDir, explore, nearestImage, searchIma
   const examples = loadExamples(outputsDir)
   const model = record.imageModel?.key ?? null
   const choice = fit ? chooseArm({ game: record.gameName, fit, refs: refsOf(record), refNames: refNamesOf(record), model }, examples) : fallbackArm(examples, model)
-  return { explore, fit, ...choice, examples: examples.length }
+  return { explore, fit, ...choice, examples: choice.learnedFrom ?? examples.length }
 }
 
 /**
  * A run from a typed name or description. Both Roblox references are looked up and rated, then
- * the selector picks one strategy and only its PICK_COUNT thumbnails are drawn. An explore run
+ * the selector ranks the strategies and one thumbnail of each of the top PICK_COUNT is drawn. An explore run
  * draws every strategy instead (planSlots), so the selector gains an example; its pick is still
  * recorded, the pick it would have made, which the backtest scores as a held-out guess.
  */
@@ -200,19 +212,21 @@ async function standardRun(ctx) {
     await Promise.all([...record.slots.map(drawSlot), picking.then(announce)])
     return
   }
-  const selection = await picking
-  record.slots = planPickedSlots(record.gameName, selection.arm)
+  const picked = await picking
+  const { drawn, topUp } = pickedArms(picked)
+  const selection = { ...picked, arms: drawn }
+  record.slots = planPickedSlots(record.gameName, drawn)
   announce(selection)
   await Promise.all(record.slots.map(drawSlot))
   await ctx.judge()
-  // Both thumbnails under the bar: the pick missed or the draws did. Two more from the runner-up, then
-  // the judge sees all four.
+  // Both thumbnails under the bar: both picks missed or the draws did. One each of the next two strategies,
+  // then the judge sees all four.
   const best = bestTotal(record.judge)
   const bar = config().topUpBelow
-  if (best == null || best >= bar || !selection.runnerUp) return
-  const more = planPickedSlots(record.gameName, selection.runnerUp).map((slot, i) => ({ ...slot, slot: record.slots.length + i + 1 }))
+  if (best == null || best >= bar || topUp.length === 0) return
+  const more = planPickedSlots(record.gameName, topUp, record.slots.length + 1)
   record.slots = [...record.slots, ...more]
-  announce({ ...selection, topUp: { arm: selection.runnerUp, best: Math.round(best * 10) / 10, below: bar } })
+  announce({ ...selection, topUp: { arms: topUp, arm: topUp[0], best: Math.round(best * 10) / 10, below: bar } })
   await Promise.all(more.map(drawSlot))
   await ctx.judge()
 }

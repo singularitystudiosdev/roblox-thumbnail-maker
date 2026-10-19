@@ -1,4 +1,4 @@
-import { armLabel, type Arm, type Selection } from '../lib/api'
+import { armLabel, armsLabel, drawnArms, type Arm, type Selection } from '../lib/api'
 import { cn } from '../lib/cn'
 
 interface SelectionCardProps {
@@ -22,12 +22,19 @@ function ranked(expected: Record<Arm, number>) {
 
 function Picked({ selection }: { selection: Selection }) {
   const { arm, explore, expected, fit, closest, examples } = selection
+  const drawn = drawnArms(selection)
+  const two = new Set(drawn).size > 1
   return (
     <>
       <p className="text-body">
         {explore ? (
           <>
-            This run drew all seven strategies so the pick keeps learning. It would have picked <span className="font-semibold">{armLabel(arm)}</span>.
+            This run drew all seven strategies so the pick keeps learning. It would have picked <span className="font-semibold">{armsLabel(selection.ranked?.slice(0, 2) ?? [arm])}</span>.
+          </>
+        ) : two ? (
+          <>
+            Picked the two best strategies, one thumbnail each: <span className="font-semibold">{armLabel(drawn[0])}</span> and{' '}
+            <span className="font-semibold">{armLabel(drawn[1])}</span>.
           </>
         ) : (
           <>
@@ -40,23 +47,24 @@ function Picked({ selection }: { selection: Selection }) {
         <>
           <ol className="flex flex-col gap-4" aria-label="Expected points lost per strategy">
             {ranked(expected).map(([a, points]) => (
-              <li key={a} className={cn('flex items-baseline justify-between gap-12 text-label', a === arm ? 'font-semibold text-brand' : 'text-text-secondary')}>
+              <li key={a} className={cn('flex items-baseline justify-between gap-12 text-label', drawn.includes(a) ? 'font-semibold text-brand' : 'text-text-secondary')}>
                 <span className="min-w-0 truncate">{armLabel(a)}</span>
                 <span className="shrink-0 tabular-nums">{points.toFixed(1)}</span>
               </li>
             ))}
           </ol>
           <p className="text-caption text-text-secondary">
-            Judge points out of 50 each strategy is expected to fall short of drawing all seven, learned from {examples} runs that drew every strategy.
+            Judge points out of 50 each strategy is expected to fall short of drawing all seven, learned from {examples} runs that drew every
+            strategy, your picks deciding the winner wherever you made one.
           </p>
         </>
       ) : (
-        <p className="text-caption text-text-secondary">The references could not be rated, so it picked meta, the best single strategy so far.</p>
+        <p className="text-caption text-text-secondary">The references could not be rated, so it picked the strategies that have done best so far.</p>
       )}
       {selection.topUp && (
         <p className="text-label">
           Both scored under {selection.topUp.below} of 50 (best {selection.topUp.best}), so two more were drawn with{' '}
-          <span className="font-semibold">{armLabel(selection.topUp.arm)}</span>, the next best strategy.
+          <span className="font-semibold">{armsLabel(selection.topUp.arms ?? [selection.topUp.arm])}</span>, the next best.
         </p>
       )}
       {fit && (

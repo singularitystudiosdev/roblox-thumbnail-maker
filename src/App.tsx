@@ -8,7 +8,7 @@ import { SelectionCard } from './components/SelectionCard'
 import { StyleCard } from './components/StyleCard'
 import { ThumbnailGrid } from './components/ThumbnailGrid'
 import { WinnerStage, type Phase } from './components/WinnerStage'
-import { api, isPicked, pickedSlots, slotsPhrase, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
+import { api, drawnArms, isPicked, pickedSlots, slotsPhrase, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
 
 const EXAMPLES = [
   'https://www.roblox.com/games/107778070777162/Steal-An-Egg',
@@ -41,9 +41,11 @@ function styleCaption(run: Run | null) {
   if (run?.mode === 'attached') return 'Not used for this run: both thumbnails started from your attached image.'
   if (!run) return 'The exact and plain templates are made in the style of this image, when the pick is one of them.'
   if (!isPicked(run)) return 'Thumbnails 1 and 5 are made in the style of this image.'
-  const arm = run.selection?.arm
-  if (!arm) return 'Used only if the pick is the exact or plain template.'
-  return arm === 'template' || arm === 'plain' ? 'Both thumbnails are made in the style of this image.' : 'Not used for this run: the picked strategy starts from a Roblox game.'
+  if (!run.selection) return 'Used only for the exact or plain template, when the pick includes one.'
+  const styled = drawnArms(run.selection).flatMap((arm, i) => (arm === 'template' || arm === 'plain' ? [i + 1] : []))
+  if (styled.length === 2) return 'Both thumbnails are made in the style of this image.'
+  if (styled.length === 1) return `Thumbnail ${styled[0]} is made in the style of this image.`
+  return 'Not used for this run: the picked strategies start from a Roblox game.'
 }
 
 /** The run with one streamed event folded in. */

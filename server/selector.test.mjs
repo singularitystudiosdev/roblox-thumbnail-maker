@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { planPickedSlots } from './run.mjs'
+import { pickedArms, planPickedSlots } from './run.mjs'
 import { readFit, hasFeatures } from './fit.mjs'
 import { ARMS, DEFAULT_PARAMS, builtOnExact, chooseArm, coWinners, drawNoise, exampleOf, expectedRegrets, fallbackArm, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
 
@@ -113,13 +113,18 @@ test('examples are every explore run read fresh, the shipped seed filling in onl
   assert.ok(examples.some((e) => e.id === '2026-10-19T06-10-00-000Z-dddddddd'))
 })
 
-test('a picked run draws its strategy twice with that strategy\'s exact prompt', () => {
-  assert.deepEqual(planPickedSlots('Steal an Egg', 'meta'), [
+test('a picked run draws one thumbnail of each of its top two strategies, each with its exact prompt; a top-up draws the next two', () => {
+  assert.deepEqual(planPickedSlots('Steal an Egg', ['meta', 'template']), [
     { slot: 1, strategy: 'meta', prompt: 'Make me a thumbnail for my game "Steal an Egg" in the style of my reference image. No text. 16:9 Ratio.' },
-    { slot: 2, strategy: 'meta', prompt: 'Make me a thumbnail for my game "Steal an Egg" in the style of my reference image. No text. 16:9 Ratio.' }
+    { slot: 2, strategy: 'template', prompt: 'Make me a thumbnail for my roblox game "Steal an Egg" in the style of my reference image different characters. No text. 16:9 Ratio.' }
   ])
-  assert.equal(planPickedSlots('Steal an Egg', 'template')[0].prompt, 'Make me a thumbnail for my roblox game "Steal an Egg" in the style of my reference image different characters. No text. 16:9 Ratio.')
-  assert.equal(planPickedSlots('Steal an Egg', 'remix')[1].prompt, 'Make this thumbnail but from a novel perspective. No text.')
+  assert.deepEqual(planPickedSlots('Steal an Egg', ['remix', 'plain'], 3).map((s) => [s.slot, s.prompt]), [
+    [3, 'Make this thumbnail but from a novel perspective. No text.'],
+    [4, 'Make me a thumbnail for my game "Steal an Egg" in the style of my reference image. No text. 16:9 Ratio.']
+  ])
+  assert.deepEqual(pickedArms({ arm: 'remix', runnerUp: 'meta', ranked: ['remix', 'meta', 'search', 'plain', 'template'] }), { drawn: ['remix', 'meta'], topUp: ['search', 'plain'] })
+  // A selection saved before the ranking existed draws its pick and runner-up.
+  assert.deepEqual(pickedArms({ arm: 'meta', runnerUp: 'template' }), { drawn: ['meta', 'template'], topUp: [] })
 })
 
 test('the creator\'s own pick outranks the judge: it wins, and every strategy the judge put above it falls behind', () => {
@@ -239,4 +244,24 @@ test('a run whose references could not be rated takes the strategy with the lowe
   assert.equal(fallbackArm(examples, 'nano-banana-pro').arm, 'meta')
   assert.equal(fallbackArm(examples, 'another-model').arm, 'meta')
   assert.equal(fallbackArm([], 'nano-banana-2.1').arm, 'meta')
+})
+
+test('once the creator has picked in runs of a model, runs only the judge labelled stop deciding the pick', () => {
+  const model = 'nano-banana-2.1'
+  const at = (e, extra) => ({ ...e, model, ...extra })
+  // Two judge-only runs say plain; the creator's one pick on a like run says remix.
+  const examples = [
+    at(example('a', 'Rob a House', fit(5, 5, 5), 'plain')),
+    at(example('b', 'Rob a Shop', fit(5, 5, 5), 'plain')),
+    at(example('c', 'Rob a Store', fit(5, 5, 5), 'remix'), { picked: true })
+  ]
+  const current = { game: 'Rob a Mall', fit: fit(5, 5, 5), refs: { nearest: 'n-x', search: 's-x' }, refNames: { nearest: 'Other Game', search: 'Another Game' }, model }
+  const choice = chooseArm(current, examples)
+  assert.equal(choice.arm, 'remix')
+  assert.equal(choice.learnedFrom, 1)
+  assert.equal(choice.ranked.length, ARMS.length)
+  // Counted fully, the judge's two runs outvote the one pick.
+  assert.equal(chooseArm(current, examples, { ...DEFAULT_PARAMS, judgeOnly: 1 }).arm, 'plain')
+  // With no pick yet for the model, the judge's runs count fully.
+  assert.equal(chooseArm(current, examples.map((e) => ({ ...e, picked: false }))).arm, 'plain')
 })

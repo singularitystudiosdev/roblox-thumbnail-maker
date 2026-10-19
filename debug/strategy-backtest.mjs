@@ -403,6 +403,31 @@ const bySource = [['creator picked', true], ['judge only', false]].flatMap(([sou
   return [{ source, n: keep(baseline.rows).length, shipped: summarize(`selector (shipped), ${source}`, keep(baseline.rows)), noExactBonus: summarize(`no exact bonus, ${source}`, keep(noExactBonus.rows)), alwaysPlain: summarize(`always plain, ${source}`, keep(results.find((r) => r.policy === 'always plain').rows)) }]
 })
 
+// The creator's target: on the runs they picked in, a hit when a strategy the run draws (the top two, one thumbnail
+// each) is one they took. Leave-one-out with the shipped knobs, and with the weight of judge-only runs chosen inside
+// each fold from the creator's other picks alone (nested, the honest figure).
+const tookOne = (e, arms) => arms.some((a) => e.regret[a] === 0)
+const topTwo = (e, rest, extra = {}) => {
+  const expected = expectedRegrets(e, rest, { ...DEFAULT_PARAMS, ...extra })
+  return [...ARMS].sort((a, b) => expected[a] - expected[b]).slice(0, 2)
+}
+const JUDGE_ONLY_GRID = [0, 0.1, 0.25, 1]
+const yourPicks = (() => {
+  const picked = heldOut.filter(({ e }) => e.picked)
+  const rows = picked.map(({ e, i }) => {
+    const rest = examples.filter((_, j) => j !== i)
+    const arms = topTwo(e, rest)
+    const inner = rest.map((h, k) => ({ h, k })).filter(({ h }) => h.model === MODEL && h.picked)
+    const hitsAt = (w) => inner.filter(({ h, k }) => tookOne(h, topTwo(h, rest.filter((_, j) => j !== k), { judgeOnly: w }))).length
+    const scores = JUDGE_ONLY_GRID.map(hitsAt)
+    const judgeOnly = JUDGE_ONLY_GRID[scores.indexOf(Math.max(...scores))]
+    const took = ARMS.filter((a) => e.regret[a] === 0)
+    return { id: e.id, game: e.game, took, drawn: arms, first: tookOne(e, arms.slice(0, 1)), either: tookOne(e, arms), nestedJudgeOnly: judgeOnly, nestedEither: tookOne(e, topTwo(e, rest, { judgeOnly })) }
+  })
+  const count = (key) => rows.filter((r) => r[key]).length
+  return { runs: rows.length, firstDrawn: count('first'), eitherDrawn: count('either'), nestedEither: count('nestedEither'), rows }
+})()
+
 // The judge behind every label the creator did not override: server/judge.mjs at its last commit, and whether the
 // working copy differs (runs record no judge version, so a run re-judged since may carry a different one).
 const judgeAt = (() => {
@@ -542,10 +567,15 @@ for (const s of bySource) {
   console.log(`  ${s.source.padEnd(16)} n=${String(s.n).padStart(2)}  selector ${cell(s.shipped)}   no exact bonus ${cell(s.noExactBonus)}   always plain ${cell(s.alwaysPlain)}`)
 }
 
+console.log(
+  `\nyour picks (${yourPicks.runs} runs you picked in, leave-one-out): the first strategy drawn is one you took in ${yourPicks.firstDrawn}; either of the two drawn in ${yourPicks.eitherDrawn}; nested judge-only weight ${yourPicks.nestedEither}`
+)
+for (const r of yourPicks.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} you took ${r.took.join(',').padEnd(16)} drew ${r.drawn.join(' + ').padEnd(18)} ${r.either ? 'hit' : 'miss'}`)
+
 console.log('\nselector picks, leave-one-out:')
 for (const r of shipped.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} ${r.type.padEnd(32)} ${r.arm.padEnd(8)} regret ${r.regret.toFixed(1)}`)
 
 writeFileSync(
   join(root, 'debug', 'strategy-backtest_report.json'),
-  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, judge: judgeAt, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, results, approaches, bySource, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
+  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, judge: judgeAt, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, yourPicks, results, approaches, bySource, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
 )
