@@ -27,9 +27,12 @@ await Promise.all(
         const run = await runThumbnails({ input: prompt, style, outputsDir: join(root, 'outputs'), exploreAll: true, withIcon: false })
         const regret = regretsOf(run)
         const winner = run.slots.find((s) => s.slot === run.winnerSlot)?.strategy ?? null
-        const entry = { prompt, run: run.id, pick: run.selection?.arm, fit: run.selection?.fit, expected: run.selection?.expected, winner, regret, ms: Date.now() - t0 }
+        // A picked run draws the top two strategies, one thumbnail each: the better of the two is what it would have shown.
+        const drawn = run.selection?.ranked?.slice(0, 2) ?? [run.selection?.arm]
+        const entry = { prompt, run: run.id, pick: run.selection?.arm, drawn, fit: run.selection?.fit, expected: run.selection?.expected, winner, regret, ms: Date.now() - t0 }
         report.entries.push(entry)
-        console.log(`${prompt.slice(0, 40).padEnd(40)} would pick ${String(entry.pick).padEnd(8)} winner ${String(winner).padEnd(8)} pick regret ${regret ? regret[entry.pick].toFixed(1) : '?'}  meta ${regret ? regret.meta.toFixed(1) : '?'}`)
+        const drawnRegret = regret ? Math.min(...drawn.map((a) => regret[a])) : null
+        console.log(`${prompt.slice(0, 40).padEnd(40)} would draw ${drawn.join(' + ').padEnd(18)} winner ${String(winner).padEnd(8)} regret ${drawnRegret == null ? '?' : drawnRegret.toFixed(1)}`)
       } catch (err) {
         console.error(`Explore run for "${prompt}" failed:`, err)
         report.entries.push({ prompt, error: err.message })
