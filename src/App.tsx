@@ -39,6 +39,7 @@ function applyEvent(run: Run | null, event: RunEvent): Run | null {
   if (event.type === 'plan' || event.type === 'done') return event.run
   if (!run) return run
   if (event.type === 'reference') return { ...run, reference: event.reference }
+  if (event.type === 'searchReference') return { ...run, searchReference: event.searchReference }
   if (event.type === 'thumbnail') return { ...run, thumbnails: [...run.thumbnails.filter((t) => t.slot !== event.thumbnail.slot), event.thumbnail] }
   if (event.type === 'judge') return { ...run, judge: event.judge, winnerSlot: event.judge.winnerSlot }
   return run
@@ -148,7 +149,7 @@ export function App() {
             <StyleCard upload={styleUpload} defaultName={status?.styleReferenceName ?? 'Default reference'} disabled={busy} onUpload={setStyleUpload} />
           </div>
           <div className="order-4 min-w-0 lg:order-none">
-            <ReferenceCard reference={run?.reference ?? null} loading={busy && !run?.reference} />
+            <ReferenceCard reference={run?.reference ?? null} searchReference={run?.searchReference ?? null} loading={busy && !run?.reference} />
           </div>
         </div>
 

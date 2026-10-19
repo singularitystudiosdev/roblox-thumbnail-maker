@@ -3,6 +3,8 @@ import { formatCount, type Reference } from '../lib/api'
 
 interface ReferenceCardProps {
   reference: Reference | null
+  /** The search meta's game (thumbnail 3); runs saved before it have none. */
+  searchReference: Reference | null
   loading: boolean
 }
 
@@ -19,7 +21,14 @@ function thumbnailCaption({ index, count, why }: NonNullable<Reference['thumbnai
   return `Thumbnail ${index} of ${count} on its page, the cleanest with the least text. ${why}`
 }
 
-export function ReferenceCard({ reference, loading }: ReferenceCardProps) {
+/** The search meta's game in one line: which game thumbnail 3 starts from, and why. */
+function searchLine(search: Reference) {
+  if (search.source === 'style') return 'Thumbnail 3: no other game in a plain Roblox search, so it starts from your reference image.'
+  const playing = search.playing != null ? ` (${formatCount(search.playing)} playing)` : ''
+  return `Thumbnail 3 starts from ${search.name}${playing}. ${search.why ?? ''}`.trim()
+}
+
+export function ReferenceCard({ reference, searchReference, loading }: ReferenceCardProps) {
   return (
     <section aria-labelledby="reference-title" aria-busy={loading || undefined} className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
       <h2 id="reference-title" className="text-title font-semibold">Nearest popular game</h2>
@@ -33,7 +42,9 @@ export function ReferenceCard({ reference, loading }: ReferenceCardProps) {
       )}
 
       {!loading && !reference && (
-        <p className="text-label text-text-secondary">Thumbnails 2 to 4 start from the thumbnail of a popular Roblox game like yours.</p>
+        <p className="text-label text-text-secondary">
+          Thumbnails 2 and 4 start from the thumbnail of a popular Roblox game like yours; thumbnail 3 from the top game of a plain Roblox search.
+        </p>
       )}
 
       {!loading && reference && (
@@ -69,6 +80,7 @@ export function ReferenceCard({ reference, loading }: ReferenceCardProps) {
           </div>
           <p className="text-caption text-text-secondary">{caption(reference)}</p>
           {reference.thumbnail && <p className="text-caption text-text-secondary">{thumbnailCaption(reference.thumbnail)}</p>}
+          {searchReference && <p className="text-caption text-text-secondary">{searchLine(searchReference)}</p>}
         </>
       )}
     </section>

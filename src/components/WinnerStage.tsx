@@ -1,6 +1,6 @@
 import { Check, Circle, LoaderCircle, Trophy, X } from 'lucide-react'
 import { useState } from 'react'
-import { onRobloxReference, strategyLabel, type Run } from '../lib/api'
+import { onRobloxReference, onStyleReference, strategyLabel, type Run } from '../lib/api'
 import { cn } from '../lib/cn'
 import { Button } from './Button'
 
@@ -25,19 +25,38 @@ function slotState(run: Run | null, slots: number[]): StepState {
   return landed.every((t) => t?.error) ? 'failed' : 'done'
 }
 
+/** "Thumbnail 3", "Thumbnails 2 and 4", "Thumbnails 2 to 4": slot numbers as words. */
+function thumbnailsLabel(slots: number[]) {
+  if (slots.length === 1) return `Thumbnail ${slots[0]}`
+  const contiguous = slots.every((s, i) => i === 0 || s === slots[i - 1] + 1)
+  if (contiguous && slots.length > 2) return `Thumbnails ${slots[0]} to ${slots.at(-1)}`
+  return `Thumbnails ${slots.slice(0, -1).join(', ')} and ${slots.at(-1)}`
+}
+
 function steps(run: Run | null, phase: Phase) {
   const reference = run?.reference
-  // Runs saved before the four-thumbnail layout have two remixes.
-  const robloxSlots = run?.slots.filter(onRobloxReference).map((s) => s.slot) ?? [2, 3, 4]
-  const robloxLabel = robloxSlots.length === 2 ? 'Thumbnails 2 and 3' : `Thumbnails 2 to ${robloxSlots.at(-1)}`
+  const searchReference = run?.searchReference
+  // Older runs have three or two remixes and no search meta.
+  const robloxSlots = run?.slots.filter(onRobloxReference).map((s) => s.slot) ?? [2, 4]
+  const searchSlots = run?.slots.filter((s) => s.strategy === 'search').map((s) => s.slot) ?? [3]
   // Older runs have the exact template only.
-  const styleSlots = run?.slots.filter((s) => !onRobloxReference(s)).map((s) => s.slot) ?? [1, 5]
+  const styleSlots = run?.slots.filter(onStyleReference).map((s) => s.slot) ?? [1, 5]
   const styleLabel = styleSlots.length === 1 ? 'Thumbnail 1 from the exact template' : `Thumbnails ${styleSlots.join(' and ')} from your reference image`
+  const searchStep =
+    searchSlots.length === 0
+      ? []
+      : [
+          {
+            label: searchReference ? `${thumbnailsLabel(searchSlots)} from the top search game: ${searchReference.name}` : `Searching Roblox for ${thumbnailsLabel(searchSlots).toLowerCase()}`,
+            state: searchReference ? slotState(run, searchSlots) : run ? 'active' : 'pending'
+          } satisfies { label: string; state: StepState }
+        ]
   return [
     { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
     { label: styleLabel, state: run ? slotState(run, styleSlots) : 'pending' },
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
-    { label: `${robloxLabel} made from it`, state: reference ? slotState(run, robloxSlots) : 'pending' },
+    { label: `${thumbnailsLabel(robloxSlots)} made from it`, state: reference ? slotState(run, robloxSlots) : 'pending' },
+    ...searchStep,
     { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' }
   ] satisfies { label: string; state: StepState }[]
 }

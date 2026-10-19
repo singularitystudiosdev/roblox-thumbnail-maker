@@ -20,15 +20,18 @@ export interface Reference {
   why?: string
   /** Which of the game page's thumbnails was picked as the cleanest, and why. */
   thumbnail?: { index: number; count: number; why: string; pickedBy: string | null }
+  /** The search meta's game only: the name searched for. */
+  query?: string
 }
 
 export interface Slot {
   slot: number
   /**
    * template: the exact template; plain: the plain template (both with the style reference);
-   * remix: the novel perspective remix; meta: the plain template (both with the Roblox reference).
+   * remix: the novel perspective remix; meta: the plain template (both with the Roblox reference);
+   * search: the plain template with the top game of a plain Roblox search (searchReference).
    */
-  strategy: 'template' | 'plain' | 'remix' | 'meta'
+  strategy: 'template' | 'plain' | 'remix' | 'meta' | 'search'
   prompt: string
 }
 
@@ -75,6 +78,8 @@ export interface Run {
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
   reference: Reference | null
+  /** The search meta's game; runs saved before it have none. */
+  searchReference?: Reference | null
   slots: Slot[]
   thumbnails: Thumbnail[]
   judge: Judge | null
@@ -85,6 +90,7 @@ export interface Run {
 export type RunEvent =
   | { type: 'plan'; run: Run }
   | { type: 'reference'; reference: Reference }
+  | { type: 'searchReference'; searchReference: Reference }
   | { type: 'thumbnail'; thumbnail: Thumbnail }
   | { type: 'judging' }
   | { type: 'judge'; judge: Judge }
@@ -153,14 +159,18 @@ export const api = {
   status: () => request<Status>('/api/status')
 }
 
-/** Whether a slot starts from the Roblox reference thumbnail rather than the style reference. */
+/** Whether a slot starts from the nearest popular game's thumbnail. */
 export const onRobloxReference = (slot: Slot) => slot.strategy === 'remix' || slot.strategy === 'meta'
+
+/** Whether a slot starts from the style reference. */
+export const onStyleReference = (slot: Slot) => slot.strategy === 'template' || slot.strategy === 'plain'
 
 /** "Remix: Novel perspective" from "Make this thumbnail but from a novel perspective. No text."; the templates by name. */
 export function strategyLabel(slot: Slot) {
   if (slot.strategy === 'template') return 'Exact template'
   if (slot.strategy === 'plain') return 'Plain template'
   if (slot.strategy === 'meta') return 'Meta: plain template'
+  if (slot.strategy === 'search') return 'Meta: top search game'
   const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'
   return `Remix: ${angle[0].toUpperCase()}${angle.slice(1)}`
 }

@@ -13,10 +13,22 @@ const PLACE_UNIVERSE_URL = 'https://apis.roblox.com/universes/v1/places'
 export class GameNotFound extends Error {}
 const HEADERS = { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 roblox-thumbnail-maker' }
 
+// Roblox refuses bursts of searches with 429 (and sometimes 503): wait and retry this many times.
+const RETRIES = 2
+const MAX_WAIT_MS = 5000
+
 async function getJson(url) {
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(15000) })
-  if (!res.ok) throw new Error(`Roblox answered ${res.status} for ${new URL(url).pathname}`)
-  return res.json()
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(15000) })
+    if (res.ok) return res.json()
+    if ((res.status === 429 || res.status === 503) && attempt < RETRIES) {
+      const wait = Math.min(Number(res.headers.get('retry-after')) * 1000 || 1000 * 2 ** attempt, MAX_WAIT_MS)
+      console.warn(`Roblox answered ${res.status} for ${new URL(url).pathname}; retrying in ${wait}ms.`)
+      await new Promise((resolve) => setTimeout(resolve, wait))
+      continue
+    }
+    throw new Error(`Roblox answered ${res.status} for ${new URL(url).pathname}`)
+  }
 }
 
 /** Flattens an omni-search payload into game rows, sponsored slots dropped. */

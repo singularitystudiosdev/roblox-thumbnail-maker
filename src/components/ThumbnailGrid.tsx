@@ -1,6 +1,13 @@
 import { Download, Trophy } from 'lucide-react'
 import { onRobloxReference, providerLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
 import { cn } from '../lib/cn'
+
+/** The reference a slot will start from, before its thumbnail lands. */
+function pendingReference(slot: Slot, run: Run) {
+  if (slot.strategy === 'search') return run.searchReference?.name ?? 'searching Roblox'
+  if (onRobloxReference(slot)) return run.reference?.name ?? 'finding it'
+  return run.style.name
+}
 import { buttonClasses } from './Button'
 
 const COUNT_WORDS: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four', 5: 'five' }
@@ -69,7 +76,7 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         </div>
         <p className="rounded-8 bg-bg-canvas px-8 py-4 text-caption text-text-primary">{slot.prompt}</p>
         <p className="text-caption text-text-secondary">
-          Reference: {thumbnail?.referenceName ?? (onRobloxReference(slot) ? run.reference?.name ?? 'finding it' : run.style.name)}
+          Reference: {thumbnail?.referenceName ?? pendingReference(slot, run)}
         </p>
         {thumbnail?.provider && (
           <p className="text-caption text-text-secondary">

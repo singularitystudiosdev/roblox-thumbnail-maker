@@ -1,8 +1,10 @@
 // One run: the game name, then five Nano Banana 2 thumbnails at once
 // (1 and 5: the exact and the plain template, each with the style reference;
-// 2 and 3: the novel perspective remix prompt, and 4: the meta, the plain
-// template, each with the cleanest thumbnail of the popular reference game),
-// then the judge, told what the game is (judgeContext).
+// 2: the novel perspective remix prompt, and 4: the meta, the plain template,
+// each with the cleanest thumbnail of the popular reference game; 3: the
+// search meta, the plain template with the top game of a plain Roblox search
+// for the name, never the same game as 2 and 4), then the judge, told what the
+// game is (judgeContext).
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -14,6 +16,7 @@ import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
 import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { pickCleanestThumbnail } from './cleanest.mjs'
+import { pickSearchTop, rankSearch } from './searchtop.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
 const extOf = (mimeType) => EXT[mimeType] ?? 'png'
@@ -24,19 +27,22 @@ function newRunId() {
   return `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
 }
 
-/** The slots of a run and the exact prompt each sends: the template, REMIX_COUNT remixes, the meta, then the plain template. */
+/** The slots of a run and the exact prompt each sends: the template, REMIX_COUNT remixes, the search meta, the meta, then the plain template. */
 export function planSlots(gameName) {
   const plain = buildPrompt(gameName, PLAIN_TEMPLATE)
   return [
     { slot: 1, strategy: 'template', prompt: buildPrompt(gameName) },
     ...Array.from({ length: REMIX_COUNT }, (_, i) => ({ slot: i + 2, strategy: 'remix', prompt: REMIX_PROMPT })),
-    { slot: REMIX_COUNT + 2, strategy: 'meta', prompt: plain },
-    { slot: REMIX_COUNT + 3, strategy: 'plain', prompt: plain }
+    { slot: REMIX_COUNT + 2, strategy: 'search', prompt: plain },
+    { slot: REMIX_COUNT + 3, strategy: 'meta', prompt: plain },
+    { slot: REMIX_COUNT + 4, strategy: 'plain', prompt: plain }
   ]
 }
 
-// Strategies that start from the Roblox reference thumbnail; the others start from the style reference.
+// Strategies that start from the nearest popular game's thumbnail, and those that start from the style
+// reference; 'search' starts from the top game of a plain Roblox search.
 export const ON_ROBLOX_REFERENCE = new Set(['remix', 'meta'])
+export const ON_STYLE_REFERENCE = new Set(['template', 'plain'])
 
 async function nearestOrNull(gameName, extraNames) {
   try {
@@ -65,7 +71,20 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
 
   const styleRef = { name: style.name, source: style.source, imageUrl: save('style', style) }
   const slots = planSlots(gameName)
-  const record = { id, createdAt: new Date().toISOString(), input, gameName, namedBy, link, style: styleRef, reference: null, slots, thumbnails: [], judge: null }
+  const record = {
+    id,
+    createdAt: new Date().toISOString(),
+    input,
+    gameName,
+    namedBy,
+    link,
+    style: styleRef,
+    reference: null,
+    searchReference: null,
+    slots,
+    thumbnails: [],
+    judge: null
+  }
   emit({ type: 'plan', run: record })
 
   const images = new Map()
@@ -87,10 +106,11 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     return thumbnail
   }
 
-  // The templates need only the style reference, so they start at once; the remixes and the meta wait for the Roblox lookup.
-  const templates = Promise.all(slots.filter((s) => !ON_ROBLOX_REFERENCE.has(s.strategy)).map((slot) => generate(slot, style, style.name).then(report)))
+  const nearestLookup = nearestOrNull(gameName, link ? [link.title] : [])
+  // The templates need only the style reference, so they start at once; the Roblox slots wait for their lookups.
+  const templates = Promise.all(slots.filter((s) => ON_STYLE_REFERENCE.has(s.strategy)).map((slot) => generate(slot, style, style.name).then(report)))
   const remixes = (async () => {
-    const nearest = await nearestOrNull(gameName, link ? [link.title] : [])
+    const nearest = await nearestLookup
     let referenceImage = style
     if (nearest) {
       try {
@@ -112,7 +132,44 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     emit({ type: 'reference', reference: record.reference })
     return Promise.all(slots.filter((s) => ON_ROBLOX_REFERENCE.has(s.strategy)).map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
   })()
-  await Promise.all([templates, remixes])
+  const searchMeta = (async () => {
+    // After the nearest game: it shows the model how the name reads, and Roblox refuses a burst of searches.
+    const nearest = await nearestLookup
+    const ranking = await rankSearch(gameName, { anchor: nearest?.name }).catch((err) => {
+      console.error(`The plain Roblox search for "${gameName}" failed:`, err)
+      return { ranked: [], sameCount: 0, pickedBy: null }
+    })
+    let referenceImage = style
+    try {
+      // Never the game thumbnails 2 and 4 start from: the search meta brings a second reference.
+      const game = await pickSearchTop(gameName, ranking, { exclude: nearest ? [nearest.universeId] : [] })
+      if (game) {
+        const picked = await pickCleanestThumbnail(game, gameName)
+        referenceImage = picked
+        record.searchReference = {
+          source: 'roblox',
+          universeId: game.universeId,
+          placeId: game.placeId,
+          name: game.name,
+          playing: game.playing,
+          url: game.url,
+          query: gameName,
+          pickedBy: ranking.pickedBy,
+          why: game.why,
+          robloxThumbnailUrl: picked.url,
+          thumbnail: { index: picked.index, count: picked.count, why: picked.why, pickedBy: picked.pickedBy },
+          imageUrl: save('search-reference', picked)
+        }
+      }
+    } catch (err) {
+      console.error(`Search meta reference for "${gameName}" failed:`, err)
+    }
+    // No other game in the search, or its thumbnail unreachable: the search meta starts from the style reference.
+    record.searchReference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
+    emit({ type: 'searchReference', searchReference: record.searchReference })
+    return Promise.all(slots.filter((s) => s.strategy === 'search').map((slot) => generate(slot, referenceImage, record.searchReference.name).then(report)))
+  })()
+  await Promise.all([templates, remixes, searchMeta])
   record.thumbnails.sort((a, b) => a.slot - b.slot)
 
   const finished = record.thumbnails.filter((t) => images.has(t.slot)).map((t) => ({ slot: t.slot, ...images.get(t.slot) }))
