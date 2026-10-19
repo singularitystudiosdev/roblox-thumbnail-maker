@@ -52,6 +52,7 @@ function applyEvent(run: Run | null, event: RunEvent): Run | null {
 export function App() {
   const [prompt, setPrompt] = useState('')
   const [styleUpload, setStyleUpload] = useState<StyleUpload | null>(null)
+  const [attachment, setAttachment] = useState<StyleUpload | null>(null)
   const [run, setRun] = useState<Run | null>(null)
   const [shownSlot, setShownSlot] = useState<number | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -78,7 +79,7 @@ export function App() {
     setShownSlot(null)
     let finished = false
     try {
-      await api.run(text, styleUpload, (event) => {
+      await api.run(text, styleUpload, attachment, (event) => {
         if (event.type === 'error') throw new Error(event.error)
         if (event.type === 'judging') setPhase('judging')
         if (event.type === 'done') finished = true
@@ -150,13 +151,23 @@ export function App() {
         {/* Phones: the left column dissolves so the results sit right under the prompt. */}
         <div className="contents lg:col-span-4 lg:flex lg:min-w-0 lg:flex-col lg:gap-24">
           <div className="order-1 min-w-0 lg:order-none">
-            <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => start()} busy={busy} />
+            <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => start()} busy={busy} attachment={attachment} onAttach={setAttachment} />
+            {run?.attachment && !run.attachment.used && (
+              <p role="status" className="px-4 pt-8 text-caption text-text-secondary">
+                Your attached image was not used: the prompt did not ask to use it as a reference, so this is the usual five thumbnails.
+              </p>
+            )}
           </div>
           <div className="order-3 min-w-0 lg:order-none">
             <StyleCard upload={styleUpload} defaultName={status?.styleReferenceName ?? 'Default reference'} disabled={busy} onUpload={setStyleUpload} />
           </div>
           <div className="order-4 min-w-0 lg:order-none">
-            <ReferenceCard reference={run?.reference ?? null} searchReference={run?.searchReference ?? null} loading={busy && !run?.reference} />
+            <ReferenceCard
+              reference={run?.reference ?? null}
+              searchReference={run?.searchReference ?? null}
+              attached={run?.mode === 'attached' ? (run.attachment ?? null) : null}
+              loading={busy && !run?.reference && run?.mode !== 'attached'}
+            />
           </div>
         </div>
 
@@ -203,7 +214,7 @@ export function App() {
                   )}
                   <Button onClick={() => start(prompt || run.input)}>
                     <RefreshCw className="size-16" aria-hidden="true" />
-                    Make 5 more
+                    {attachment ? 'Make more' : 'Make 5 more'}
                   </Button>
                 </div>
               </div>

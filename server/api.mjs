@@ -45,25 +45,34 @@ function bundledStyle(root) {
 }
 
 /** An uploaded style image (a data URL from the page), or the bundled one. */
+/** An uploaded { dataUrl, name } as image bytes; `what` names it in the errors. */
+function decodeImage(upload, what, fallbackName) {
+  const match = typeof upload.dataUrl === 'string' ? upload.dataUrl.match(STYLE_DATA_URL) : null
+  if (!match) throw new BadRequest(`The ${what} must be a PNG, JPEG or WebP.`)
+  const bytes = Buffer.from(match[2], 'base64')
+  if (bytes.length > MAX_STYLE_BYTES) throw new BadRequest(`The ${what} is over 8 MB.`)
+  const name = String(upload.name ?? '').trim().slice(0, 120) || fallbackName
+  return { bytes, mimeType: imageMimeType(bytes, match[1]), name }
+}
+
 function styleFor(root, upload) {
   if (upload == null) {
     const { file, mimeType } = bundledStyle(root)
     return { bytes: readFileSync(file), mimeType, name: config().styleReferenceName, source: 'bundled' }
   }
-  const match = typeof upload.dataUrl === 'string' ? upload.dataUrl.match(STYLE_DATA_URL) : null
-  if (!match) throw new BadRequest('The style image must be a PNG, JPEG or WebP.')
-  const bytes = Buffer.from(match[2], 'base64')
-  if (bytes.length > MAX_STYLE_BYTES) throw new BadRequest('The style image is over 8 MB.')
-  const name = String(upload.name ?? '').trim().slice(0, 120) || 'Your reference image'
-  return { bytes, mimeType: imageMimeType(bytes, match[1]), name, source: 'upload' }
+  return { ...decodeImage(upload, 'style image', 'Your reference image'), source: 'upload' }
 }
 
-/** Streams the run as NDJSON events: plan, reference, thumbnail (x3), judging, judge, done; or error. */
+/** The image attached in the prompt box, or null. */
+const attachmentFor = (upload) => (upload == null ? null : decodeImage(upload, 'attached image', 'Your attached image'))
+
+/** Streams the run as NDJSON events: plan, reference, searchReference, thumbnail (one per slot), judging, judge, icon, done; or error. */
 async function handleRun(req, res, root, outputsDir) {
   const body = await readJson(req)
   if (typeof body.prompt !== 'string' || !body.prompt.trim()) throw new BadRequest('Type your game name, a description or its Roblox link first.')
   if (body.prompt.length > 2000) throw new BadRequest('Keep the prompt under 2000 characters.')
   const style = styleFor(root, body.style)
+  const attachment = attachmentFor(body.attachment)
 
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
@@ -74,7 +83,7 @@ async function handleRun(req, res, root, outputsDir) {
     if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`)
   }
   try {
-    await runThumbnails({ input: body.prompt.trim(), style, outputsDir, emit })
+    await runThumbnails({ input: body.prompt.trim(), style, attachment, outputsDir, emit })
   } catch (err) {
     if (!(err instanceof GameNotFound)) console.error('Run failed:', err)
     emit({ type: 'error', error: err.message })

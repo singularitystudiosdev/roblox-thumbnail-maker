@@ -1,11 +1,26 @@
 import { ExternalLink, Users } from 'lucide-react'
-import { formatCount, type Reference } from '../lib/api'
+import { formatCount, type Reference, type Run } from '../lib/api'
 
 interface ReferenceCardProps {
   reference: Reference | null
   /** The search meta's game (thumbnail 3); runs saved before it have none. */
   searchReference: Reference | null
+  /** The creator's attached image, when the run used it as the reference instead of a Roblox game. */
+  attached: Run['attachment'] | null
   loading: boolean
+}
+
+function AttachedCard({ attached }: { attached: NonNullable<Run['attachment']> }) {
+  return (
+    <section aria-labelledby="reference-title" className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
+      <h2 id="reference-title" className="text-title font-semibold">Your attached image</h2>
+      <img src={attached.imageUrl} alt={`Attached reference: ${attached.name}`} width={768} height={432} className="aspect-video w-full rounded-8 object-contain" />
+      <span className="truncate text-body font-medium">{attached.name}</span>
+      <p className="text-caption text-text-secondary">
+        Both thumbnails start from it: thumbnail 1 sends your prompt exactly as typed, thumbnail 2 the plain template. No Roblox game is looked up.
+      </p>
+    </section>
+  )
 }
 
 function caption(reference: Reference) {
@@ -28,7 +43,8 @@ function searchLine(search: Reference) {
   return `Thumbnail 3 starts from ${search.name}${playing}. ${search.why ?? ''}`.trim()
 }
 
-export function ReferenceCard({ reference, searchReference, loading }: ReferenceCardProps) {
+export function ReferenceCard({ reference, searchReference, attached, loading }: ReferenceCardProps) {
+  if (attached) return <AttachedCard attached={attached} />
   return (
     <section aria-labelledby="reference-title" aria-busy={loading || undefined} className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
       <h2 id="reference-title" className="text-title font-semibold">Nearest popular game</h2>

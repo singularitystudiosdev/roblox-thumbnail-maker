@@ -34,6 +34,14 @@ function thumbnailsLabel(slots: number[]) {
 }
 
 function steps(run: Run | null, phase: Phase) {
+  const judgeStep = { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' } satisfies { label: string; state: StepState }
+  if (run?.mode === 'attached') {
+    return [
+      { label: `Game name: ${run.gameName}`, state: 'done' },
+      { label: 'Thumbnails 1 and 2 from your attached image', state: slotState(run, run.slots.map((s) => s.slot)) },
+      judgeStep
+    ] satisfies { label: string; state: StepState }[]
+  }
   const reference = run?.reference
   const searchReference = run?.searchReference
   // Older runs have three or two remixes and no search meta.
@@ -57,7 +65,7 @@ function steps(run: Run | null, phase: Phase) {
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
     { label: `${thumbnailsLabel(robloxSlots)} made from it`, state: reference ? slotState(run, robloxSlots) : 'pending' },
     ...searchStep,
-    { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' }
+    judgeStep
   ] satisfies { label: string; state: StepState }[]
 }
 

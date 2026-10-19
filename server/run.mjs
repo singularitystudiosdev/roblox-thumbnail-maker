@@ -1,14 +1,18 @@
-// One run: the game name, then five Nano Banana 2 thumbnails at once
+// One run: the game name, then five Nano Banana Pro thumbnails at once
 // (1 and 5: the exact and the plain template, each with the style reference;
 // 2: the novel perspective remix prompt, and 4: the meta, the plain template,
 // each with the cleanest thumbnail of the popular reference game; 3: the
 // search meta, the plain template with the top game of a plain Roblox search
 // for the name, never the same game as 2 and 4), then the judge, told what the
-// game is (judgeContext).
+// game is (judgeContext), then the winner's icon. When the creator attaches an
+// image and the prompt asks to use it as the reference (attached.mjs), the run
+// makes two thumbnails from that image instead: their prompt as typed and the
+// plain template.
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { planAttachedSlots, readAttachedIntent } from './attached.mjs'
 import { resolveGameName } from './gamename.mjs'
 import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
@@ -57,12 +61,26 @@ async function nearestOrNull(gameName, extraNames) {
 
 /**
  * `style`: { bytes, mimeType, name, source: 'bundled' | 'upload' }, the image
- * the two templates are styled after; `model`: the image model every slot uses
- * (imageModel(): Nano Banana Pro). Returns the saved run record.
+ * the two templates are styled after; `attachment`: { bytes, mimeType, name }
+ * attached in the prompt box, or null; `model`: the image model every slot
+ * uses (imageModel(): Nano Banana Pro); `intent` reads whether the prompt asks
+ * for the attachment (swappable in tests). Returns the saved run record.
  */
-export async function runThumbnails({ input, style, outputsDir, emit = () => {}, random = Math.random, model = imageModel() }) {
+export async function runThumbnails({
+  input,
+  style,
+  attachment = null,
+  outputsDir,
+  emit = () => {},
+  random = Math.random,
+  model = imageModel(),
+  intent = readAttachedIntent
+}) {
   const started = Date.now()
-  const { gameName, namedBy, link } = await resolveGameName(input)
+  // An attached image is the reference only when the prompt asks for it; then the game is named without those words.
+  const asked = attachment ? await intent(input) : null
+  const attached = asked?.useAsReference ? attachment : null
+  const { gameName, namedBy, link } = await resolveGameName(attached ? asked.gameText : input)
   const id = newRunId()
   const dir = join(outputsDir, id)
   mkdirSync(dir, { recursive: true })
@@ -73,7 +91,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
   }
 
   const styleRef = { name: style.name, source: style.source, imageUrl: save('style', style) }
-  const slots = planSlots(gameName)
+  const slots = attached ? planAttachedSlots(input, gameName) : planSlots(gameName)
   const record = {
     id,
     createdAt: new Date().toISOString(),
@@ -81,6 +99,8 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     gameName,
     namedBy,
     link,
+    mode: attached ? 'attached' : 'standard',
+    attachment: attachment ? { name: attachment.name, imageUrl: save('attached', attachment), used: Boolean(attached), readBy: asked.readBy } : null,
     style: styleRef,
     imageModel: { key: model.key, label: model.label },
     reference: null,
@@ -110,6 +130,10 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     return thumbnail
   }
 
+  if (attached) {
+    // Both thumbnails start from the creator's attached image; no Roblox lookups.
+    await Promise.all(slots.map((slot) => generate(slot, attachment, attachment.name).then(report)))
+  } else {
   const nearestLookup = nearestOrNull(gameName, link ? [link.title] : [])
   // The templates need only the style reference, so they start at once; the Roblox slots wait for their lookups.
   const templates = Promise.all(slots.filter((s) => ON_STYLE_REFERENCE.has(s.strategy)).map((slot) => generate(slot, style, style.name).then(report)))
@@ -174,6 +198,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     return Promise.all(slots.filter((s) => s.strategy === 'search').map((slot) => generate(slot, referenceImage, record.searchReference.name).then(report)))
   })()
   await Promise.all([templates, remixes, searchMeta])
+  }
   record.thumbnails.sort((a, b) => a.slot - b.slot)
 
   const finished = record.thumbnails.filter((t) => images.has(t.slot)).map((t) => ({ slot: t.slot, ...images.get(t.slot) }))

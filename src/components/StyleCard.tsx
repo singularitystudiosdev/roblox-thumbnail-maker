@@ -1,25 +1,14 @@
 import { ImageUp, RotateCcw } from 'lucide-react'
 import { useRef, useState, type ChangeEvent } from 'react'
 import type { StyleUpload } from '../lib/api'
+import { IMAGE_TYPES, readImageFile } from '../lib/files'
 import { Button } from './Button'
-
-const MAX_BYTES = 8 * 1024 * 1024
-const ACCEPT = ['image/png', 'image/jpeg', 'image/webp']
 
 interface StyleCardProps {
   upload: StyleUpload | null
   defaultName: string
   disabled: boolean
   onUpload: (upload: StyleUpload | null) => void
-}
-
-function readDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('The image could not be read.'))
-    reader.readAsDataURL(file)
-  })
 }
 
 export function StyleCard({ upload, defaultName, disabled, onUpload }: StyleCardProps) {
@@ -30,10 +19,8 @@ export function StyleCard({ upload, defaultName, disabled, onUpload }: StyleCard
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!ACCEPT.includes(file.type)) return setError('Pick a PNG, JPEG or WebP image.')
-    if (file.size > MAX_BYTES) return setError('Pick an image under 8 MB.')
     try {
-      onUpload({ dataUrl: await readDataUrl(file), name: file.name.replace(/\.[a-z0-9]+$/i, '') })
+      onUpload(await readImageFile(file))
       setError(null)
     } catch (err) {
       console.error('Style image read failed', err)
@@ -57,7 +44,7 @@ export function StyleCard({ upload, defaultName, disabled, onUpload }: StyleCard
         {error && <p role="alert" className="text-caption text-destructive">{error}</p>}
       </div>
       <div className="flex flex-wrap gap-8">
-        <input ref={input} type="file" accept={ACCEPT.join(',')} hidden onChange={choose} />
+        <input ref={input} type="file" accept={IMAGE_TYPES.join(',')} hidden onChange={choose} />
         <Button onClick={() => input.current?.click()} disabled={disabled}>
           <ImageUp className="size-16" aria-hidden="true" />
           Use my own image

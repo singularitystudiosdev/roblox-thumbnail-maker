@@ -134,3 +134,16 @@ test('shuffling keeps every item', () => {
   assert.deepEqual([...out].sort(), [1, 2, 3])
   assert.deepEqual(out, [2, 3, 1])
 })
+
+test("an attached reference image is the judge's context: shown last, never a candidate", async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'attached-'))
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
+  writeFileSync(join(dir, 'attached.png'), png)
+  const run = { link: null, reference: null, attachment: { used: true, imageUrl: '/outputs/x/attached.png' } }
+  const context = await judgeContext(run, dir)
+  assert.equal(context.attached, true)
+  assert.deepEqual(context.image.bytes, png)
+  assert.match(judgeRequest('Rob a Bank', 2, context), /creator attached a reference image[\s\S]*It is context, not a candidate[\s\S]*Candidates: Image 1, Image 2\.$/)
+  // An attachment the prompt did not ask for is not context.
+  assert.equal(await judgeContext({ ...run, attachment: { ...run.attachment, used: false } }, dir), null)
+})

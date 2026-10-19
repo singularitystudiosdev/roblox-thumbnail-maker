@@ -29,9 +29,10 @@ export interface Slot {
   /**
    * template: the exact template; plain: the plain template (both with the style reference);
    * remix: the novel perspective remix; meta: the plain template (both with the Roblox reference);
-   * search: the plain template with the top game of a plain Roblox search (searchReference).
+   * search: the plain template with the top game of a plain Roblox search (searchReference);
+   * typed: the creator's prompt as typed; plain-attached: the plain template (both with the attached image).
    */
-  strategy: 'template' | 'plain' | 'remix' | 'meta' | 'search'
+  strategy: 'template' | 'plain' | 'remix' | 'meta' | 'search' | 'typed' | 'plain-attached'
   prompt: string
 }
 
@@ -81,6 +82,10 @@ export interface Run {
   namedBy: 'link' | 'typed'
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
+  /** standard: the five thumbnails; attached: two from the image attached in the prompt box. Older runs have none. */
+  mode?: 'standard' | 'attached'
+  /** The image attached in the prompt box; used: the prompt asked to use it as the reference. */
+  attachment?: { name: string; imageUrl: string; used: boolean; readBy: string | null } | null
   /** The image model every slot used; runs saved before it was recorded have none and used Nano Banana 2. */
   imageModel?: { key: string; label: string }
   reference: Reference | null
@@ -131,11 +136,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** Starts a run and hands each NDJSON event to `onEvent` as it arrives. */
-async function run(prompt: string, style: StyleUpload | null, onEvent: (event: RunEvent) => void) {
+async function run(prompt: string, style: StyleUpload | null, attachment: StyleUpload | null, onEvent: (event: RunEvent) => void) {
   const res = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, style })
+    body: JSON.stringify({ prompt, style, attachment })
   })
   if (!res.ok || !res.body) {
     const body = await res.json().catch((err) => {
@@ -180,6 +185,8 @@ export function strategyLabel(slot: Slot) {
   if (slot.strategy === 'plain') return 'Plain template'
   if (slot.strategy === 'meta') return 'Meta: plain template'
   if (slot.strategy === 'search') return 'Meta: top search game'
+  if (slot.strategy === 'typed') return 'Your exact prompt'
+  if (slot.strategy === 'plain-attached') return 'Plain template on your image'
   const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'
   return `Remix: ${angle[0].toUpperCase()}${angle.slice(1)}`
 }

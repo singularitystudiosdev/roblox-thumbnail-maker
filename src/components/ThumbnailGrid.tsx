@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 
 /** The reference a slot will start from, before its thumbnail lands. */
 function pendingReference(slot: Slot, run: Run) {
+  if (slot.strategy === 'typed' || slot.strategy === 'plain-attached') return run.attachment?.name ?? 'your attached image'
   if (slot.strategy === 'search') return run.searchReference?.name ?? 'searching Roblox'
   if (onRobloxReference(slot)) return run.reference?.name ?? 'finding it'
   return run.style.name
@@ -133,10 +134,10 @@ export function ThumbnailGrid({ run, busy, shownSlot, onShow }: ThumbnailGridPro
   return (
     <section aria-labelledby="all-thumbnails-title" className="flex flex-col gap-16 rounded-16 border border-border-default bg-bg-surface p-16">
       <h2 id="all-thumbnails-title" className="text-title font-semibold">
-        All {COUNT_WORDS[run.slots.length] ?? run.slots.length} thumbnails
+        {run.slots.length === 2 ? 'Both thumbnails' : `All ${COUNT_WORDS[run.slots.length] ?? run.slots.length} thumbnails`}
       </h2>
       {/* Five sit three then two, older runs of four two by two, of three in one row. */}
-      <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 4 ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
+      <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 4 || run.slots.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
         {run.slots.map((slot) => (
           <Tile key={slot.slot} run={run} slot={slot} busy={busy} shown={shownSlot === slot.slot} onShow={onShow} />
         ))}

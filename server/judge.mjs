@@ -181,6 +181,15 @@ export async function judgeContext(
       console.error(`The linked game for the judge failed; falling back to the reference game:`, err)
     }
   }
+  // The creator's attached reference image shows what they asked for.
+  if (run.attachment?.used) {
+    try {
+      return { attached: true, image: savedImage(dir, run.attachment.imageUrl) }
+    } catch (err) {
+      console.error('The attached image for the judge could not be read; judging on the name alone:', err)
+      return null
+    }
+  }
   const ref = run.reference
   if (ref?.source !== 'roblox') return null
   let description = ''
@@ -207,6 +216,10 @@ export function judgeRequest(gameName, count, context) {
     if (context.image) {
       lines.push(`The last image is its current Roblox thumbnail, attached so you know what the game looks like. It is context, not a candidate.`)
     }
+  } else if (context?.attached) {
+    lines.push(
+      `Context: the creator attached a reference image and asked for thumbnails based on it. The last image is that reference image: it shows the look and subject they want. It is context, not a candidate.`
+    )
   } else if (context) {
     lines.push(
       `Context: the most played Roblox game like the creator's is "${context.name}", with ${context.playing} playing now.${about}`,
@@ -221,7 +234,10 @@ export function judgeRequest(gameName, count, context) {
 async function judgeOnce(gameName, entries, context, random, system) {
   const order = shuffled(entries, random)
   const images = order.map((entry, i) => ({ label: `Image ${i + 1}`, mimeType: entry.mimeType, bytes: entry.bytes, url: entry.sourceUrl }))
-  if (context?.image) images.push({ label: "The game's current thumbnail (context, not a candidate)", ...context.image })
+  if (context?.image) {
+    const label = context.attached ? "The creator's reference image (context, not a candidate)" : "The game's current thumbnail (context, not a candidate)"
+    images.push({ label, ...context.image })
+  }
   const { value, provider, model } = await askJson(
     { label: 'Thumbnail judge', system, user: judgeRequest(gameName, order.length, context), images, schema: JUDGE_SCHEMA },
     judgeRoutes()
