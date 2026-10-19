@@ -1,5 +1,5 @@
 import { Download, Trophy } from 'lucide-react'
-import { providerLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
+import { onRobloxReference, providerLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
 import { cn } from '../lib/cn'
 import { buttonClasses } from './Button'
 
@@ -69,7 +69,7 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         </div>
         <p className="rounded-8 bg-bg-canvas px-8 py-4 text-caption text-text-primary">{slot.prompt}</p>
         <p className="text-caption text-text-secondary">
-          Reference: {thumbnail?.referenceName ?? (slot.strategy === 'remix' ? run.reference?.name ?? 'finding it' : run.style.name)}
+          Reference: {thumbnail?.referenceName ?? (onRobloxReference(slot) ? run.reference?.name ?? 'finding it' : run.style.name)}
         </p>
         {thumbnail?.provider && (
           <p className="text-caption text-text-secondary">

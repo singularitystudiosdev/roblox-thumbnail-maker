@@ -1,6 +1,6 @@
 import { Check, Circle, LoaderCircle, Trophy, X } from 'lucide-react'
 import { useState } from 'react'
-import { strategyLabel, type Run } from '../lib/api'
+import { onRobloxReference, strategyLabel, type Run } from '../lib/api'
 import { cn } from '../lib/cn'
 import { Button } from './Button'
 
@@ -28,16 +28,16 @@ function slotState(run: Run | null, slots: number[]): StepState {
 function steps(run: Run | null, phase: Phase) {
   const reference = run?.reference
   // Runs saved before the four-thumbnail layout have two remixes.
-  const remixSlots = run?.slots.filter((s) => s.strategy === 'remix').map((s) => s.slot) ?? [2, 3, 4]
-  const remixLabel = remixSlots.length === 2 ? 'Thumbnails 2 and 3' : `Thumbnails 2 to ${remixSlots.at(-1)}`
+  const robloxSlots = run?.slots.filter(onRobloxReference).map((s) => s.slot) ?? [2, 3, 4]
+  const robloxLabel = robloxSlots.length === 2 ? 'Thumbnails 2 and 3' : `Thumbnails 2 to ${robloxSlots.at(-1)}`
   // Older runs have the exact template only.
-  const styleSlots = run?.slots.filter((s) => s.strategy !== 'remix').map((s) => s.slot) ?? [1, 5]
+  const styleSlots = run?.slots.filter((s) => !onRobloxReference(s)).map((s) => s.slot) ?? [1, 5]
   const styleLabel = styleSlots.length === 1 ? 'Thumbnail 1 from the exact template' : `Thumbnails ${styleSlots.join(' and ')} from your reference image`
   return [
     { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
     { label: styleLabel, state: run ? slotState(run, styleSlots) : 'pending' },
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
-    { label: `${remixLabel} remixed from it`, state: reference ? slotState(run, remixSlots) : 'pending' },
+    { label: `${robloxLabel} made from it`, state: reference ? slotState(run, robloxSlots) : 'pending' },
     { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' }
   ] satisfies { label: string; state: StepState }[]
 }

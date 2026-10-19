@@ -24,8 +24,11 @@ export interface Reference {
 
 export interface Slot {
   slot: number
-  /** template: the exact template; plain: the plain template (both with the style reference); remix: the novel perspective remix. */
-  strategy: 'template' | 'plain' | 'remix'
+  /**
+   * template: the exact template; plain: the plain template (both with the style reference);
+   * remix: the novel perspective remix; meta: the plain template (both with the Roblox reference).
+   */
+  strategy: 'template' | 'plain' | 'remix' | 'meta'
   prompt: string
 }
 
@@ -150,10 +153,14 @@ export const api = {
   status: () => request<Status>('/api/status')
 }
 
+/** Whether a slot starts from the Roblox reference thumbnail rather than the style reference. */
+export const onRobloxReference = (slot: Slot) => slot.strategy === 'remix' || slot.strategy === 'meta'
+
 /** "Remix: Novel perspective" from "Make this thumbnail but from a novel perspective. No text."; the templates by name. */
 export function strategyLabel(slot: Slot) {
   if (slot.strategy === 'template') return 'Exact template'
   if (slot.strategy === 'plain') return 'Plain template'
+  if (slot.strategy === 'meta') return 'Meta: plain template'
   const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'
   return `Remix: ${angle[0].toUpperCase()}${angle.slice(1)}`
 }

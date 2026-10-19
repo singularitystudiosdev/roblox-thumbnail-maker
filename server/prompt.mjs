@@ -1,15 +1,16 @@
 // The prompts the image model receives, word for word. Thumbnail 1 is the
 // template with only GAME_NAME substituted (inside the quotes); thumbnails 2
-// to 4 each send the one remix prompt with the Roblox reference, so a run
-// gets three separate draws of it; thumbnail 5 is the plain template, sent
-// with the same style reference as thumbnail 1.
+// and 3 each send the one remix prompt with the Roblox reference, two
+// separate draws of it; thumbnail 4, the meta, sends the plain template with
+// that same Roblox reference; thumbnail 5 sends the plain template with the
+// style reference of thumbnail 1.
 export const PROMPT_TEMPLATE =
   'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
 
 export const PLAIN_TEMPLATE = 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
 
 export const REMIX_PROMPT = 'Make this thumbnail but from a novel perspective. No text.'
-export const REMIX_COUNT = 3
+export const REMIX_COUNT = 2
 
 export const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 

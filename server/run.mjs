@@ -1,8 +1,8 @@
 // One run: the game name, then five Nano Banana 2 thumbnails at once
 // (1 and 5: the exact and the plain template, each with the style reference;
-// 2 to 4: the novel perspective remix prompt, each with the cleanest thumbnail
-// of the popular reference game), then the judge, told what the game is
-// (judgeContext).
+// 2 and 3: the novel perspective remix prompt, and 4: the meta, the plain
+// template, each with the cleanest thumbnail of the popular reference game),
+// then the judge, told what the game is (judgeContext).
 // Each step is reported through `emit` as it lands and saved under outputs/<id>/.
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -24,14 +24,19 @@ function newRunId() {
   return `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
 }
 
-/** The slots of a run and the exact prompt each sends: the template, REMIX_COUNT remixes, then the plain template. */
+/** The slots of a run and the exact prompt each sends: the template, REMIX_COUNT remixes, the meta, then the plain template. */
 export function planSlots(gameName) {
+  const plain = buildPrompt(gameName, PLAIN_TEMPLATE)
   return [
     { slot: 1, strategy: 'template', prompt: buildPrompt(gameName) },
     ...Array.from({ length: REMIX_COUNT }, (_, i) => ({ slot: i + 2, strategy: 'remix', prompt: REMIX_PROMPT })),
-    { slot: REMIX_COUNT + 2, strategy: 'plain', prompt: buildPrompt(gameName, PLAIN_TEMPLATE) }
+    { slot: REMIX_COUNT + 2, strategy: 'meta', prompt: plain },
+    { slot: REMIX_COUNT + 3, strategy: 'plain', prompt: plain }
   ]
 }
+
+// Strategies that start from the Roblox reference thumbnail; the others start from the style reference.
+export const ON_ROBLOX_REFERENCE = new Set(['remix', 'meta'])
 
 async function nearestOrNull(gameName, extraNames) {
   try {
@@ -82,8 +87,8 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     return thumbnail
   }
 
-  // The templates need only the style reference, so they start at once; the remixes wait for the Roblox lookup.
-  const templates = Promise.all(slots.filter((s) => s.strategy !== 'remix').map((slot) => generate(slot, style, style.name).then(report)))
+  // The templates need only the style reference, so they start at once; the remixes and the meta wait for the Roblox lookup.
+  const templates = Promise.all(slots.filter((s) => !ON_ROBLOX_REFERENCE.has(s.strategy)).map((slot) => generate(slot, style, style.name).then(report)))
   const remixes = (async () => {
     const nearest = await nearestOrNull(gameName, link ? [link.title] : [])
     let referenceImage = style
@@ -105,7 +110,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     // No Roblox game found or its thumbnail unreachable: the remixes start from the style reference.
     record.reference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
     emit({ type: 'reference', reference: record.reference })
-    return Promise.all(slots.filter((s) => s.strategy === 'remix').map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
+    return Promise.all(slots.filter((s) => ON_ROBLOX_REFERENCE.has(s.strategy)).map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
   })()
   await Promise.all([templates, remixes])
   record.thumbnails.sort((a, b) => a.slot - b.slot)

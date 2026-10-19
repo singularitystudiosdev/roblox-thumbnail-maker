@@ -33,7 +33,7 @@ export function ReferenceCard({ reference, loading }: ReferenceCardProps) {
       )}
 
       {!loading && !reference && (
-        <p className="text-label text-text-secondary">Thumbnails 2 to 4 remix the thumbnail of the most played Roblox game like yours.</p>
+        <p className="text-label text-text-secondary">Thumbnails 2 to 4 start from the thumbnail of a popular Roblox game like yours.</p>
       )}
 
       {!loading && reference && (
