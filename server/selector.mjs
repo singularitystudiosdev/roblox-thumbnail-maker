@@ -183,7 +183,14 @@ export function exampleOf(run) {
   if (!regret) return null
   const drawn = Object.fromEntries(ARMS.map((a) => [a, run.slots.filter((slot) => slot.strategy === a && run.judge.scores.some((s) => s.slot === slot.slot)).length]))
   const base = run.selection.base ? { nearestBase: run.selection.base.nearestBase ?? null, searchBase: run.selection.base.searchBase ?? null } : null
-  return { id: run.id, game: run.gameName, fit: run.selection.fit, base, refs: refsOf(run), refNames: refNamesOf(run), model: modelOf(run), regret, drawn, picked: Boolean(run.userPick) }
+  return { id: run.id, game: run.gameName, fit: run.selection.fit, base, refs: refsOf(run), refNames: refNamesOf(run), model: modelOf(run), regret, drawn, picked: Boolean(run.userPick), templateWording: templateWordingOf(run) }
+}
+
+/** 'current' when the run's exact template is today's wording, 'old' when it still asked for "different characters", null with no template. */
+export function templateWordingOf(run) {
+  const template = run?.slots?.find((slot) => slot.strategy === 'template')
+  if (!template?.prompt) return null
+  return /different characters/i.test(template.prompt) ? 'old' : 'current'
 }
 
 /**
@@ -396,7 +403,10 @@ function takenMore(picks, a, b, margin) {
  * two images from one reference would only repeat each other. Which strategy of a source comes first is learned:
  * the exact template and remix by default (the exact template is the spec's first thumbnail), the other once the
  * creator took it in `orderMargin` more of their picked runs of this image model (every model's picks until it
- * has some). A reference with flat 2D art (fit.mjs, `flatArt` or under) or none found is never drawn from.
+ * has some). The two style strategies learn their order only from picks on the current template wording: the
+ * template dropped "different characters", so a pick between the old wording and plain says nothing about the new
+ * one, and until there are such picks the exact template comes first. A reference with flat 2D art (fit.mjs,
+ * `flatArt` or under) or none found is never drawn from.
  * Returns chooseArm's shape with method 'panel' and `base`: the two ratings, the bar and which art was flat.
  */
 export function chooseByPanel(current, examples, params = DEFAULT_PARAMS) {
@@ -407,7 +417,7 @@ export function chooseByPanel(current, examples, params = DEFAULT_PARAMS) {
   const nearestFlat = flat(current.fit?.nearestArt)
   const searchFlat = flat(current.fit?.searchArt)
   const { nearestBase = null, searchBase = null } = current.base ?? {}
-  const style = takenMore(picks, 'template', 'plain', params.orderMargin)
+  const style = takenMore(picks.filter((e) => e.templateWording === 'current'), 'template', 'plain', params.orderMargin)
   const sources = [
     { arms: takenMore(picks, 'remix', 'meta', params.orderMargin), score: nearestBase == null || nearestFlat ? -Infinity : nearestBase },
     { arms: ['search'], score: searchBase == null || searchFlat ? -Infinity : searchBase },

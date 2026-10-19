@@ -297,8 +297,11 @@ test('which strategy of a starting image comes first is the one the creator took
   // A lead of one pick keeps the default; two flip it.
   assert.deepEqual(chooseByPanel(current, [picked('a', 'meta'), picked('c', 'plain')]).ranked.slice(0, 2), ['remix', 'template'])
   const metaAndPlain = [picked('a', 'meta'), picked('b', 'meta'), picked('c', 'plain'), picked('h', 'plain')]
-  assert.deepEqual(chooseByPanel(current, metaAndPlain).ranked.slice(0, 2), ['meta', 'plain'])
+  // Plain picks against the old template wording ("different characters") never reorder the style strategies.
+  assert.deepEqual(chooseByPanel(current, metaAndPlain).ranked.slice(0, 2), ['meta', 'template'])
   assert.equal(chooseByPanel(current, metaAndPlain).learnedFrom, 4)
+  const onCurrentWording = metaAndPlain.map((e) => (e.regret.plain === 0 ? { ...e, templateWording: 'current' } : e))
+  assert.deepEqual(chooseByPanel(current, onCurrentWording).ranked.slice(0, 2), ['meta', 'plain'])
   // Picks on another model count only until this one has some; judge-only runs never count.
   const elsewhere = [picked('d', 'meta', 'nano-banana-pro'), picked('e', 'meta', 'nano-banana-pro'), { ...example('f', 'Some Game', fit(5, 5, 5), 'meta'), model }]
   assert.deepEqual(chooseByPanel(current, elsewhere).ranked.slice(0, 1), ['meta'])
