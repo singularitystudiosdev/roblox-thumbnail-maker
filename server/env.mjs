@@ -51,14 +51,18 @@ export function config() {
     geminiKeys: resolveKeys('GEMINI_API_KEY', 'GEMINI_KEYCHAIN_SERVICES', 'gemini-api-key,nano-banana-gemini-key'),
     falKeys: resolveKeys('FAL_KEY', 'FAL_KEYCHAIN_SERVICES', 'cosmos-fal,fal-key'),
     imageProvider: process.env.IMAGE_PROVIDER || 'auto',
-    imageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image',
-    falModel: process.env.FAL_IMAGE_MODEL || 'fal-ai/nano-banana-pro/edit',
+    imageModel: process.env.GEMINI_IMAGE_MODEL || null,
+    falModel: process.env.FAL_IMAGE_MODEL || 'google/nano-banana-2.1/edit',
     textModel: process.env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash',
     judgeModels: listEnv('GEMINI_JUDGE_MODELS', 'gemini-3.1-pro-preview,gemini-3.5-flash'),
     falTextModel: process.env.FAL_TEXT_MODEL || 'anthropic/claude-haiku-5.5',
     falJudgeModel: process.env.FAL_JUDGE_MODEL || 'anthropic/claude-sonnet-5.5',
     styleReference: process.env.STYLE_REFERENCE || 'reference/day-67-prison-dig.png',
-    styleReferenceName: process.env.STYLE_REFERENCE_NAME || 'DAY #67 prison dig'
+    styleReferenceName: process.env.STYLE_REFERENCE_NAME || 'DAY #67 prison dig',
+    // The share of typed-name runs that draw all seven strategies so the selector keeps learning.
+    selectorExploreRate: Number(process.env.SELECTOR_EXPLORE_RATE ?? 0.1),
+    // A picked run whose two thumbnails both score under this (of 50) draws two more from the runner-up; 0 turns it off.
+    topUpBelow: Number(process.env.TOP_UP_BELOW ?? 40)
   }
   return cached
 }

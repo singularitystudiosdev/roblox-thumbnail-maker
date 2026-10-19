@@ -16,20 +16,19 @@ function modelIn(env) {
   return JSON.parse(out.trim().split('\n').at(-1))
 }
 
-test('every image is Nano Banana Pro: gemini-3-pro-image, then fal-ai/nano-banana-pro/edit', () => {
-  assert.deepEqual(modelIn({}).model, { key: 'nano-banana-pro', label: 'Nano Banana Pro', gemini: 'gemini-3-pro-image', fal: 'fal-ai/nano-banana-pro/edit' })
+test('every image is Nano Banana 2.1 on fal.ai, with no Gemini API id', () => {
+  assert.deepEqual(modelIn({}).model, { key: 'nano-banana-2.1', label: 'Nano Banana 2.1', gemini: null, fal: 'google/nano-banana-2.1/edit' })
 })
 
 test('GEMINI_IMAGE_MODEL and FAL_IMAGE_MODEL still override the ids', () => {
   const { model } = modelIn({ GEMINI_IMAGE_MODEL: 'gemini-x', FAL_IMAGE_MODEL: 'fal-ai/x/edit' })
   assert.equal(model.gemini, 'gemini-x')
   assert.equal(model.fal, 'fal-ai/x/edit')
-  assert.equal(model.label, 'Nano Banana Pro')
+  assert.equal(model.label, 'Nano Banana 2.1')
 })
 
-test('runs and the page name the one model the same way; no Nano Banana 2 id remains', () => {
+test('runs and the page name the one model the same way; no Nano Banana Pro id remains', () => {
   const { model, label } = modelIn({})
   assert.equal(label, model.label)
-  assert.ok(!JSON.stringify(model).includes('nano-banana-2'))
-  assert.ok(!JSON.stringify(model).includes('3.1-flash'))
+  assert.ok(!JSON.stringify(model).includes('pro'))
 })

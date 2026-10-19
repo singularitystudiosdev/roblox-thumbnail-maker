@@ -1,13 +1,14 @@
-import { Banana, Download, RefreshCw, Scale, Trophy } from 'lucide-react'
+import { Banana, Download, LayoutGrid, RefreshCw, Scale, Trophy } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { buttonClasses, Button } from './components/Button'
 import { HistoryList } from './components/HistoryList'
 import { PromptBox } from './components/PromptBox'
 import { ReferenceCard } from './components/ReferenceCard'
+import { SelectionCard } from './components/SelectionCard'
 import { StyleCard } from './components/StyleCard'
 import { ThumbnailGrid } from './components/ThumbnailGrid'
 import { WinnerStage, type Phase } from './components/WinnerStage'
-import { api, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
+import { api, isPicked, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
 
 const EXAMPLES = [
   'https://www.roblox.com/games/107778070777162/Steal-An-Egg',
@@ -34,12 +35,24 @@ function votesLine(run: Run) {
   return `Picked in ${votes[winnerSlot] ?? 0} of ${passes.length} judge passes. `
 }
 
+/** Which of the shown run's thumbnails use the style image, or why none did. */
+function styleCaption(run: Run | null) {
+  if (run?.mode === 'linked') return 'Not used for this run: every thumbnail started from your linked game.'
+  if (run?.mode === 'attached') return 'Not used for this run: both thumbnails started from your attached image.'
+  if (!run) return 'The exact and plain templates are made in the style of this image, when the pick is one of them.'
+  if (!isPicked(run)) return 'Thumbnails 1 and 5 are made in the style of this image.'
+  const arm = run.selection?.arm
+  if (!arm) return 'Used only if the pick is the exact or plain template.'
+  return arm === 'template' || arm === 'plain' ? 'Both thumbnails are made in the style of this image.' : 'Not used for this run: the picked strategy starts from a Roblox game.'
+}
+
 /** The run with one streamed event folded in. */
 function applyEvent(run: Run | null, event: RunEvent): Run | null {
   if (event.type === 'plan' || event.type === 'done') return event.run
   if (!run) return run
   if (event.type === 'reference') return { ...run, reference: event.reference }
   if (event.type === 'searchReference') return { ...run, searchReference: event.searchReference }
+  if (event.type === 'selection') return { ...run, selection: event.selection, slots: event.slots }
   if (event.type === 'thumbnail') return { ...run, thumbnails: [...run.thumbnails.filter((t) => t.slot !== event.thumbnail.slot), event.thumbnail] }
   if (event.type === 'icon') {
     const withIcon = (t: Thumbnail) => (t.slot === event.slot ? { ...t, iconUrl: event.iconUrl, iconRedrawn: event.iconRedrawn } : t)
@@ -71,7 +84,7 @@ export function App() {
     refreshHistory()
     api.status().then(setStatus).catch((err) => console.error('Status load failed', err))
   }, [refreshHistory])
-  const start = async (text = prompt) => {
+  const start = async (text = prompt, explore = false) => {
     if (!text.trim()) return
     setPhase('running')
     setError(null)
@@ -82,9 +95,11 @@ export function App() {
       await api.run(text, styleUpload, attachment, (event) => {
         if (event.type === 'error') throw new Error(event.error)
         if (event.type === 'judging') setPhase('judging')
+        // A top-up round draws again after the first verdict.
+        if (event.type === 'selection' && event.selection.topUp) setPhase('running')
         if (event.type === 'done') finished = true
         setRun((current) => applyEvent(current, event))
-      })
+      }, explore)
       if (!finished) throw new Error('The run stopped before it finished. Check the server terminal.')
       setPhase('done')
       refreshHistory()
@@ -109,6 +124,20 @@ export function App() {
     setPhase('done')
   }
 
+  // The creator's own winner, saved with the run: the strategy picker learns from it on its next run.
+  const pickWinner = async (id: string, slot: number | null) => {
+    const previous = run
+    setRun((current) => (current && current.id === id ? { ...current, userPick: slot == null ? null : { slot, at: new Date().toISOString() } } : current))
+    try {
+      setRun(await api.pick(id, slot))
+      refreshHistory()
+    } catch (err) {
+      console.error('Saving your pick failed', err)
+      setRun(previous)
+      setError(`Your pick was not saved: ${(err as Error).message}`)
+    }
+  }
+
   // The same thumbnails, judged again by the current judge; the new verdict is saved with the run.
   const judgeAgain = async (id: string) => {
     setPhase('judging')
@@ -125,11 +154,14 @@ export function App() {
     }
   }
 
-  const winnerSlot = run?.judge?.winnerSlot ?? null
+  // The creator's own pick, when they made one, is the winner they download.
+  const winnerSlot = run?.userPick?.slot ?? run?.judge?.winnerSlot ?? null
   const firstImage = run?.thumbnails.filter((t) => t.imageUrl).sort((a, b) => a.slot - b.slot)[0]?.slot ?? null
   const stageSlot = shownSlot ?? winnerSlot ?? firstImage
   const winner = run?.thumbnails.find((t) => t.slot === winnerSlot && t.imageUrl)
   const route = status ? (status.imageProvider === 'fal' ? 'fal.ai' : status.falKeys > 0 ? 'Gemini API, fal.ai fallback' : 'Gemini API') : null
+  // A typed-name run: the selector's pick applies to it, and it can explore every strategy.
+  const standard = run != null && (run.mode ?? 'standard') === 'standard'
 
   return (
     <div className="min-h-dvh">
@@ -154,29 +186,29 @@ export function App() {
             <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => start()} busy={busy} attachment={attachment} onAttach={setAttachment} />
             {run?.attachment && !run.attachment.used && (
               <p role="status" className="px-4 pt-8 text-caption text-text-secondary">
-                Your attached image was not used: the prompt did not ask to use it as a reference, so this is the usual seven thumbnails.
+                Your attached image was not used: the prompt did not ask to use it as a reference, so this run worked from your words alone.
               </p>
             )}
           </div>
-          <div className="order-3 min-w-0 lg:order-none">
+          {standard && (
+            <div className="order-3 min-w-0 lg:order-none">
+              <SelectionCard selection={run.selection ?? null} loading={busy && isPicked(run)} />
+            </div>
+          )}
+          <div className="order-4 min-w-0 lg:order-none">
             <StyleCard
               upload={styleUpload}
               defaultName={status?.styleReferenceName ?? 'Default reference'}
               disabled={busy}
               onUpload={setStyleUpload}
-              unusedBecause={
-                run?.mode === 'linked'
-                  ? 'Not used for this run: every thumbnail started from your linked game.'
-                  : run?.mode === 'attached'
-                    ? 'Not used for this run: both thumbnails started from your attached image.'
-                    : null
-              }
+              caption={styleCaption(run)}
             />
           </div>
-          <div className="order-4 min-w-0 lg:order-none">
+          <div className="order-5 min-w-0 lg:order-none">
             <ReferenceCard
               reference={run?.reference ?? null}
               searchReference={run?.searchReference ?? null}
+              slots={run?.slots ?? []}
               attached={run?.mode === 'attached' ? (run.attachment ?? null) : null}
               linked={run?.mode === 'linked'}
               loading={busy && !run?.reference && run?.mode !== 'attached'}
@@ -194,14 +226,25 @@ export function App() {
                   <p className="text-caption text-text-secondary">
                     {run.namedBy === 'link' ? 'Game name read from your Roblox link.' : 'Game name exactly as you wrote it.'}
                   </p>
-                  {winner && run.judge?.reason && (
+                  {winner && run.userPick ? (
                     <p className="flex items-start gap-8 text-label text-text-primary">
                       <Trophy className="mt-2 size-16 shrink-0 text-brand" aria-hidden="true" />
                       <span>
-                        Thumbnail {winner.slot} ({strategyLabel(winner)}) wins. {votesLine(run)}
-                        {run.judge.reason}
+                        Your pick: thumbnail {winner.slot} ({strategyLabel(winner)}). The judge picked thumbnail {run.judge?.winnerSlot}; the strategy pick
+                        learns from yours.
                       </span>
                     </p>
+                  ) : (
+                    winner &&
+                    run.judge?.reason && (
+                      <p className="flex items-start gap-8 text-label text-text-primary">
+                        <Trophy className="mt-2 size-16 shrink-0 text-brand" aria-hidden="true" />
+                        <span>
+                          Thumbnail {winner.slot} ({strategyLabel(winner)}) wins. {votesLine(run)}
+                          {run.judge.reason}
+                        </span>
+                      </p>
+                    )
                   )}
                   {run.judge?.error && <p role="alert" className="text-label text-destructive">The judge could not pick a winner: {run.judge.error}</p>}
                   {phase === 'error' && error && <p role="alert" className="text-label text-destructive">{error}</p>}
@@ -229,17 +272,23 @@ export function App() {
                     <RefreshCw className="size-16" aria-hidden="true" />
                     Make more
                   </Button>
+                  {standard && (
+                    <Button onClick={() => start(prompt || run.input, true)}>
+                      <LayoutGrid className="size-16" aria-hidden="true" />
+                      Try all 7 strategies
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {run && (
+          {run && run.slots.length > 0 && (
             <div className="order-2 min-w-0 lg:order-none">
-              <ThumbnailGrid run={run} busy={busy} shownSlot={stageSlot} onShow={setShownSlot} />
+              <ThumbnailGrid run={run} busy={busy} shownSlot={stageSlot} onShow={setShownSlot} onPick={(slot) => pickWinner(run.id, slot)} />
             </div>
           )}
-          <div className="order-5 min-w-0 lg:order-none">
+          <div className="order-6 min-w-0 lg:order-none">
             <HistoryList items={history} currentId={run?.id ?? null} onOpen={openHistory} />
           </div>
         </div>

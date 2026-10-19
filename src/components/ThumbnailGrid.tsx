@@ -1,4 +1,4 @@
-import { Download, Trophy } from 'lucide-react'
+import { Download, ThumbsUp, Trophy } from 'lucide-react'
 import { onRobloxReference, providerLabel, runModelLabel, slugify, strategyLabel, type Run, type Slot } from '../lib/api'
 import { cn } from '../lib/cn'
 
@@ -19,12 +19,26 @@ interface ThumbnailGridProps {
   busy: boolean
   shownSlot: number | null
   onShow: (slot: number) => void
+  /** Saves the creator's own winner (null clears it); the strategy picker learns from it. */
+  onPick: (slot: number | null) => void
 }
 
-function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: boolean; shown: boolean; onShow: (slot: number) => void }) {
+interface TileProps {
+  run: Run
+  slot: Slot
+  busy: boolean
+  shown: boolean
+  onShow: (slot: number) => void
+  onPick: (slot: number | null) => void
+}
+
+function Tile({ run, slot, busy, shown, onShow, onPick }: TileProps) {
   const thumbnail = run.thumbnails.find((t) => t.slot === slot.slot)
   const score = run.judge?.scores?.find((s) => s.slot === slot.slot)
   const isWinner = run.judge?.winnerSlot === slot.slot
+  const isUserPick = run.userPick?.slot === slot.slot
+  // Agreeing with the judge needs no click; any other finished thumbnail can be picked instead.
+  const canPick = !busy && Boolean(thumbnail?.imageUrl) && !isUserPick && !(isWinner && !run.userPick)
   // Runs judged on the 50-point rubric before minFitsGame was recorded used 5.
   const minFits = run.judge?.minFitsGame ?? (run.judge?.maxTotal === 50 ? 5 : null)
   const ruledOut = !isWinner && score != null && minFits != null && Number(score.fitsGame) < minFits
@@ -44,6 +58,12 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
           )}
         >
           <img src={thumbnail.imageUrl} alt="" width={1376} height={768} loading="lazy" className="size-full object-cover" />
+          {isUserPick && (
+            <span className="absolute right-8 top-8 inline-flex items-center gap-4 rounded-8 bg-bg-canvas px-8 py-2 text-caption font-semibold text-text-primary">
+              <ThumbsUp className="size-12" aria-hidden="true" />
+              Your pick
+            </span>
+          )}
           {isWinner && (
             <span className="absolute left-8 top-8 inline-flex items-center gap-4 rounded-8 bg-brand px-8 py-2 text-caption font-semibold text-on-brand">
               <Trophy className="size-12" aria-hidden="true" />
@@ -123,6 +143,21 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
             {score.note}
           </p>
         )}
+        {canPick && (
+          <button
+            type="button"
+            onClick={() => onPick(slot.slot)}
+            className={buttonClasses('quiet', 'sm', 'self-start pointer-coarse:min-h-48')}
+          >
+            <ThumbsUp className="size-16" aria-hidden="true" />
+            Should have won
+          </button>
+        )}
+        {isUserPick && !busy && (
+          <button type="button" onClick={() => onPick(null)} className={buttonClasses('quiet', 'sm', 'self-start pointer-coarse:min-h-48')}>
+            Undo my pick
+          </button>
+        )}
         {ruledOut && (
           <p className="text-caption font-semibold text-text-primary">Ruled out: it does not show this game, so its other scores cannot make it win.</p>
         )}
@@ -131,7 +166,7 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
   )
 }
 
-export function ThumbnailGrid({ run, busy, shownSlot, onShow }: ThumbnailGridProps) {
+export function ThumbnailGrid({ run, busy, shownSlot, onShow, onPick }: ThumbnailGridProps) {
   return (
     <section aria-labelledby="all-thumbnails-title" className="flex flex-col gap-16 rounded-16 border border-border-default bg-bg-surface p-16">
       <h2 id="all-thumbnails-title" className="text-title font-semibold">
@@ -140,7 +175,7 @@ export function ThumbnailGrid({ run, busy, shownSlot, onShow }: ThumbnailGridPro
       {/* Seven sit three, three then one, five three then two, older runs of four two by two, of three in one row. */}
       <ul className={cn('grid grid-cols-1 gap-24 sm:gap-16', run.slots.length === 4 || run.slots.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
         {run.slots.map((slot) => (
-          <Tile key={slot.slot} run={run} slot={slot} busy={busy} shown={shownSlot === slot.slot} onShow={onShow} />
+          <Tile key={slot.slot} run={run} slot={slot} busy={busy} shown={shownSlot === slot.slot} onShow={onShow} onPick={onPick} />
         ))}
       </ul>
     </section>

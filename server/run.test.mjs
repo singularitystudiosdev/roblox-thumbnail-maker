@@ -34,7 +34,7 @@ test('judging again replaces and saves the verdict, with an icon for the new win
   assert.equal(winner.iconUrl, `/outputs/${ID}/icon-2.png`)
   assert.equal(winner.iconRedrawn, true)
   // The icon is drawn by Nano Banana Pro, the one image model.
-  assert.deepEqual(readFileSync(join(outputs, ID, 'icon-2.png')), Buffer.concat([PNG, Buffer.from('nano-banana-pro')]))
+  assert.deepEqual(readFileSync(join(outputs, ID, 'icon-2.png')), Buffer.concat([PNG, Buffer.from('nano-banana-2.1')]))
   assert.equal(record.thumbnails.find((t) => t.slot === 3).iconUrl, undefined)
 })
 

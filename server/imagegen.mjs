@@ -1,6 +1,7 @@
-// Nano Banana Pro (imagemodels.mjs), two routes to the same model: the Gemini
-// API directly, or fal.ai's hosted endpoint when Gemini fails (out of quota or
-// credit, or no image back). Each call is one prompt plus one reference image,
+// Nano Banana 2.1 (imagemodels.mjs) on fal.ai's hosted endpoint. A model with
+// a Gemini API id tries the Gemini API first and falls back to fal.ai when it
+// fails (out of quota or credit, or no image back); Nano Banana 2.1 has none,
+// so it goes to fal.ai directly. Each call is one prompt plus one reference image,
 // nothing else. fal output is 1K, the Gemini route's default size (1376x768);
 // at 2K the model drifts from the reference's 3D render into a painterly style.
 import { config } from './env.mjs'
@@ -69,12 +70,12 @@ async function viaFal(prompt, reference, endpoint, aspectRatio) {
 
 /**
  * Sends the exact prompt plus the reference image bytes to `model`
- * (imageModel(): Nano Banana Pro) at `aspectRatio` (16:9 unless told
+ * (imageModel(): Nano Banana 2.1) at `aspectRatio` (16:9 unless told
  * otherwise); returns the image and which route served it.
  */
 export async function generateImage(prompt, reference, model = imageModel(), { aspectRatio = ASPECT_RATIO } = {}) {
   const mode = config().imageProvider
-  if (mode === 'fal') return viaFal(prompt, reference, model.fal, aspectRatio)
+  if (mode === 'fal' || !model.gemini) return viaFal(prompt, reference, model.fal, aspectRatio)
   try {
     return await viaGemini(prompt, reference, model.gemini, aspectRatio)
   } catch (err) {

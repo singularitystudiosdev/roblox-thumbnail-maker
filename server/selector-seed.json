@@ -1,0 +1,430 @@
+{
+ "about": "Explore runs (every strategy drawn and judged) the strategy selector learns from: each strategy's regret against the run's best thumbnail, out of 50, and the reference ratings from server/fit.mjs. Written by debug/strategy-backtest.mjs --write-seed.",
+ "examples": [
+  {
+   "id": "2026-10-19T06-09-32-785Z-fdc1ba30",
+   "game": "bury a body",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 3,
+    "nameClarity": 5
+   },
+   "refs": {
+    "nearest": "7823137182",
+    "search": "8228371304"
+   },
+   "refNames": {
+    "nearest": "Hide the body",
+    "search": "Hide the Friend"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 7,
+    "remix": 14.3,
+    "search": 0,
+    "meta": 5,
+    "plain": 7
+   }
+  },
+  {
+   "id": "2026-10-19T06-12-00-922Z-43feb20f",
+   "game": "Banana man",
+   "fit": {
+    "nearestFit": 5,
+    "searchFit": 6,
+    "nameClarity": 3
+   },
+   "refs": {
+    "nearest": "1415710834",
+    "search": "4507116437"
+   },
+   "refNames": {
+    "nearest": "[🎃] Banana Eats ",
+    "search": "Banana Nextbot 🍌"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 0,
+    "remix": 3.7,
+    "search": 9.4,
+    "meta": 1.4,
+    "plain": 0.4
+   }
+  },
+  {
+   "id": "2026-10-19T06-13-45-102Z-0a3cdc75",
+   "game": "Own a house in the mountains",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 7,
+    "nameClarity": 5
+   },
+   "refs": {
+    "nearest": "4925331346",
+    "search": "4518160318"
+   },
+   "refNames": {
+    "nearest": "Giga Mansion Tycoon 🏝️",
+    "search": "Mansion Tycoon 🌴🏠"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 9.7,
+    "remix": 8.7,
+    "search": 0,
+    "meta": 9.7,
+    "plain": 18.4
+   }
+  },
+  {
+   "id": "2026-10-19T06-14-35-507Z-cf8f6897",
+   "game": "Run on a treadmill in a basement",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 2,
+    "nameClarity": 9
+   },
+   "refs": {
+    "nearest": "10767771133",
+    "search": "10766846482"
+   },
+   "refNames": {
+    "nearest": "Unbox A Treadmill",
+    "search": "The  COOLEST TREADMILL GAME?!!!"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 0,
+    "remix": 8,
+    "search": 25.3,
+    "meta": 3.3,
+    "plain": 7
+   }
+  },
+  {
+   "id": "2026-10-19T06-19-12-236Z-cf4a3563",
+   "game": "Swat a House",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 6,
+    "nameClarity": 5
+   },
+   "refs": {
+    "nearest": "9807649116",
+    "search": "5654670037"
+   },
+   "refNames": {
+    "nearest": "[👮] Tactical: Swat Simulator",
+    "search": "BODYCAM: SWAT Simulator"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 4,
+    "remix": 5.4,
+    "search": 7.4,
+    "meta": 0,
+    "plain": 8
+   }
+  },
+  {
+   "id": "2026-10-19T06-19-27-243Z-c1e7e262",
+   "game": "Rob Grandmas House",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 4,
+    "nameClarity": 6
+   },
+   "refs": {
+    "nearest": "9472441390",
+    "search": "10761593386"
+   },
+   "refNames": {
+    "nearest": "[🎃] 💎 ROB IT",
+    "search": "🌽 Rob The Farmer! [UPD]"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 1,
+    "remix": 4,
+    "search": 0,
+    "meta": 5.3,
+    "plain": 9.3
+   }
+  },
+  {
+   "id": "2026-10-19T06-21-08-274Z-ca540c7d",
+   "game": "Fake an Egg",
+   "fit": {
+    "nearestFit": 10,
+    "searchFit": 4,
+    "nameClarity": 4
+   },
+   "refs": {
+    "nearest": "10769384180",
+    "search": "10065013948"
+   },
+   "refNames": {
+    "nearest": "Fake an Egg",
+    "search": "Fake a Brainrot"
+   },
+   "model": "nano-banana-2",
+   "regret": {
+    "template": 22,
+    "remix": 18.3,
+    "search": 14,
+    "meta": 0,
+    "plain": 15.3
+   }
+  },
+  {
+   "id": "2026-10-19T06-26-58-249Z-58cd1399",
+   "game": "Rob a Bank",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 9,
+    "nameClarity": 6
+   },
+   "refs": {
+    "nearest": "7383133134",
+    "search": "10294753617"
+   },
+   "refNames": {
+    "nearest": "💰 Deadly Heist 💰",
+    "search": "Mega Escape — Bank Robbery"
+   },
+   "model": "nano-banana-2",
+   "regret": {
+    "template": 7.7,
+    "remix": 12.7,
+    "search": 1,
+    "meta": 7.4,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T06-33-43-163Z-2173a86a",
+   "game": "Print Money",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 9,
+    "nameClarity": 4
+   },
+   "refs": {
+    "nearest": "10765568909",
+    "search": "9765294056"
+   },
+   "refNames": {
+    "nearest": "[🎃] Print Mania! ",
+    "search": "[💸] Money Printer Tycoon!"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 9.4,
+    "search": 0.4,
+    "meta": 1,
+    "plain": 8
+   }
+  },
+  {
+   "id": "2026-10-19T06-34-32-956Z-bc73b669",
+   "game": "Print Money",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 9,
+    "nameClarity": 4
+   },
+   "refs": {
+    "nearest": "10765568909",
+    "search": "9765294056"
+   },
+   "refNames": {
+    "nearest": "[🎃] Print Mania! ",
+    "search": "[💸] Money Printer Tycoon!"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 0,
+    "remix": 9,
+    "search": 7,
+    "meta": 6.3,
+    "plain": 6.3
+   }
+  },
+  {
+   "id": "2026-10-19T06-35-32-598Z-78d7a4b5",
+   "game": "Print Money",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 8,
+    "nameClarity": 4
+   },
+   "refs": {
+    "nearest": "10765568909",
+    "search": "9765294056"
+   },
+   "refNames": {
+    "nearest": "[🎃] Print Mania! ",
+    "search": "[💸] Money Printer Tycoon!"
+   },
+   "model": "nano-banana-2",
+   "regret": {
+    "template": 7.7,
+    "remix": 9.7,
+    "search": 9,
+    "meta": 9,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T06-40-45-733Z-36dd5ba8",
+   "game": "bury a body",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 3,
+    "nameClarity": 5
+   },
+   "refs": {
+    "nearest": "7823137182",
+    "search": "8228371304"
+   },
+   "refNames": {
+    "nearest": "Hide the body",
+    "search": "Hide the Friend"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 8.3,
+    "remix": 11.3,
+    "search": 0,
+    "meta": 6.7,
+    "plain": 4.3
+   }
+  },
+  {
+   "id": "2026-10-19T06-50-35-566Z-4672cc0b",
+   "game": "Give him a knife",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 6,
+    "nameClarity": 4
+   },
+   "refs": {
+    "nearest": "9641502068",
+    "search": "7108384194"
+   },
+   "refNames": {
+    "nearest": "[🪦GRAVEYARD] KNIFE DUELS",
+    "search": "Knife VS Gun DUELS"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 0,
+    "remix": 3.7,
+    "search": 0.3,
+    "meta": 3.3,
+    "plain": 2.3
+   }
+  },
+  {
+   "id": "2026-10-19T06-55-07-646Z-105a6bfa",
+   "game": "Make a thumbnail but give him a knife",
+   "fit": {
+    "nearestFit": 2,
+    "searchFit": 5,
+    "nameClarity": 3
+   },
+   "refs": {
+    "nearest": "10769798178",
+    "search": "10765779661"
+   },
+   "refNames": {
+    "nearest": "Make Rugs!",
+    "search": "Make an NPC!"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 0.7,
+    "remix": 0.7,
+    "search": 6.7,
+    "meta": 0,
+    "plain": 2
+   }
+  },
+  {
+   "id": "2026-10-19T07-03-19-509Z-9eb4bd24",
+   "game": "KAT Make a thumbnail for my game",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 3,
+    "nameClarity": 2
+   },
+   "refs": {
+    "nearest": "9641502068",
+    "search": "4689722433"
+   },
+   "refNames": {
+    "nearest": "[🪦GRAVEYARD] KNIFE DUELS",
+    "search": "Kitten Game 🐾"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 11.6,
+    "remix": 1.6,
+    "search": 11.3,
+    "meta": 0,
+    "plain": 11.6
+   }
+  },
+  {
+   "id": "2026-10-19T07-16-31-506Z-10223f6f",
+   "game": "Steal an Egg",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 8,
+    "nameClarity": 6
+   },
+   "refs": {
+    "nearest": "10563114921",
+    "search": "10765288803"
+   },
+   "refNames": {
+    "nearest": "Steal An Egg",
+    "search": "Break and Steal an Egg"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 5.3,
+    "remix": 3,
+    "search": 0,
+    "meta": 2.3,
+    "plain": 9.3
+   }
+  },
+  {
+   "id": "2026-10-19T07-22-32-944Z-fb2d7340",
+   "game": "Steal an Egg",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 8,
+    "nameClarity": 5
+   },
+   "refs": {
+    "nearest": "10563114921",
+    "search": "10766056678"
+   },
+   "refNames": {
+    "nearest": "Steal An Egg",
+    "search": "Steal Animal Egg"
+   },
+   "model": "nano-banana-pro",
+   "regret": {
+    "template": 5.3,
+    "remix": 1.3,
+    "search": 5.3,
+    "meta": 2.3,
+    "plain": 10.7
+   }
+  }
+ ]
+}

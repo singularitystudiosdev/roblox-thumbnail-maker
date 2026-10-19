@@ -1,10 +1,12 @@
 import { ExternalLink, Users } from 'lucide-react'
-import { formatCount, type Reference, type Run } from '../lib/api'
+import { formatCount, onRobloxReference, slotsLabel, type Reference, type Run, type Slot } from '../lib/api'
 
 interface ReferenceCardProps {
   reference: Reference | null
-  /** The search meta's game (thumbnail 3); runs saved before it have none. */
+  /** The search meta's game; runs saved before it have none. */
   searchReference: Reference | null
+  /** The run's slots, to say which start from each game; a picked run has none until its pick lands. */
+  slots: Slot[]
   /** The creator's attached image, when the run used it as the reference instead of a Roblox game. */
   attached: Run['attachment'] | null
   /** The run links the creator's game, so the card shows that game rather than a nearest one. */
@@ -38,14 +40,22 @@ function thumbnailCaption({ index, count, why }: NonNullable<Reference['thumbnai
   return `Thumbnail ${index} of ${count} on its page, the cleanest with the least text. ${why}`
 }
 
-/** The search meta's game in one line: which game thumbnail 3 starts from, and why. */
-function searchLine(search: Reference) {
-  if (search.source === 'style') return 'Thumbnail 3: no other game in a plain Roblox search, so it starts from your reference image.'
-  const playing = search.playing != null ? ` (${formatCount(search.playing)} playing)` : ''
-  return `Thumbnail 3 starts from ${search.name}${playing}. ${search.why ?? ''}`.trim()
+/** Which thumbnails start from a game, or that none do this run (it was only rated for the pick). */
+function drawnLine(slots: Slot[], drawn: Slot[], what: string) {
+  if (slots.length === 0) return ''
+  if (drawn.length === 0) return `No thumbnail starts from ${what} this run: it was rated for the pick only.`
+  return `${slotsLabel(drawn.map((s) => s.slot))} start${drawn.length === 1 ? 's' : ''} from ${what}.`
 }
 
-export function ReferenceCard({ reference, searchReference, attached, linked, loading }: ReferenceCardProps) {
+/** The search meta's game in one line: which thumbnails start from it, and why it is the one. */
+function searchLine(search: Reference, slots: Slot[]) {
+  if (search.source === 'style') return 'No other game in a plain Roblox search.'
+  const playing = search.playing != null ? ` (${formatCount(search.playing)} playing)` : ''
+  const drawn = drawnLine(slots, slots.filter((s) => s.strategy === 'search'), 'it')
+  return `Top search game: ${search.name}${playing}. ${drawn} ${search.why ?? ''}`.replace(/\s+/g, ' ').trim()
+}
+
+export function ReferenceCard({ reference, searchReference, slots, attached, linked, loading }: ReferenceCardProps) {
   if (attached) return <AttachedCard attached={attached} />
   return (
     <section aria-labelledby="reference-title" aria-busy={loading || undefined} className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
@@ -63,7 +73,7 @@ export function ReferenceCard({ reference, searchReference, attached, linked, lo
 
       {!loading && !reference && (
         <p className="text-label text-text-secondary">
-          Thumbnails 2, 4, 6 and 7 start from the thumbnail of a popular Roblox game like yours; thumbnail 3 from the top game of a plain Roblox search.
+          Before any thumbnail is drawn, the nearest popular Roblox game and the top game of a plain Roblox search are looked up and rated against yours to pick the strategy.
         </p>
       )}
 
@@ -100,7 +110,10 @@ export function ReferenceCard({ reference, searchReference, attached, linked, lo
           </div>
           <p className="text-caption text-text-secondary">{caption(reference)}</p>
           {reference.thumbnail && <p className="text-caption text-text-secondary">{thumbnailCaption(reference.thumbnail)}</p>}
-          {searchReference && <p className="text-caption text-text-secondary">{searchLine(searchReference)}</p>}
+          {!linked && reference.source === 'roblox' && slots.length > 0 && (
+            <p className="text-caption text-text-secondary">{drawnLine(slots, slots.filter(onRobloxReference), reference.name)}</p>
+          )}
+          {searchReference && <p className="text-caption text-text-secondary">{searchLine(searchReference, slots)}</p>}
         </>
       )}
     </section>

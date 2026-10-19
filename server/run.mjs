@@ -1,10 +1,13 @@
-// One run: the game name, then seven Nano Banana Pro thumbnails at once
-// (1 and 5: the exact and the plain template, each with the style reference;
-// 2, 6 and 7: the novel perspective remix prompt, and 4: the meta, the plain
-// template, each with the cleanest thumbnail of the popular reference game;
-// 3: the search meta, the plain template with the top game of a plain Roblox
-// search for the name, never the same game as 2 and 4), then the judge, told what the
-// game is (judgeContext), then the winner's icon. When the creator attaches an
+// One run: the game name, its two Roblox references (the nearest popular game
+// and the top game of a plain Roblox search) rated against it (fit.mjs), then
+// the one strategy the selector expects to win (selector.mjs) drawn twice with
+// Nano Banana 2.1, then the judge, told what the game is (judgeContext), then
+// the winner's icon. Now and then, or when asked, a run explores instead: all
+// seven thumbnails (1 and 5: the exact and the plain template, each with the
+// style reference; 2, 6 and 7: the novel perspective remix prompt, and 4: the
+// meta, the plain template, each with the cleanest thumbnail of the nearest
+// game; 3: the search meta, the plain template with the search game), and
+// becomes an example the selector learns from. When the creator attaches an
 // image and the prompt asks to use it as the reference (attached.mjs), the run
 // makes two thumbnails from that image instead: their prompt as typed and the
 // plain template. When the prompt links the creator's game, all five send the
@@ -15,6 +18,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { planAttachedSlots, readAttachedIntent } from './attached.mjs'
+import { config } from './env.mjs'
+import { rateReferences } from './fit.mjs'
 import { resolveGameName } from './gamename.mjs'
 import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
@@ -26,6 +31,7 @@ import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt
 import { pickCleanestThumbnail } from './cleanest.mjs'
 import { gameFromPlace, withThumbnails } from './roblox.mjs'
 import { pickSearchTop, rankSearch } from './searchtop.mjs'
+import { chooseArm, loadExamples, refNamesOf, refsOf } from './selector.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
 const extOf = (mimeType) => EXT[mimeType] ?? 'png'
@@ -79,12 +85,150 @@ async function nearestOrNull(gameName, extraNames) {
   }
 }
 
+/** A picked run: PICK_COUNT thumbnails of the one strategy the selector expects to lose the least. */
+export const PICK_COUNT = 2
+export function planPickedSlots(gameName, arm) {
+  const prompt = arm === 'template' ? buildPrompt(gameName) : arm === 'remix' ? REMIX_PROMPT : buildPrompt(gameName, PLAIN_TEMPLATE)
+  return Array.from({ length: PICK_COUNT }, (_, i) => ({ slot: i + 1, strategy: arm, prompt }))
+}
+
+/** The nearest popular game's cleanest thumbnail, saved as record.reference; null when there is none (the style reference stands in). */
+async function nearestReferenceInto({ record, gameName, style, styleRef, save, emit }, nearestLookup) {
+  const nearest = await nearestLookup
+  let image = null
+  if (nearest) {
+    try {
+      image = await pickCleanestThumbnail(nearest, gameName)
+      record.reference = {
+        source: 'roblox',
+        ...nearest,
+        robloxThumbnailUrl: image.url,
+        thumbnail: { index: image.index, count: image.count, why: image.why, pickedBy: image.pickedBy },
+        imageUrl: save('reference', image)
+      }
+    } catch (err) {
+      console.error(`Reference thumbnail for "${nearest.name}" failed:`, err)
+    }
+  }
+  record.reference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
+  emit({ type: 'reference', reference: record.reference })
+  return image
+}
+
+/** The top game of a plain Roblox search, never the nearest game, saved as record.searchReference; null when there is none. */
+async function searchReferenceInto({ record, gameName, style, styleRef, save, emit }, nearestLookup) {
+  // After the nearest game: it shows the model how the name reads, and Roblox refuses a burst of searches.
+  const nearest = await nearestLookup
+  const ranking = await rankSearch(gameName, { anchor: nearest?.name }).catch((err) => {
+    console.error(`The plain Roblox search for "${gameName}" failed:`, err)
+    return { ranked: [], sameCount: 0, pickedBy: null }
+  })
+  let image = null
+  try {
+    const game = await pickSearchTop(gameName, ranking, { exclude: nearest ? [nearest.universeId] : [] })
+    if (game) {
+      image = await pickCleanestThumbnail(game, gameName)
+      record.searchReference = {
+        source: 'roblox',
+        universeId: game.universeId,
+        placeId: game.placeId,
+        name: game.name,
+        playing: game.playing,
+        url: game.url,
+        query: gameName,
+        pickedBy: ranking.pickedBy,
+        why: game.why,
+        robloxThumbnailUrl: image.url,
+        thumbnail: { index: image.index, count: image.count, why: image.why, pickedBy: image.pickedBy },
+        imageUrl: save('search-reference', image)
+      }
+    }
+  } catch (err) {
+    console.error(`Search meta reference for "${gameName}" failed:`, err)
+    image = null
+  }
+  record.searchReference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
+  emit({ type: 'searchReference', searchReference: record.searchReference })
+  return image
+}
+
+/**
+ * The selector's pick from the rated references (fit.mjs) and every explore run so far
+ * (selector.mjs). A failed rating picks meta, the best single strategy in the backtest.
+ */
+async function selectionFor(record, outputsDir, explore, nearestImage, searchImage) {
+  let fit = null
+  try {
+    fit = await rateReferences(record.gameName, {
+      nearest: nearestImage && { ...nearestImage, name: record.reference.name },
+      search: searchImage && { ...searchImage, name: record.searchReference.name }
+    })
+  } catch (err) {
+    console.error(`Rating the references for "${record.gameName}" failed; the pick falls back to meta:`, err)
+  }
+  const examples = loadExamples(outputsDir)
+  const choice = fit ? chooseArm({ game: record.gameName, fit, refs: refsOf(record), refNames: refNamesOf(record), model: record.imageModel?.key ?? null }, examples) : { arm: 'meta', runnerUp: 'template', expected: null, closest: [] }
+  return { explore, fit, ...choice, examples: examples.length }
+}
+
+/**
+ * A run from a typed name or description. Both Roblox references are looked up and rated, then
+ * the selector picks one strategy and only its PICK_COUNT thumbnails are drawn. An explore run
+ * draws every strategy instead (planSlots), so the selector gains an example; its pick is still
+ * recorded, the pick it would have made, which the backtest scores as a held-out guess.
+ */
+async function standardRun(ctx) {
+  const { record, link, style, outputsDir, emit, draw, explore } = ctx
+  const nearestLookup = nearestOrNull(record.gameName, link ? [link.title] : [])
+  const nearestImage = nearestReferenceInto(ctx, nearestLookup)
+  const searchImage = searchReferenceInto(ctx, nearestLookup)
+  const picking = Promise.all([nearestImage, searchImage]).then(([n, s]) => selectionFor(record, outputsDir, explore, n, s))
+  const announce = (selection) => {
+    record.selection = selection
+    emit({ type: 'selection', selection, slots: record.slots })
+  }
+  // The templates need only the style reference, so they start at once; the Roblox slots wait for their lookups.
+  const drawSlot = async (slot) => {
+    if (ON_STYLE_REFERENCE.has(slot.strategy)) return draw(slot, style, style.name)
+    const search = slot.strategy === 'search'
+    const image = await (search ? searchImage : nearestImage)
+    return draw(slot, image ?? style, (search ? record.searchReference : record.reference).name)
+  }
+  if (explore) {
+    await Promise.all([...record.slots.map(drawSlot), picking.then(announce)])
+    return
+  }
+  const selection = await picking
+  record.slots = planPickedSlots(record.gameName, selection.arm)
+  announce(selection)
+  await Promise.all(record.slots.map(drawSlot))
+  await ctx.judge()
+  // Both thumbnails under the bar: the pick missed or the draws did. Two more from the runner-up, then
+  // the judge sees all four.
+  const best = bestTotal(record.judge)
+  const bar = config().topUpBelow
+  if (best == null || best >= bar || !selection.runnerUp) return
+  const more = planPickedSlots(record.gameName, selection.runnerUp).map((slot, i) => ({ ...slot, slot: record.slots.length + i + 1 }))
+  record.slots = [...record.slots, ...more]
+  announce({ ...selection, topUp: { arm: selection.runnerUp, best: Math.round(best * 10) / 10, below: bar } })
+  await Promise.all(more.map(drawSlot))
+  await ctx.judge()
+}
+
+/** The judge's best total for a run, or null when it scored nothing. */
+function bestTotal(judge) {
+  const totals = (judge?.scores ?? []).map((s) => Number(s.total)).filter(Number.isFinite)
+  return totals.length > 0 ? Math.max(...totals) : null
+}
+
 /**
  * `style`: { bytes, mimeType, name, source: 'bundled' | 'upload' }, the image
  * the two templates are styled after; `attachment`: { bytes, mimeType, name }
  * attached in the prompt box, or null; `model`: the image model every slot
- * uses (imageModel(): Nano Banana Pro); `intent` reads whether the prompt asks
- * for the attachment (swappable in tests). Returns the saved run record.
+ * uses (imageModel(): Nano Banana 2.1); `intent` reads whether the prompt asks
+ * for the attachment (swappable in tests); `exploreAll`: true draws every
+ * strategy, false only the pick, null lets the explore rate decide; `withIcon`:
+ * false skips the winner's icon (debug runs). Returns the saved run record.
  */
 export async function runThumbnails({
   input,
@@ -94,7 +238,9 @@ export async function runThumbnails({
   emit = () => {},
   random = Math.random,
   model = imageModel(),
-  intent = readAttachedIntent
+  intent = readAttachedIntent,
+  exploreAll = null,
+  withIcon = true
 }) {
   const started = Date.now()
   // An attached image is the reference only when the prompt asks for it; then the game is named without those words.
@@ -103,6 +249,9 @@ export async function runThumbnails({
   const { gameName, namedBy, link } = await resolveGameName(attached ? asked.gameText : input)
   // A link that is the game itself (not one cited in a description) makes that game the reference for every slot.
   const linked = !attached && link != null && namedBy === 'link'
+  // A standard run draws every strategy when asked (exploreAll true), never when told not to (false),
+  // and otherwise now and then on its own, so the selector keeps learning.
+  const explore = !attached && !linked && (exploreAll ?? random() < config().selectorExploreRate)
   const id = newRunId()
   const dir = join(outputsDir, id)
   mkdirSync(dir, { recursive: true })
@@ -113,7 +262,8 @@ export async function runThumbnails({
   }
 
   const styleRef = { name: style.name, source: style.source, imageUrl: save('style', style) }
-  const slots = attached ? planAttachedSlots(input, gameName) : linked ? planLinkedSlots() : planSlots(gameName)
+  // A picked run's two slots wait for the selector.
+  const slots = attached ? planAttachedSlots(input, gameName) : linked ? planLinkedSlots() : explore ? planSlots(gameName) : []
   const record = {
     id,
     createdAt: new Date().toISOString(),
@@ -127,6 +277,7 @@ export async function runThumbnails({
     imageModel: { key: model.key, label: model.label },
     reference: null,
     searchReference: null,
+    selection: null,
     slots,
     thumbnails: [],
     judge: null
@@ -150,6 +301,14 @@ export async function runThumbnails({
     record.thumbnails.push(thumbnail)
     emit({ type: 'thumbnail', thumbnail })
     return thumbnail
+  }
+  // Judges every thumbnail made so far; a picked run calls it again after a top-up.
+  const judgeAll = async () => {
+    const finished = record.thumbnails.filter((t) => images.has(t.slot)).map((t) => ({ slot: t.slot, ...images.get(t.slot) }))
+    if (finished.length === 0) return
+    emit({ type: 'judging' })
+    await judgeInto(record, dir, finished, random)
+    emit({ type: 'judge', judge: record.judge })
   }
 
   if (attached) {
@@ -182,80 +341,14 @@ export async function runThumbnails({
     emit({ type: 'reference', reference: record.reference })
     await Promise.all(slots.map((slot) => generate(slot, picked, game.name).then(report)))
   } else {
-  const nearestLookup = nearestOrNull(gameName, link ? [link.title] : [])
-  // The templates need only the style reference, so they start at once; the Roblox slots wait for their lookups.
-  const templates = Promise.all(slots.filter((s) => ON_STYLE_REFERENCE.has(s.strategy)).map((slot) => generate(slot, style, style.name).then(report)))
-  const remixes = (async () => {
-    const nearest = await nearestLookup
-    let referenceImage = style
-    if (nearest) {
-      try {
-        const picked = await pickCleanestThumbnail(nearest, gameName)
-        referenceImage = picked
-        record.reference = {
-          source: 'roblox',
-          ...nearest,
-          robloxThumbnailUrl: picked.url,
-          thumbnail: { index: picked.index, count: picked.count, why: picked.why, pickedBy: picked.pickedBy },
-          imageUrl: save('reference', picked)
-        }
-      } catch (err) {
-        console.error(`Reference thumbnail for "${nearest.name}" failed:`, err)
-      }
-    }
-    // No Roblox game found or its thumbnail unreachable: the remixes start from the style reference.
-    record.reference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
-    emit({ type: 'reference', reference: record.reference })
-    return Promise.all(slots.filter((s) => ON_ROBLOX_REFERENCE.has(s.strategy)).map((slot) => generate(slot, referenceImage, record.reference.name).then(report)))
-  })()
-  const searchMeta = (async () => {
-    // After the nearest game: it shows the model how the name reads, and Roblox refuses a burst of searches.
-    const nearest = await nearestLookup
-    const ranking = await rankSearch(gameName, { anchor: nearest?.name }).catch((err) => {
-      console.error(`The plain Roblox search for "${gameName}" failed:`, err)
-      return { ranked: [], sameCount: 0, pickedBy: null }
-    })
-    let referenceImage = style
-    try {
-      // Never the game thumbnails 2 and 4 start from: the search meta brings a second reference.
-      const game = await pickSearchTop(gameName, ranking, { exclude: nearest ? [nearest.universeId] : [] })
-      if (game) {
-        const picked = await pickCleanestThumbnail(game, gameName)
-        referenceImage = picked
-        record.searchReference = {
-          source: 'roblox',
-          universeId: game.universeId,
-          placeId: game.placeId,
-          name: game.name,
-          playing: game.playing,
-          url: game.url,
-          query: gameName,
-          pickedBy: ranking.pickedBy,
-          why: game.why,
-          robloxThumbnailUrl: picked.url,
-          thumbnail: { index: picked.index, count: picked.count, why: picked.why, pickedBy: picked.pickedBy },
-          imageUrl: save('search-reference', picked)
-        }
-      }
-    } catch (err) {
-      console.error(`Search meta reference for "${gameName}" failed:`, err)
-    }
-    // No other game in the search, or its thumbnail unreachable: the search meta starts from the style reference.
-    record.searchReference ??= { source: 'style', name: style.name, imageUrl: styleRef.imageUrl }
-    emit({ type: 'searchReference', searchReference: record.searchReference })
-    return Promise.all(slots.filter((s) => s.strategy === 'search').map((slot) => generate(slot, referenceImage, record.searchReference.name).then(report)))
-  })()
-  await Promise.all([templates, remixes, searchMeta])
+    const draw = (slot, image, name) => generate(slot, image, name).then(report)
+    await standardRun({ record, gameName, link, style, styleRef, save, emit, outputsDir, explore, draw, judge: judgeAll })
   }
   record.thumbnails.sort((a, b) => a.slot - b.slot)
 
-  const finished = record.thumbnails.filter((t) => images.has(t.slot)).map((t) => ({ slot: t.slot, ...images.get(t.slot) }))
-  if (finished.length > 0) {
-    emit({ type: 'judging' })
-    await judgeInto(record, dir, finished, random)
-    emit({ type: 'judge', judge: record.judge })
-    await iconForWinner(record, dir, model, { emit })
-  }
+  // A picked run judged as it went; every other run is judged once all its thumbnails are in.
+  if (!record.judge) await judgeAll()
+  if (record.judge && withIcon) await iconForWinner(record, dir, model, { emit })
   record.winnerSlot ??= null
   record.ms = Date.now() - started
   writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
@@ -320,8 +413,24 @@ export async function rejudgeRun(outputsDir, id, { icon = makeIcon } = {}) {
   return record
 }
 
-/** Saved runs, newest first. */
-export function listRuns(outputsDir, limit = 30) {
+/**
+ * Saves the creator's own winner for a run (null clears it); `accept` lists every slot they would
+ * take as the winner, when more than one. It outranks the judge wherever the selector learns from
+ * the run (selector.mjs regretsOf). Null when there is no such run or slot.
+ */
+export function pickWinner(outputsDir, id, slot, accept = null) {
+  const dir = join(outputsDir, id)
+  if (!RUN_ID.test(id) || !existsSync(join(dir, 'run.json'))) return null
+  const record = JSON.parse(readFileSync(join(dir, 'run.json'), 'utf8'))
+  if (slot != null && !record.thumbnails.some((t) => t.slot === slot && t.imageUrl)) return null
+  const also = (accept ?? []).filter((s) => s !== slot && record.thumbnails.some((t) => t.slot === s && t.imageUrl))
+  record.userPick = slot == null ? null : { slot, ...(also.length ? { accept: [slot, ...also] } : {}), at: new Date().toISOString() }
+  writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
+  return record
+}
+
+/** Every saved run, newest first; `limit` caps it (none by default: history shows every run). */
+export function listRuns(outputsDir, limit = Infinity) {
   return readdirSync(outputsDir)
     .filter((name) => RUN_ID.test(name) && existsSync(join(outputsDir, name, 'run.json')))
     .sort()

@@ -51,6 +51,30 @@ export interface Thumbnail extends Slot {
   error?: string
 }
 
+/** A strategy a typed-name run can draw: everything but the attached-image ones. */
+export type Arm = 'template' | 'remix' | 'search' | 'meta' | 'plain'
+
+/** The selector's pick for a typed-name run, from the rated references and past explore runs. */
+export interface Selection {
+  /** True: the run drew every strategy to teach the selector; `arm` is the pick it would have made. */
+  explore: boolean
+  /** The references rated 1 to 10 against the game; null when the rating failed and the pick fell back to meta. */
+  fit: { nearestFit: number | null; searchFit: number | null; nameClarity: number | null; why: string } | null
+  arm: Arm
+  /** How the pick read the prompt: a Roblox game has its exact name (`game`), shares words with it, or neither; a description or a short name. */
+  type?: { match: 'exact' | 'near' | 'none'; descriptive: boolean; game: string | null }
+  /** The next best strategy, which a top-up round draws. */
+  runnerUp?: Arm
+  /** Both picked thumbnails scored under `below` (of 50), best `best`: two more were drawn with `arm`. */
+  topUp?: { arm: Arm; best: number; below: number } | null
+  /** Judge points out of 50 each strategy is expected to fall short of drawing all seven. */
+  expected: Record<Arm, number> | null
+  /** The past explore runs most like this prompt and the strategy that won each. */
+  closest: { id: string; game: string; winner: Arm; weight: number }[]
+  /** How many explore runs the pick learned from. */
+  examples: number
+}
+
 /** Per-criterion marks out of 10 (fitsGame, robloxStyle, clean, clickable, coherent; older runs had fitsName), their total and a note. */
 export interface Score {
   slot: number
@@ -85,7 +109,7 @@ export interface Run {
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
   /**
-   * standard: the seven thumbnails; attached: two from the image attached in the prompt box;
+   * standard: two thumbnails of the selector's pick, or all seven on an explore run; attached: two from the image attached in the prompt box;
    * linked: five novel perspective remixes of the linked game's own thumbnail. Older runs have none.
    */
   mode?: 'standard' | 'attached' | 'linked'
@@ -96,10 +120,15 @@ export interface Run {
   reference: Reference | null
   /** The search meta's game; runs saved before it have none. */
   searchReference?: Reference | null
+  /** Typed-name runs since the selector: the strategy it picked; older runs drew every strategy and have none. */
+  selection?: Selection | null
+  /** A picked run's slots arrive with its selection; until then there are none. */
   slots: Slot[]
   thumbnails: Thumbnail[]
   judge: Judge | null
   winnerSlot?: number | null
+  /** The creator's own winner, when they disagree with the judge; the strategy picker learns from it. */
+  userPick?: { slot: number; accept?: number[]; at: string } | null
   ms?: number
 }
 
@@ -107,6 +136,7 @@ export type RunEvent =
   | { type: 'plan'; run: Run }
   | { type: 'reference'; reference: Reference }
   | { type: 'searchReference'; searchReference: Reference }
+  | { type: 'selection'; selection: Selection; slots: Slot[] }
   | { type: 'thumbnail'; thumbnail: Thumbnail }
   | { type: 'icon'; slot: number; iconUrl: string; iconRedrawn: boolean }
   | { type: 'judging' }
@@ -120,7 +150,7 @@ export interface Status {
   imageProvider: string
   imageModel: string
   falModel: string
-  /** "Nano Banana Pro": the one image model. */
+  /** "Nano Banana 2.1": the one image model. */
   imageModelLabel: string
   styleReferenceName: string
 }
@@ -140,12 +170,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
-/** Starts a run and hands each NDJSON event to `onEvent` as it arrives. */
-async function run(prompt: string, style: StyleUpload | null, attachment: StyleUpload | null, onEvent: (event: RunEvent) => void) {
+/** Starts a run and hands each NDJSON event to `onEvent` as it arrives; `explore` draws every strategy. */
+async function run(prompt: string, style: StyleUpload | null, attachment: StyleUpload | null, onEvent: (event: RunEvent) => void, explore = false) {
   const res = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, style, attachment })
+    body: JSON.stringify({ prompt, style, attachment, explore })
   })
   if (!res.ok || !res.body) {
     const body = await res.json().catch((err) => {
@@ -175,6 +205,8 @@ export const api = {
   run,
   runs: () => request<{ items: Run[] }>('/api/runs'),
   rejudge: (id: string) => request<Run>(`/api/runs/${encodeURIComponent(id)}/judge`, { method: 'POST' }),
+  pick: (id: string, slot: number | null) =>
+    request<Run>(`/api/runs/${encodeURIComponent(id)}/pick`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot }) }),
   status: () => request<Status>('/api/status')
 }
 
@@ -194,6 +226,20 @@ export function strategyLabel(slot: Slot) {
   if (slot.strategy === 'plain-attached') return 'Plain template on your image'
   const angle = slot.prompt.match(/\bbut (.+?)\. No text\.$/)?.[1]?.replace(/^from a\s+/i, '') ?? 'Remix'
   return `Remix: ${angle[0].toUpperCase()}${angle.slice(1)}`
+}
+
+/** A strategy by the name its tiles carry. */
+export const armLabel = (arm: Arm) => strategyLabel({ slot: 0, strategy: arm, prompt: arm === 'remix' ? 'Make this thumbnail but from a novel perspective. No text.' : '' })
+
+/** A typed-name run that draws only the selector's pick (before the pick lands, it has no slots yet). */
+export const isPicked = (run: Run) => (run.mode ?? 'standard') === 'standard' && (run.selection ? !run.selection.explore : run.slots.length === 0)
+
+/** "Thumbnail 3", "Thumbnails 2 and 4", "Thumbnails 2 to 4": slot numbers as words. */
+export function slotsLabel(slots: number[]) {
+  if (slots.length === 1) return `Thumbnail ${slots[0]}`
+  const contiguous = slots.every((s, i) => i === 0 || s === slots[i - 1] + 1)
+  if (contiguous && slots.length > 2) return `Thumbnails ${slots[0]} to ${slots.at(-1)}`
+  return `Thumbnails ${slots.slice(0, -1).join(', ')} and ${slots.at(-1)}`
 }
 
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })

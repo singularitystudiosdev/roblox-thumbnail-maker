@@ -1,6 +1,6 @@
 import { Check, Circle, LoaderCircle, Trophy, X } from 'lucide-react'
 import { useState } from 'react'
-import { onRobloxReference, onStyleReference, strategyLabel, type Run } from '../lib/api'
+import { armLabel, isPicked, onRobloxReference, onStyleReference, slotsLabel, strategyLabel, type Run } from '../lib/api'
 import { cn } from '../lib/cn'
 import { Button } from './Button'
 
@@ -25,16 +25,31 @@ function slotState(run: Run | null, slots: number[]): StepState {
   return landed.every((t) => t?.error) ? 'failed' : 'done'
 }
 
-/** "Thumbnail 3", "Thumbnails 2 and 4", "Thumbnails 2 to 4": slot numbers as words. */
-function thumbnailsLabel(slots: number[]) {
-  if (slots.length === 1) return `Thumbnail ${slots[0]}`
-  const contiguous = slots.every((s, i) => i === 0 || s === slots[i - 1] + 1)
-  if (contiguous && slots.length > 2) return `Thumbnails ${slots[0]} to ${slots.at(-1)}`
-  return `Thumbnails ${slots.slice(0, -1).join(', ')} and ${slots.at(-1)}`
+/** A picked run: both references looked up and rated, one strategy picked, then its two thumbnails. */
+function pickedSteps(run: Run | null, judgeStep: { label: string; state: StepState }) {
+  const { reference, searchReference, selection } = run ?? {}
+  const looked = Boolean(reference && searchReference)
+  return [
+    { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
+    { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
+    { label: searchReference ? `Top search game: ${searchReference.name}` : 'Searching Roblox', state: searchReference ? 'done' : run ? 'active' : 'pending' },
+    { label: selection ? `Picked: ${armLabel(selection.arm)}` : 'Rating them and picking a strategy', state: selection ? 'done' : looked ? 'active' : 'pending' },
+    { label: 'Thumbnails 1 and 2 with it', state: selection && run ? slotState(run, [1, 2]) : 'pending' },
+    ...(selection?.topUp && run
+      ? [
+          {
+            label: `Both under ${selection.topUp.below} of 50: thumbnails 3 and 4 with ${armLabel(selection.topUp.arm)}`,
+            state: slotState(run, [3, 4])
+          } satisfies { label: string; state: StepState }
+        ]
+      : []),
+    judgeStep
+  ] satisfies { label: string; state: StepState }[]
 }
 
 function steps(run: Run | null, phase: Phase) {
   const judgeStep = { label: 'Judge picks the winner', state: phase === 'judging' ? 'active' : run?.judge ? 'done' : 'pending' } satisfies { label: string; state: StepState }
+  if (!run || isPicked(run)) return pickedSteps(run, judgeStep)
   if (run?.mode === 'attached') {
     return [
       { label: `Game name: ${run.gameName}`, state: 'done' },
@@ -47,7 +62,7 @@ function steps(run: Run | null, phase: Phase) {
     return [
       { label: `Game name: ${run.gameName}`, state: 'done' },
       { label: linkedRef ? `Your game's thumbnail: ${linkedRef.name}` : "Fetching your game's thumbnail", state: linkedRef ? 'done' : 'active' },
-      { label: `${thumbnailsLabel(run.slots.map((s) => s.slot))} from it, novel perspectives`, state: linkedRef ? slotState(run, run.slots.map((s) => s.slot)) : 'pending' },
+      { label: `${slotsLabel(run.slots.map((s) => s.slot))} from it, novel perspectives`, state: linkedRef ? slotState(run, run.slots.map((s) => s.slot)) : 'pending' },
       judgeStep
     ] satisfies { label: string; state: StepState }[]
   }
@@ -64,7 +79,7 @@ function steps(run: Run | null, phase: Phase) {
       ? []
       : [
           {
-            label: searchReference ? `${thumbnailsLabel(searchSlots)} from the top search game: ${searchReference.name}` : `Searching Roblox for ${thumbnailsLabel(searchSlots).toLowerCase()}`,
+            label: searchReference ? `${slotsLabel(searchSlots)} from the top search game: ${searchReference.name}` : `Searching Roblox for ${slotsLabel(searchSlots).toLowerCase()}`,
             state: searchReference ? slotState(run, searchSlots) : run ? 'active' : 'pending'
           } satisfies { label: string; state: StepState }
         ]
@@ -72,7 +87,7 @@ function steps(run: Run | null, phase: Phase) {
     { label: run ? `Game name: ${run.gameName}` : 'Reading the game name', state: run ? 'done' : 'active' },
     { label: styleLabel, state: run ? slotState(run, styleSlots) : 'pending' },
     { label: reference ? `Nearest popular game: ${reference.name}` : 'Finding the nearest popular Roblox game', state: reference ? 'done' : run ? 'active' : 'pending' },
-    { label: `${thumbnailsLabel(robloxSlots)} made from it`, state: reference ? slotState(run, robloxSlots) : 'pending' },
+    { label: `${slotsLabel(robloxSlots)} made from it`, state: reference ? slotState(run, robloxSlots) : 'pending' },
     ...searchStep,
     judgeStep
   ] satisfies { label: string; state: StepState }[]
@@ -119,7 +134,7 @@ export function WinnerStage({ phase, run, shownSlot, elapsed, error, onExample, 
       {phase === 'idle' && !run && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-16 p-24 text-center">
           <p className="max-w-prose text-body text-text-secondary">
-            One prompt makes up to seven thumbnails and the judge puts the most clickable one here.
+            One prompt picks the strategy most likely to win for your game, makes two thumbnails with it, and the judge puts the better one here.
           </p>
           <Button onClick={onExample}>Try an example</Button>
         </div>

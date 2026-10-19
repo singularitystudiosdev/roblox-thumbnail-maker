@@ -6,7 +6,7 @@ import { imageMimeType } from './mime.mjs'
 import { IMAGE_MODEL_LABEL } from './imagemodels.mjs'
 import { PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
 import { GameNotFound } from './roblox.mjs'
-import { listRuns, rejudgeRun, RUN_ID, runThumbnails } from './run.mjs'
+import { listRuns, rejudgeRun, RUN_ID, runThumbnails, pickWinner } from './run.mjs'
 
 const MAX_BODY = 12 * 1024 * 1024
 const MAX_STYLE_BYTES = 8 * 1024 * 1024
@@ -83,7 +83,7 @@ async function handleRun(req, res, root, outputsDir) {
     if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`)
   }
   try {
-    await runThumbnails({ input: body.prompt.trim(), style, attachment, outputsDir, emit })
+    await runThumbnails({ input: body.prompt.trim(), style, attachment, outputsDir, emit, exploreAll: body.explore === true ? true : null })
   } catch (err) {
     if (!(err instanceof GameNotFound)) console.error('Run failed:', err)
     emit({ type: 'error', error: err.message })
@@ -117,6 +117,14 @@ export function createApi(root) {
       const route = `${req.method} ${url.pathname}`
       if (route === 'POST /api/run') return await handleRun(req, res, root, outputsDir)
       if (route === 'GET /api/runs') return sendJson(res, 200, { items: listRuns(outputsDir) })
+      const pick = req.method === 'POST' && url.pathname.match(/^\/api\/runs\/([^/]+)\/pick$/)
+      if (pick) {
+        const body = await readJson(req)
+        const slot = body.slot == null ? null : Number(body.slot)
+        if (slot != null && !Number.isInteger(slot)) throw new BadRequest('Pick a thumbnail by its number.')
+        const record = pickWinner(outputsDir, decodeURIComponent(pick[1]), slot)
+        return record ? sendJson(res, 200, record) : sendJson(res, 404, { error: 'No such run or thumbnail.' })
+      }
       const rejudge = req.method === 'POST' && url.pathname.match(/^\/api\/runs\/([^/]+)\/judge$/)
       if (rejudge) {
         const record = await rejudgeRun(outputsDir, decodeURIComponent(rejudge[1]))
@@ -131,7 +139,8 @@ export function createApi(root) {
         return sendJson(res, 200, {
           geminiKeys: c.geminiKeys.length,
           falKeys: c.falKeys.length,
-          imageProvider: c.imageProvider,
+          // A model with no Gemini API id is served by fal.ai alone, whatever the provider setting.
+          imageProvider: c.imageModel ? c.imageProvider : 'fal',
           imageModel: c.imageModel,
           falModel: c.falModel,
           imageModelLabel: IMAGE_MODEL_LABEL,
