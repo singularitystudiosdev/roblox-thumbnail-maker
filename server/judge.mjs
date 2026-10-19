@@ -185,12 +185,20 @@ export function pickLibrary(outputsDir, labelled = new Map()) {
   return library
 }
 
-/** The picks of other runs most like this one: the most words shared with its game, newest first among equals. */
-export function similarPicks(run, library, count = EXAMPLE_PAIRS) {
+/** A game name compared case- and punctuation-blind: "Rob a Bank" and "rob a bank!" are one game. */
+export const sameGameKey = (name) => String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+/**
+ * The picks of other runs most like this one: the most words shared with its game, newest first among equals.
+ * `sameGame: false` also leaves out every run of the same game name: a backtest must not show the judge the
+ * creator's pick on a twin run of the very game it is judging.
+ */
+export function similarPicks(run, library, count = EXAMPLE_PAIRS, { sameGame = true } = {}) {
   const mine = tokensOf([run.gameName, run.reference?.name, run.searchReference?.name].join(' '))
   const shared = (entry) => [...entry.words].filter((w) => mine.has(w)).length
+  const game = sameGameKey(run.gameName)
   return library
-    .filter((entry) => entry.id !== run.id)
+    .filter((entry) => entry.id !== run.id && (sameGame || sameGameKey(entry.gameName) !== game))
     .sort((a, b) => shared(b) - shared(a) || (a.id < b.id ? 1 : -1))
     .slice(0, count)
 }
@@ -227,12 +235,12 @@ async function loadExamples(entries) {
  */
 export async function judgeContext(run, dir, options = {}) {
   const context = await gameContext(run, dir, options)
-  const { examples = EXAMPLE_PAIRS } = options
+  const { examples = EXAMPLE_PAIRS, sameGame = true } = options
   if (!examples) return context
   let pairs = []
   try {
     const library = options.library ?? pickLibrary(dirname(dir))
-    pairs = await loadExamples(similarPicks(run, library, examples))
+    pairs = await loadExamples(similarPicks(run, library, examples, { sameGame }))
   } catch (err) {
     console.error("The creator's earlier picks for the judge failed; judging without examples:", err)
   }

@@ -191,6 +191,8 @@ test("the creator's earlier picks become worked examples: similar games first, n
   assert.deepEqual(similarPicks(run, library, 2).map((e) => e.id), ['2026-10-19T04-d', '2026-10-19T01-a'])
   // The run being judged is never its own example.
   assert.ok(!similarPicks({ ...run, id: '2026-10-19T01-a' }, library, 3).some((e) => e.id === '2026-10-19T01-a'))
+  // A backtest leaves out twin runs of the same game too ("rob a bank" is "Rob a Bank"); a different name stays.
+  assert.deepEqual(similarPicks({ ...run, gameName: 'rob a bank' }, library, 3, { sameGame: false }).map((e) => e.id), ['2026-10-19T04-d', '2026-10-19T02-b'])
 
   const png = await sharp({ create: { width: 64, height: 36, channels: 3, background: '#c33' } }).png().toBuffer()
   for (const id of ['2026-10-19T01-a', '2026-10-19T02-b']) for (const slot of [1, 2, 3]) writeFileSync(join(outputs, id, `thumbnail-${slot}.png`), png)
