@@ -71,8 +71,15 @@ export interface Selection {
   arms?: Arm[]
   /** Both picked thumbnails scored under `below` (of 50), best `best`: two more were drawn, one each of `arms` (older runs: two of `arm`). */
   topUp?: { arm: Arm; arms?: Arm[]; best: number; below: number } | null
-  /** Judge points out of 50 each strategy is expected to fall short of drawing all seven. */
+  /** Judge points out of 50 each strategy is expected to fall short of drawing all seven; null for a panel pick. */
   expected: Record<Arm, number> | null
+  /** 'panel': picked from the panel's ratings of each starting image (`base`); absent: from the memory of past runs. */
+  method?: 'panel'
+  /**
+   * The panel's rating of each Roblox reference as a starting point, 1 to 10 against a new scene in the style image's
+   * look (null: none found), the bar a reference must beat to be drawn from, and which art was flat 2D (never drawn from).
+   */
+  base?: { nearestBase: number | null; searchBase: number | null; bar: number; flat: { nearest: boolean; search: boolean } } | null
   /** The past explore runs most like this prompt and the strategy that won each. */
   closest: { id: string; game: string; winner: Arm; weight: number }[]
   /** How many explore runs the pick learned from: once the creator has picked, only runs they picked in (and other models' runs). */

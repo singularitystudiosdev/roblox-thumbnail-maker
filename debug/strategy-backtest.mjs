@@ -12,6 +12,8 @@
 //                 features (one vision call each, 4 s apart; rewrites the seed after each)
 //   --refresh     the same, for every explore run, replacing the features already rated
 //   --write-seed  save every example to server/selector-seed.json, the examples the app ships with
+//   --rate-base   rate with the reference panel (server/base.mjs, three vision calls each) the explore runs that lack
+//                 its ratings, from the saved references and style image; rewrites the seed after each
 //   --quick       skip the request-feature sets and their permutation tests (the slow part, over 20 minutes at 32 runs)
 // Writes debug/strategy-backtest_report.json.
 import { execFileSync } from 'node:child_process'
@@ -22,7 +24,7 @@ import { loadDotEnv } from '../server/env.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 loadDotEnv(root)
-const { ARMS, DEFAULT_PARAMS, builtOnExact, coWinners, drawNoise, expectedRegrets, loadExamples, matchLevel, modelOf, nameTokens, promptType, refNamesOf, refsOf, regretsOf } = await import('../server/selector.mjs')
+const { ARMS, DEFAULT_PARAMS, builtOnExact, chooseByPanel, coWinners, drawNoise, expectedRegrets, loadExamples, matchLevel, modelOf, nameTokens, promptType, refNamesOf, refsOf, regretsOf } = await import('../server/selector.mjs')
 const { imageModel } = await import('../server/imagemodels.mjs')
 const { FIT_FEATURES, hasFeatures } = await import('../server/fit.mjs')
 const args = new Set(process.argv.slice(2))
@@ -45,10 +47,11 @@ const shippedFit = (fit) => {
 function writeSeed(examples) {
   const about =
     "Explore runs (every strategy drawn and judged) the strategy selector learns from: each strategy's regret against the run's best thumbnail (or the creator's own pick), out of 50, the reference ratings and request features from server/fit.mjs, the reference games and the image model. The app reads saved runs fresh; these fill in runs a machine does not have and carry the features rated after a run was saved. Written by debug/strategy-backtest.mjs --write-seed."
-  const shipped = examples.map(({ id, game, fit, refs, refNames, model, regret, drawn, picked }) => ({
+  const shipped = examples.map(({ id, game, fit, base, refs, refNames, model, regret, drawn, picked }) => ({
     id,
     game,
     fit: shippedFit(fit),
+    ...(base ? { base: { nearestBase: base.nearestBase, searchBase: base.searchBase } } : {}),
     refs,
     refNames,
     model,
@@ -108,8 +111,44 @@ async function rateExamples(examples, { refresh }) {
   if (drift.length > 0) console.log(`fresh fit scores vs the recorded ones: mean absolute difference ${meanOf(drift).toFixed(2)} points on 1 to 10 (${drift.length} scores)`)
 }
 
+/**
+ * Rates with the reference panel (base.mjs) the explore runs whose saved references it never rated, one run at a time
+ * (its three rubrics at once), from the references and the style image saved with the run. The seed is rewritten
+ * after each, so a lock or a rate limit costs only the runs not yet rated. Two failures in a row stop the run.
+ */
+async function rateBaseExamples(examples) {
+  const { rateBases } = await import('../server/base.mjs')
+  const { imageMimeType } = await import('../server/mime.mjs')
+  const image = (dir, file, name) => {
+    if (!existsSync(join(dir, file))) return null
+    const bytes = readFileSync(join(dir, file))
+    return { name, mimeType: imageMimeType(bytes), bytes }
+  }
+  let failures = 0
+  for (const e of examples.filter((x) => !x.base && existsSync(join(outputsDir, x.id, 'run.json')))) {
+    if (failures >= 2) {
+      console.error('Two panel ratings failed in a row; stopping. Re-run the same command once the cause is fixed (it resumes where it stopped).')
+      break
+    }
+    const dir = join(outputsDir, e.id)
+    const run = JSON.parse(readFileSync(join(dir, 'run.json'), 'utf8'))
+    const ref = (r, file) => (r?.source === 'roblox' ? image(dir, file, r.name) : null)
+    try {
+      const base = await rateBases(run.gameName, { nearest: ref(run.reference, 'reference.png'), search: ref(run.searchReference, 'search-reference.png'), style: image(dir, 'style.png', 'style') })
+      e.base = { nearestBase: base.nearestBase, searchBase: base.searchBase }
+      failures = 0
+      console.log(`panel rated ${run.gameName}: nearest ${base.nearestBase}, search ${base.searchBase}`)
+      writeSeed(examples)
+    } catch (err) {
+      failures++
+      console.error(`The panel rating of ${e.id} failed:`, err)
+    }
+  }
+}
+
 let examples = loadExamples(outputsDir, seedFile)
 if (args.has('--rate') || args.has('--refresh')) await rateExamples(examples, { refresh: args.has('--refresh') })
+if (args.has('--rate-base')) await rateBaseExamples(examples)
 examples.sort((a, b) => a.id.localeCompare(b.id))
 if (args.has('--write-seed')) writeSeed(examples)
 
@@ -428,6 +467,43 @@ const yourPicks = (() => {
   return { runs: rows.length, firstDrawn: count('first'), eitherDrawn: count('either'), nestedEither: count('nestedEither'), rows }
 })()
 
+// The panel pick (selector.mjs chooseByPanel), on the runs the panel rated: leave-one-out (only which strategy of a
+// source comes first is learned, from the other runs' picks), at the shipped bar and around it, with the bar chosen
+// inside each fold from the creator's other picks (nested), and on the judge-only runs, whose labels it never saw.
+const BAR_GRID = [4.5, 5, 5.5, 6, 6.5]
+const panel = (() => {
+  const rated = heldOut.filter(({ e }) => e.base)
+  const drawnBy = (e, rest, extra = {}) => chooseByPanel(e, rest, { ...DEFAULT_PARAMS, ...extra }).ranked.slice(0, 2)
+  const judgeWinner = (e) => [pick(e.regret)]
+  const score = (set, hit, extra = {}) => set.filter(({ e, i }) => hit(e, drawnBy(e, examples.filter((_, j) => j !== i), extra))).length
+  const picked = rated.filter(({ e }) => e.picked)
+  const judged = rated.filter(({ e }) => !e.picked)
+  const tookHit = (e, arms) => tookOne(e, arms)
+  const judgeHit = (e, arms) => arms.some((a) => judgeWinner(e).includes(a))
+  const nested = picked.filter(({ e, i }) => {
+    const rest = examples.filter((_, j) => j !== i)
+    const inner = rest.map((h, k) => ({ h, k })).filter(({ h }) => h.model === MODEL && h.picked && h.base)
+    const hitsAt = (bar) => inner.filter(({ h, k }) => tookOne(h, drawnBy(h, rest.filter((_, j) => j !== k), { baseBar: bar }))).length
+    const scores = BAR_GRID.map(hitsAt)
+    const best = Math.max(...scores)
+    // Ties go to the shipped bar, then the nearest to it.
+    const bar = BAR_GRID.filter((_, n) => scores[n] === best).sort((a, b) => Math.abs(a - DEFAULT_PARAMS.baseBar) - Math.abs(b - DEFAULT_PARAMS.baseBar))[0]
+    return tookOne(e, drawnBy(e, rest, { baseBar: bar }))
+  }).length
+  const rows = picked.map(({ e, i }) => ({ id: e.id, game: e.game, base: e.base, drawn: drawnBy(e, examples.filter((_, j) => j !== i)), took: ARMS.filter((a) => e.regret[a] === 0) }))
+  return {
+    rated: rated.length,
+    picked: picked.length,
+    hits: score(picked, tookHit),
+    nested,
+    judgeOnly: judged.length,
+    judgeOnlyHits: score(judged, judgeHit),
+    memoryJudgeOnlyHits: judged.filter(({ e, i }) => judgeHit(e, topTwo(e, examples.filter((_, j) => j !== i)))).length,
+    byBar: BAR_GRID.map((bar) => ({ bar, hits: score(picked, tookHit, { baseBar: bar }), judgeOnlyHits: score(judged, judgeHit, { baseBar: bar }) })),
+    rows: rows.map((r) => ({ ...r, hit: tookOne(examples.find((x) => x.id === r.id), r.drawn) }))
+  }
+})()
+
 // The judge behind every label the creator did not override: server/judge.mjs at its last commit, and whether the
 // working copy differs (runs record no judge version, so a run re-judged since may carry a different one).
 const judgeAt = (() => {
@@ -572,10 +648,16 @@ console.log(
 )
 for (const r of yourPicks.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} you took ${r.took.join(',').padEnd(16)} drew ${r.drawn.join(' + ').padEnd(18)} ${r.either ? 'hit' : 'miss'}`)
 
+console.log(
+  `\npanel pick (the app's pick when the panel rated the references; ${panel.rated} runs rated, leave-one-out): your picks ${panel.hits}/${panel.picked}, bar chosen inside each fold ${panel.nested}/${panel.picked}; judge-only runs, the judge's winner drawn ${panel.judgeOnlyHits}/${panel.judgeOnly} (the memory above: ${panel.memoryJudgeOnlyHits}/${panel.judgeOnly})`
+)
+console.log(`  by bar: ${panel.byBar.map((b) => `${b.bar} picks ${b.hits} judge-only ${b.judgeOnlyHits}`).join(' | ')}`)
+for (const r of panel.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} nearest ${String(r.base.nearestBase).padStart(4)} search ${String(r.base.searchBase).padStart(4)}  you took ${r.took.join(',').padEnd(16)} drew ${r.drawn.join(' + ').padEnd(18)} ${r.hit ? 'hit' : 'miss'}`)
+
 console.log('\nselector picks, leave-one-out:')
 for (const r of shipped.rows) console.log(`  ${r.game.slice(0, 36).padEnd(36)} ${r.type.padEnd(32)} ${r.arm.padEnd(8)} regret ${r.regret.toFixed(1)}`)
 
 writeFileSync(
   join(root, 'debug', 'strategy-backtest_report.json'),
-  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, judge: judgeAt, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, yourPicks, results, approaches, bySource, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
+  `${JSON.stringify({ ranAt: new Date().toISOString(), model: MODEL, judge: judgeAt, examples: examples.length, scored: heldOut.length, params: DEFAULT_PARAMS, yourPicks, panel, results, approaches, bySource, ceilingPct, sigma: round(SIGMA), curve, projection, featureResults, featureBreakdown, prospective }, null, 1)}\n`
 )

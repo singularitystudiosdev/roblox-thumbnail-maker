@@ -20,6 +20,7 @@ import { basename, join } from 'node:path'
 import { planAttachedSlots, readAttachedIntent } from './attached.mjs'
 import { config } from './env.mjs'
 import { rateReferences } from './fit.mjs'
+import { rateBases } from './base.mjs'
 import { resolveGameName } from './gamename.mjs'
 import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
@@ -165,24 +166,26 @@ async function searchReferenceInto({ record, gameName, style, styleRef, save, em
 }
 
 /**
- * The selector's pick from the rated references (fit.mjs) and every explore run so far
- * (selector.mjs). A failed rating picks the strategy with the lowest mean regret in the explore runs
- * of the run's image model (selector.mjs fallbackArm).
+ * The selector's pick from the panel's ratings of each starting image (base.mjs, with the style image the
+ * templates use), the rated references (fit.mjs) and every explore run so far (selector.mjs). A failed panel
+ * leaves the pick to the memory of past runs; a failure of both picks the strategy with the lowest mean
+ * regret in the explore runs of the run's image model (selector.mjs fallbackArm).
  */
-async function selectionFor(record, outputsDir, explore, nearestImage, searchImage) {
-  let fit = null
-  try {
-    fit = await rateReferences(record.gameName, {
-      nearest: nearestImage && { ...nearestImage, name: record.reference.name },
-      search: searchImage && { ...searchImage, name: record.searchReference.name }
-    })
-  } catch (err) {
-    console.error(`Rating the references for "${record.gameName}" failed; the pick falls back to the best strategy overall:`, err)
+async function selectionFor(record, outputsDir, explore, nearestImage, searchImage, style) {
+  const refs = {
+    nearest: nearestImage && { ...nearestImage, name: record.reference.name },
+    search: searchImage && { ...searchImage, name: record.searchReference.name }
   }
+  // The fit call and the panel's three run at once; a failed panel leaves the pick to the memory of past runs.
+  const [fitResult, baseResult] = await Promise.allSettled([rateReferences(record.gameName, refs), rateBases(record.gameName, { ...refs, style })])
+  if (fitResult.status === 'rejected') console.error(`Rating the references for "${record.gameName}" failed; the pick falls back to the best strategy overall:`, fitResult.reason)
+  if (baseResult.status === 'rejected') console.error(`The reference panel for "${record.gameName}" failed; the pick falls back to the memory of past runs:`, baseResult.reason)
+  const fit = fitResult.status === 'fulfilled' ? fitResult.value : null
+  const base = baseResult.status === 'fulfilled' ? baseResult.value : null
   const examples = loadExamples(outputsDir)
   const model = record.imageModel?.key ?? null
-  const choice = fit ? chooseArm({ game: record.gameName, fit, refs: refsOf(record), refNames: refNamesOf(record), model }, examples) : fallbackArm(examples, model)
-  return { explore, fit, ...choice, examples: choice.learnedFrom ?? examples.length }
+  const choice = fit || base ? chooseArm({ game: record.gameName, fit, base, refs: refsOf(record), refNames: refNamesOf(record), model }, examples) : fallbackArm(examples, model)
+  return { explore, fit, ...choice, base: choice.base ? { ...choice.base, panel: base.panel } : null, examples: choice.learnedFrom ?? examples.length }
 }
 
 /**
@@ -196,7 +199,7 @@ async function standardRun(ctx) {
   const nearestLookup = nearestOrNull(record.gameName, link ? [link.title] : [])
   const nearestImage = nearestReferenceInto(ctx, nearestLookup)
   const searchImage = searchReferenceInto(ctx, nearestLookup)
-  const picking = Promise.all([nearestImage, searchImage]).then(([n, s]) => selectionFor(record, outputsDir, explore, n, s))
+  const picking = Promise.all([nearestImage, searchImage]).then(([n, s]) => selectionFor(record, outputsDir, explore, n, s, style))
   const announce = (selection) => {
     record.selection = selection
     emit({ type: 'selection', selection, slots: record.slots })

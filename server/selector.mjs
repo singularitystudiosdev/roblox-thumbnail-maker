@@ -14,6 +14,13 @@
 // regret on that rating fitted over every example. The lowest expected regret
 // wins. Each explore run adds an example, so the pick keeps learning;
 // debug/strategy-backtest.mjs measures it leave-one-out.
+//
+// That memory is now the fallback. A run whose references the panel rated (base.mjs) takes the panel pick
+// (chooseByPanel): which images are good starting points, rated before anything is drawn. The memory
+// minimised expected regret, and the strategies on a Roblox reference either win or fall 10 to 25 points
+// behind while the two templates seldom fall 3 behind, so it drew the safe templates (often both, near
+// copies of each other) where the creator took a Roblox reference; it drew one they took in 8 of their 17
+// picked runs, the panel in 15.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -44,7 +51,11 @@ const FAMILY = { template: 'template', plain: 'plain', remix: 'remix', meta: 'on
 // the creator, and the judge's taste (it disagreed with them on about a third of their picks) is what the judge-only
 // runs teach. On the creator's 13 picked Nano Banana 2.1 runs, leave-one-out, the two strategies a run draws included
 // one they took in 10 at 0 against 8 at 1, and 0 was chosen in every nested fold.
-export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, judgeOnly: 0, features: [], featureWeight: 1, split: [] }
+// baseBar, flatArt: the panel pick (chooseByPanel). A reference whose panel rating (base.mjs) is above baseBar is
+// drawn from, else the style image; 5.5 is the rubrics' own "as good as the style image" (5) plus half a point, and
+// 4.5 to 6.5 all draw a strategy the creator took on 14 or 15 of their 17 picked runs. A reference whose art fit.mjs
+// rates flatArt or under (flat 2D drawing) is never drawn from: a remake keeps its look, which is not the Roblox look.
+export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, exactBonus: 3, judgeOnly: 0, features: [], featureWeight: 1, split: [], baseBar: 5.5, flatArt: 2 }
 
 /**
  * The request features fit.mjs rates in its one call: realism, abstractness and knownGame (1 to 10) and genre
@@ -170,7 +181,8 @@ export function exampleOf(run) {
   const regret = (run?.mode ?? 'standard') === 'standard' && run.selection?.fit ? regretsOf(run) : null
   if (!regret) return null
   const drawn = Object.fromEntries(ARMS.map((a) => [a, run.slots.filter((slot) => slot.strategy === a && run.judge.scores.some((s) => s.slot === slot.slot)).length]))
-  return { id: run.id, game: run.gameName, fit: run.selection.fit, refs: refsOf(run), refNames: refNamesOf(run), model: modelOf(run), regret, drawn, picked: Boolean(run.userPick) }
+  const base = run.selection.base ? { nearestBase: run.selection.base.nearestBase ?? null, searchBase: run.selection.base.searchBase ?? null } : null
+  return { id: run.id, game: run.gameName, fit: run.selection.fit, base, refs: refsOf(run), refNames: refNamesOf(run), model: modelOf(run), regret, drawn, picked: Boolean(run.userPick) }
 }
 
 /**
@@ -224,7 +236,7 @@ export function loadExamples(outputsDir, seedFile = new URL('./selector-seed.jso
         const shipped = byId.get(name)
         // The run's own ratings win; fields only the shipped ones carry (the request features) fill in.
         const example = exampleOf(shipped ? { ...run, selection: { ...run.selection, fit: { ...shipped.fit, ...run.selection?.fit } } } : run)
-        if (example) byId.set(name, { ...example, id: name, model: example.model ?? shipped?.model ?? null })
+        if (example) byId.set(name, { ...example, id: name, model: example.model ?? shipped?.model ?? null, base: example.base ?? shipped?.base ?? null })
       } catch (err) {
         console.error(`Saved run ${name} could not be read as a selector example:`, err)
       }
@@ -365,13 +377,59 @@ const rankedBy = (expected) => [...ARMS].sort((a, b) => expected[a] - expected[b
 /** The examples that teach a pick for `current`: all of them, less the judge-only runs of its model when those count nothing. */
 const teaching = (current, examples, params) => examples.filter((e) => exampleWeight(current, e, forCurrent(current, examples, params)) > 0).length
 
+/** Of two strategies that start from one image, the one the creator took in more of `picks`, then the other (a tie keeps `a` first). */
+function takenMore(picks, a, b) {
+  const taken = (arm) => picks.filter((e) => e.regret[arm] === 0).length
+  return taken(b) > taken(a) ? [b, a] : [a, b]
+}
+
 /**
- * The strategies to draw for a run `current` ({ game, fit, refs }), by expected regret: `arm` first, then
- * `runnerUp` (a picked run draws one thumbnail of each), then the rest in `ranked` (a top-up round draws the
- * next two). With no examples, meta then template. Returns { arm, runnerUp, ranked, expected, learnedFrom,
- * closest: [{ id, game, winner, weight }] }.
+ * The panel pick for a run `current` ({ fit, base, model }) whose references the panel rated (base.mjs). Each image a
+ * strategy can start from is a source: the nearest game's thumbnail (remix or meta), the search game's (search) and
+ * the style image (template or plain), which rates `baseBar`. A run draws one thumbnail from each of the two best
+ * sources, the best strategy of each, or, when neither reference beats the style image, both style strategies:
+ * two images from one reference would only repeat each other. Which strategy of a source comes first is learned:
+ * the one the creator took more often in their picked runs of this image model (every model's picks until it
+ * has some). A reference with flat 2D art (fit.mjs, `flatArt` or under) or none found is never drawn from.
+ * Returns chooseArm's shape with method 'panel' and `base`: the two ratings, the bar and which art was flat.
+ */
+export function chooseByPanel(current, examples, params = DEFAULT_PARAMS) {
+  const allPicks = examples.filter((e) => e.picked)
+  const modelPicks = allPicks.filter((e) => e.model === (current.model ?? null))
+  const picks = modelPicks.length > 0 ? modelPicks : allPicks
+  const flat = (art) => art != null && art <= params.flatArt
+  const nearestFlat = flat(current.fit?.nearestArt)
+  const searchFlat = flat(current.fit?.searchArt)
+  const { nearestBase = null, searchBase = null } = current.base ?? {}
+  const style = takenMore(picks, 'template', 'plain')
+  const sources = [
+    { arms: takenMore(picks, 'remix', 'meta'), score: nearestBase == null || nearestFlat ? -Infinity : nearestBase },
+    { arms: ['search'], score: searchBase == null || searchFlat ? -Infinity : searchBase },
+    { arms: style, score: params.baseBar, style: true }
+  ].sort((a, b) => b.score - a.score)
+  const drawn = sources[0].style ? style : [sources[0].arms[0], sources[1].arms[0]]
+  const ranked = [...drawn, ...sources.flatMap((s) => s.arms).filter((a) => !drawn.includes(a))]
+  return {
+    method: 'panel',
+    arm: ranked[0],
+    runnerUp: ranked[1],
+    ranked,
+    type: typeOf(current),
+    expected: null,
+    base: { nearestBase, searchBase, bar: params.baseBar, flat: { nearest: nearestFlat, search: searchFlat } },
+    learnedFrom: picks.length,
+    closest: []
+  }
+}
+
+/**
+ * The strategies to draw for a run `current` ({ game, fit, refs, base }): the panel pick (chooseByPanel) when the panel
+ * rated its references, else by expected regret: `arm` first, then `runnerUp` (a picked run draws one thumbnail of
+ * each), then the rest in `ranked` (a top-up round draws the next two). With no examples, meta then template.
+ * Returns { arm, runnerUp, ranked, expected, learnedFrom, closest: [{ id, game, winner, weight }] }.
  */
 export function chooseArm(current, examples, params = DEFAULT_PARAMS) {
+  if (current.base) return chooseByPanel(current, examples, params)
   if (examples.length === 0) return { arm: 'meta', runnerUp: 'template', ranked: ['meta', 'template', 'plain', 'remix', 'search'], type: typeOf(current), expected: null, learnedFrom: 0, closest: [] }
   const expected = expectedRegrets(current, examples, params)
   const ranked = rankedBy(expected)

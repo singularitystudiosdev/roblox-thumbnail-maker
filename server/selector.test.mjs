@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { pickedArms, planPickedSlots } from './run.mjs'
 import { readFit, hasFeatures } from './fit.mjs'
-import { ARMS, DEFAULT_PARAMS, builtOnExact, chooseArm, coWinners, drawNoise, exampleOf, expectedRegrets, fallbackArm, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
+import { ARMS, DEFAULT_PARAMS, builtOnExact, chooseArm, chooseByPanel, coWinners, drawNoise, exampleOf, expectedRegrets, fallbackArm, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
 
 const fit = (nearestFit, searchFit, nameClarity) => ({ nearestFit, searchFit, nameClarity })
 const regret = (winner, others = 6) => Object.fromEntries(ARMS.map((a) => [a, a === winner ? 0 : others]))
@@ -264,4 +264,55 @@ test('once the creator has picked in runs of a model, runs only the judge labell
   assert.equal(chooseArm(current, examples, { ...DEFAULT_PARAMS, judgeOnly: 1 }).arm, 'plain')
   // With no pick yet for the model, the judge's runs count fully.
   assert.equal(chooseArm(current, examples.map((e) => ({ ...e, picked: false }))).arm, 'plain')
+})
+
+test('the panel pick draws from the two best starting images, the style image rating the bar', () => {
+  const model = 'nano-banana-2.1'
+  const run = (nearestBase, searchBase, art = {}) => ({ game: 'Make a burger', fit: { ...fit(5, 5, 5), nearestArt: 5, searchArt: 5, ...art }, base: { nearestBase, searchBase }, refs: { nearest: 'n', search: 's' }, refNames: { nearest: 'Other Game', search: 'Another Game' }, model })
+  const drawn = (current, examples = []) => chooseArm(current, examples).ranked.slice(0, 2)
+  // Both references beat the style image: one thumbnail from each, never two from one image.
+  assert.deepEqual(drawn(run(8, 7)), ['remix', 'search'])
+  // One does: it, then the style image.
+  assert.deepEqual(drawn(run(3, 8.7)), ['search', 'template'])
+  assert.deepEqual(drawn(run(7, 2)), ['remix', 'template'])
+  // Neither does: both style strategies.
+  assert.deepEqual(drawn(run(4.3, 4.8)), ['template', 'plain'])
+  // Flat 2D art is never a starting point, however it rates.
+  assert.deepEqual(drawn(run(7.1, 1.3, { nearestArt: 2 })), ['template', 'plain'])
+  // A reference the run did not find is never drawn from.
+  assert.deepEqual(drawn(run(null, 8)), ['search', 'template'])
+  const choice = chooseArm(run(8, 7), [])
+  assert.equal(choice.method, 'panel')
+  assert.equal(choice.ranked.length, ARMS.length)
+  assert.deepEqual(choice.base, { nearestBase: 8, searchBase: 7, bar: DEFAULT_PARAMS.baseBar, flat: { nearest: false, search: false } })
+  // Without panel ratings the memory of past runs picks, as before.
+  assert.equal(chooseArm({ ...run(8, 7), base: null }, []).method, undefined)
+})
+
+test('which strategy of a starting image comes first is the one the creator took more, on this image model when they picked in it', () => {
+  const model = 'nano-banana-2.1'
+  const picked = (id, winner, m = model) => ({ ...example(id, 'Some Game', fit(5, 5, 5), winner), model: m, picked: true })
+  const current = { game: 'Bake a cake', fit: { ...fit(5, 5, 5), nearestArt: 5, searchArt: 5 }, base: { nearestBase: 8, searchBase: 2 }, refs: { nearest: 'n', search: 's' }, refNames: { nearest: 'Other Game', search: 'Another Game' }, model }
+  assert.deepEqual(chooseByPanel(current, []).ranked.slice(0, 2), ['remix', 'template'])
+  const metaAndPlain = [picked('a', 'meta'), picked('b', 'meta'), picked('c', 'plain')]
+  assert.deepEqual(chooseByPanel(current, metaAndPlain).ranked.slice(0, 2), ['meta', 'plain'])
+  assert.equal(chooseByPanel(current, metaAndPlain).learnedFrom, 3)
+  // Picks on another model count only until this one has some; judge-only runs never count.
+  const elsewhere = [picked('d', 'meta', 'nano-banana-pro'), picked('e', 'meta', 'nano-banana-pro'), { ...example('f', 'Some Game', fit(5, 5, 5), 'meta'), model }]
+  assert.deepEqual(chooseByPanel(current, elsewhere).ranked.slice(0, 1), ['meta'])
+  assert.deepEqual(chooseByPanel(current, [...elsewhere, picked('g', 'remix')]).ranked.slice(0, 1), ['remix'])
+})
+
+test('a run records its panel ratings, and the shipped seed fills them in for runs saved before the panel', () => {
+  const scores = [40, 30, 30, 30, 30, 30]
+  const withBase = exampleOf(fullRun(scores, { selection: { fit: fit(5, 5, 5), base: { nearestBase: 7, searchBase: 3, bar: 5.5, panel: [] } } }))
+  assert.deepEqual(withBase.base, { nearestBase: 7, searchBase: 3 })
+  assert.equal(exampleOf(fullRun(scores, { selection: { fit: fit(5, 5, 5) } })).base, null)
+  const dir = mkdtempSync(join(tmpdir(), 'panel-seed-'))
+  const id = '2026-10-19T06-10-00-000Z-eeeeeeee'
+  mkdirSync(join(dir, id))
+  writeFileSync(join(dir, id, 'run.json'), JSON.stringify(fullRun(scores, { id, selection: { fit: fit(5, 5, 5) } })))
+  const seed = join(dir, 'seed.json')
+  writeFileSync(seed, JSON.stringify({ examples: [{ id, game: 'Steal an Egg', fit: fit(5, 5, 5), base: { nearestBase: 6.5, searchBase: 2 }, regret: regret('template') }] }))
+  assert.deepEqual(loadExamples(dir, seed).find((e) => e.id === id).base, { nearestBase: 6.5, searchBase: 2 })
 })

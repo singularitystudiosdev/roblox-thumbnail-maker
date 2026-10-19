@@ -20,6 +20,33 @@ function ranked(expected: Record<Arm, number>) {
   return (Object.entries(expected) as [Arm, number][]).sort((a, b) => a[1] - b[1])
 }
 
+/** The panel's rating of each image a strategy can start from, the ones drawn from in bold. */
+function StartingPoints({ base, drawn, examples }: { base: NonNullable<Selection['base']>; drawn: Arm[]; examples: number }) {
+  const value = (score: number | null, flat: boolean) => (score == null ? 'none found' : flat ? `${score}, flat 2D` : `${score} of 10`)
+  const rows = [
+    { label: "Nearest game's thumbnail", value: value(base.nearestBase, base.flat.nearest), used: drawn.some((a) => a === 'remix' || a === 'meta') },
+    { label: "Search game's thumbnail", value: value(base.searchBase, base.flat.search), used: drawn.includes('search') },
+    { label: 'Style image', value: `bar ${base.bar}`, used: drawn.some((a) => a === 'template' || a === 'plain') }
+  ]
+  return (
+    <>
+      <ol className="flex flex-col gap-4" aria-label="Rating of each starting image">
+        {rows.map((row) => (
+          <li key={row.label} className={cn('flex items-baseline justify-between gap-12 text-label', row.used ? 'font-semibold text-brand' : 'text-text-secondary')}>
+            <span className="min-w-0 truncate">{row.label}</span>
+            <span className="shrink-0 tabular-nums">{row.value}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="text-caption text-text-secondary">
+        Rated before drawing: how much better a thumbnail made from each image would be than a new scene in the style image&apos;s look, 5
+        as good. A game&apos;s thumbnail above {base.bar} is drawn from, flat 2D art never; which strategy of an image comes first is
+        learned from your {examples} picks.
+      </p>
+    </>
+  )
+}
+
 function Picked({ selection }: { selection: Selection }) {
   const { arm, explore, expected, fit, closest, examples } = selection
   const drawn = drawnArms(selection)
@@ -43,7 +70,9 @@ function Picked({ selection }: { selection: Selection }) {
         )}
       </p>
       {selection.type && <p className="text-label">{typeLine(selection.type)}</p>}
-      {expected ? (
+      {selection.base ? (
+        <StartingPoints base={selection.base} drawn={explore ? (selection.ranked?.slice(0, 2) ?? [arm]) : drawn} examples={examples} />
+      ) : expected ? (
         <>
           <ol className="flex flex-col gap-4" aria-label="Expected points lost per strategy">
             {ranked(expected).map(([a, points]) => (
@@ -69,7 +98,7 @@ function Picked({ selection }: { selection: Selection }) {
       )}
       {fit && (
         <p className="text-caption text-text-secondary">
-          Nearest game {rating(fit.nearestFit)}, search game {rating(fit.searchFit)}, the name alone {rating(fit.nameClarity)}. {fit.why}
+          Shows the game: nearest game {rating(fit.nearestFit)}, search game {rating(fit.searchFit)}, the name alone {rating(fit.nameClarity)}. {fit.why}
         </p>
       )}
       {closest.length > 0 && (

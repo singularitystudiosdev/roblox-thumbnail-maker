@@ -171,6 +171,10 @@
     "nearestArt": 8,
     "searchArt": 9
    },
+   "base": {
+    "nearestBase": 6.3,
+    "searchBase": 3.7
+   },
    "refs": {
     "nearest": "9807649116",
     "search": "5654670037"
@@ -326,6 +330,10 @@
     "knownGame": 4,
     "nearestArt": 6,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 4.4,
+    "searchBase": 8
    },
    "refs": {
     "nearest": "10765568909",
@@ -678,6 +686,10 @@
     "nearestArt": 5,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 7.3,
+    "searchBase": 5.8
+   },
    "refs": {
     "nearest": "7436755782",
     "search": "10768292556"
@@ -716,6 +728,10 @@
     "knownGame": 10,
     "nearestArt": 5,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 4,
+    "searchBase": 8.8
    },
    "refs": {
     "nearest": "10685282333",
@@ -756,6 +772,10 @@
     "nearestArt": 8,
     "searchArt": 7
    },
+   "base": {
+    "nearestBase": 7.9,
+    "searchBase": 3.6
+   },
    "refs": {
     "nearest": "5203828273",
     "search": "10222476236"
@@ -794,6 +814,10 @@
     "knownGame": 6,
     "nearestArt": 5,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 6.6,
+    "searchBase": 7
    },
    "refs": {
     "nearest": "7709344486",
@@ -834,6 +858,10 @@
     "nearestArt": 5,
     "searchArt": 7
    },
+   "base": {
+    "nearestBase": 3.3,
+    "searchBase": 4.9
+   },
    "refs": {
     "nearest": "3310460039",
     "search": "10769401598"
@@ -872,6 +900,10 @@
     "knownGame": 3,
     "nearestArt": 6,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 8.2,
+    "searchBase": 6.1
    },
    "refs": {
     "nearest": "10765541201",
@@ -912,6 +944,10 @@
     "nearestArt": 5,
     "searchArt": 4
    },
+   "base": {
+    "nearestBase": 4,
+    "searchBase": 3.1
+   },
    "refs": {
     "nearest": "323675642",
     "search": "10766587505"
@@ -950,6 +986,10 @@
     "knownGame": 3,
     "nearestArt": 4,
     "searchArt": 6
+   },
+   "base": {
+    "nearestBase": 6,
+    "searchBase": 2.3
    },
    "refs": {
     "nearest": "7332812970",
@@ -990,6 +1030,10 @@
     "nearestArt": 5,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 3.6,
+    "searchBase": 6.4
+   },
    "refs": {
     "nearest": "10456511458",
     "search": "9544512586"
@@ -1028,6 +1072,10 @@
     "knownGame": 2,
     "nearestArt": 4,
     "searchArt": 6
+   },
+   "base": {
+    "nearestBase": 4.8,
+    "searchBase": 3.3
    },
    "refs": {
     "nearest": "10231502419",
@@ -1068,6 +1116,10 @@
     "nearestArt": 7,
     "searchArt": 2
    },
+   "base": {
+    "nearestBase": 4.3,
+    "searchBase": 4.8
+   },
    "refs": {
     "nearest": "16680835",
     "search": "7383133134"
@@ -1106,6 +1158,10 @@
     "knownGame": 8,
     "nearestArt": 5,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 4.8,
+    "searchBase": 9
    },
    "refs": {
     "nearest": "10563114921",
@@ -1146,6 +1202,10 @@
     "nearestArt": 5,
     "searchArt": 8
    },
+   "base": {
+    "nearestBase": 6,
+    "searchBase": 6.4
+   },
    "refs": {
     "nearest": "66654135",
     "search": "10764959046"
@@ -1184,6 +1244,10 @@
     "knownGame": 10,
     "nearestArt": 5,
     "searchArt": 6
+   },
+   "base": {
+    "nearestBase": 6.8,
+    "searchBase": 7.9
    },
    "refs": {
     "nearest": "65241",
@@ -1224,6 +1288,10 @@
     "nearestArt": 6,
     "searchArt": 2
    },
+   "base": {
+    "nearestBase": 6.7,
+    "searchBase": 2.7
+   },
    "refs": {
     "nearest": "2440500124",
     "search": "7041101865"
@@ -1262,6 +1330,10 @@
     "knownGame": 10,
     "nearestArt": 4,
     "searchArt": 6
+   },
+   "base": {
+    "nearestBase": 4.3,
+    "searchBase": 6.2
    },
    "refs": {
     "nearest": "703124385",
@@ -1302,6 +1374,10 @@
     "nearestArt": 5,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 7.2,
+    "searchBase": 5.9
+   },
    "refs": {
     "nearest": "10765153945",
     "search": "10761143648"
@@ -1340,6 +1416,10 @@
     "knownGame": 7,
     "nearestArt": 5,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 4.7,
+    "searchBase": 8
    },
    "refs": {
     "nearest": "7436755782",
@@ -1380,6 +1460,10 @@
     "nearestArt": 5,
     "searchArt": 4
    },
+   "base": {
+    "nearestBase": 5.6,
+    "searchBase": 3
+   },
    "refs": {
     "nearest": "7395930870",
     "search": "10596137726"
@@ -1418,6 +1502,10 @@
     "knownGame": 2,
     "nearestArt": 3,
     "searchArt": 4
+   },
+   "base": {
+    "nearestBase": 4.3,
+    "searchBase": 5.7
    },
    "refs": {
     "nearest": "5426911953",
@@ -1458,6 +1546,10 @@
     "nearestArt": 2,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 7.3,
+    "searchBase": 2.2
+   },
    "refs": {
     "nearest": "10533638982",
     "search": "1500885084"
@@ -1496,6 +1588,10 @@
     "knownGame": 3,
     "nearestArt": 8,
     "searchArt": 4
+   },
+   "base": {
+    "nearestBase": 6.7,
+    "searchBase": 3.8
    },
    "refs": {
     "nearest": "9807649116",
@@ -1536,6 +1632,10 @@
     "nearestArt": 5,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 9,
+    "searchBase": 6
+   },
    "refs": {
     "nearest": "9472441390",
     "search": "10761593386"
@@ -1574,6 +1674,10 @@
     "knownGame": 4,
     "nearestArt": 6,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 4.3,
+    "searchBase": 8
    },
    "refs": {
     "nearest": "10765568909",
@@ -1614,6 +1718,10 @@
     "nearestArt": 5,
     "searchArt": 2
    },
+   "base": {
+    "nearestBase": 4,
+    "searchBase": 3.8
+   },
    "refs": {
     "nearest": "7823137182",
     "search": "8745312718"
@@ -1652,6 +1760,10 @@
     "knownGame": 3,
     "nearestArt": 5,
     "searchArt": 9
+   },
+   "base": {
+    "nearestBase": 7.3,
+    "searchBase": 1.3
    },
    "refs": {
     "nearest": "1415710834",
@@ -1692,6 +1804,10 @@
     "nearestArt": 8,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 4.7,
+    "searchBase": 7
+   },
    "refs": {
     "nearest": "4925331346",
     "search": "4518160318"
@@ -1730,6 +1846,10 @@
     "knownGame": 2,
     "nearestArt": 5,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 2.8,
+    "searchBase": 4.1
    },
    "refs": {
     "nearest": "9584852943",
@@ -1770,6 +1890,10 @@
     "nearestArt": 6,
     "searchArt": 1
    },
+   "base": {
+    "nearestBase": 8.9,
+    "searchBase": 2.7
+   },
    "refs": {
     "nearest": "9303888964",
     "search": "7516718402"
@@ -1808,6 +1932,10 @@
     "knownGame": 3,
     "nearestArt": 6,
     "searchArt": 6
+   },
+   "base": {
+    "nearestBase": 7.3,
+    "searchBase": 5.8
    },
    "refs": {
     "nearest": "6535370051",
@@ -1848,6 +1976,10 @@
     "nearestArt": 6,
     "searchArt": 6
    },
+   "base": {
+    "nearestBase": 5.4,
+    "searchBase": 8.7
+   },
    "refs": {
     "nearest": "6497966193",
     "search": "7498898979"
@@ -1886,6 +2018,10 @@
     "knownGame": 4,
     "nearestArt": 2,
     "searchArt": 4
+   },
+   "base": {
+    "nearestBase": 7.1,
+    "searchBase": 1.3
    },
    "refs": {
     "nearest": "10533638982",
@@ -1926,6 +2062,10 @@
     "nearestArt": 1,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 2,
+    "searchBase": 4.4
+   },
    "refs": {
     "nearest": "1776914212",
     "search": "1643450259"
@@ -1964,6 +2104,10 @@
     "knownGame": 4,
     "nearestArt": 8,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 6.2,
+    "searchBase": 3.9
    },
    "refs": {
     "nearest": "10766214469",
@@ -2004,6 +2148,10 @@
     "nearestArt": 5,
     "searchArt": 5
    },
+   "base": {
+    "nearestBase": 2.3,
+    "searchBase": 8
+   },
    "refs": {
     "nearest": "1811388660",
     "search": "10547090414"
@@ -2042,6 +2190,10 @@
     "knownGame": 8,
     "nearestArt": 7,
     "searchArt": 5
+   },
+   "base": {
+    "nearestBase": 3.2,
+    "searchBase": 6.7
    },
    "refs": {
     "nearest": "3124818385",
