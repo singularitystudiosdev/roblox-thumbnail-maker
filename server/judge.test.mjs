@@ -115,7 +115,7 @@ test("a linked game's own thumbnail and description reach the judge; a nearest g
   assert.equal(nearest.own, false)
   assert.equal(nearest.image, null)
   assert.equal(nearest.look, 'dark, realistic, cinematic night shot')
-  assert.match(judgeRequest('A axe game', 3, nearest), /It is a different game[\s\S]*look its thumbnail wins with: dark, realistic, cinematic night shot/)
+  assert.match(judgeRequest('A axe game', 3, nearest), /It is a different game[\s\S]*render style its thumbnail wins with: dark, realistic, cinematic night shot/)
   const lookless = await judgeContext({ reference, link: null }, dir, { details, lookOf: async () => Promise.reject(new Error('vision down')) })
   assert.equal(lookless.look, '')
 

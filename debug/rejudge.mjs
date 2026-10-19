@@ -11,6 +11,8 @@ import { loadDotEnv } from '../server/env.mjs'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 loadDotEnv(root)
 const judge = await import('../server/judge.mjs')
+// A candidate rubric to try instead of the shipped one: JUDGE_SYSTEM_FILE=/path/to/rubric.txt
+const system = process.env.JUDGE_SYSTEM_FILE ? readFileSync(process.env.JUDGE_SYSTEM_FILE, 'utf8') : undefined
 
 const [trialsArg, ...cases] = process.argv.slice(2)
 const trials = Number(trialsArg) || 5
@@ -38,7 +40,7 @@ for (const spec of cases) {
   for (let i = 0; i < trials; i++) {
     const t0 = Date.now()
     try {
-      const verdict = await judge.judgeThumbnails(run.gameName, entries, { context })
+      const verdict = await judge.judgeThumbnails(run.gameName, entries, { context, ...(system ? { system } : {}) })
       outcomes.push({ status: 'fulfilled', value: { trial: i + 1, ms: Date.now() - t0, ...verdict } })
     } catch (reason) {
       outcomes.push({ status: 'rejected', reason })

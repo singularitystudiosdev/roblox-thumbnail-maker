@@ -18,16 +18,16 @@ const PASS_STAGGER_MS = 1000
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const DESCRIPTION_LIMIT = 700
 
-const JUDGE_SYSTEM = `You judge Roblox game thumbnails for a creator. A good Roblox thumbnail lets a player scrolling past at small size understand the game at a glance and want to click it, and it never misleads them about what the game is.
+export const JUDGE_SYSTEM = `You judge Roblox game thumbnails for a creator. A good Roblox thumbnail lets a player scrolling past at small size understand the game at a glance and want to click it, and it never misleads them about what the game is.
 You get the creator's game (its name, or their description of it), context about the game, and candidate thumbnails labelled Image 1, Image 2 and so on by their position, in no particular order.
 Look closely at the whole of every image, its edges and corners included, before you score it.
 Score every candidate from 1 to 10 on:
-- fitsGame: it shows this game: its gameplay, characters, objects and setting as the name and the context describe them. A picture of a different setting, genre or story (for example a space battle for a farming game) misleads players: score it 1 to 3 however polished it is. Illustrating the words of the name literally is not enough when the context shows the game is something else.
-- genreLook: it has the look that wins for this kind of Roblox game, which the context gives (the game's own thumbnail, or the look of a popular game of its kind): a tactical shooter wins with dark, realistic, cinematic shots, a simulator or obby with bright, saturated, chunky ones. Judge the look against the context, never against one house style. Roblox avatars in a Roblox-built world either way; flat 2D drawings and photos of real people score low.
+- fitsGame: it shows this game: its gameplay, characters, objects and setting as the name and the context describe them. A picture of a different setting, genre or story (for example a space battle for a farming game) misleads players: score it 1 to 3 however polished it is. Illustrating the words of the name literally is not enough when the context shows the game is something else. Once a thumbnail clearly shows the game it scores 9 or 10: more props, more characters or more of the name's items never earn a higher fitsGame than another thumbnail that clearly shows the game too.
+- genreLook: it has the render style that wins for this kind of Roblox game, which the context gives (the game's own thumbnail, or the look of a popular game of its kind): a tactical shooter wins with realistic, cinematic renders, a simulator or obby with chunky, glossy cartoon ones. Match the render style and realism level only; the color palette and warm or cold lighting are free choices and never count against a thumbnail. Never judge against one house style. Roblox avatars in a Roblox-built world either way; flat 2D drawings and photos of real people score low. Within one render family, small differences in polish, texture or realism are equal genreLook.
 - clean: the picture fills the whole 16:9 frame edge to edge; white or blank corners, borders or a picture pasted inside a frame make a broken thumbnail, so score clean 1 to 3. A dark vignette that is part of the scene (a scope, night vision goggles, a camera or a flashlight view) is a deliberate effect, not a broken frame. Also no words anywhere (on screen, on signs or on clothing), no watermarks or artifacts. Small comic symbols such as zzz, arrows or exclamation marks barely matter.
-- clickable: at feed size (about 256 by 144 pixels) it stops a scrolling player: one big subject that reads at a glance, or a striking, unusual view or effect they have not seen on the other thumbnails. Big and close beats small and complete: the game's signature objects shown large and close, filling the frame with depth and drama, beat a distant scene that shows everything small. Things partly hidden behind the subject are fine.
+- clickable: at feed size (about 256 by 144 pixels) it stops a scrolling player. Big and close beats small and complete: the main subject and the game's signature objects shown large and close to the camera, filling the frame with strong depth between foreground and background, beat a flat or distant scene that shows everything small. A view that puts the player inside the action (over the shoulder, point of view, a low or high angle, a scope or camera view) is striking, and a character seen from behind is fine in such a view. One dominant subject beats several medium-size ones, and a busy scene full of props reads worse than one subject with a few big props. When the context shows the game's current thumbnail, a candidate that nearly repeats it adds nothing new and is less clickable than a fresh view of the same game. Score clickable by the main subject: one character or object large and close to the camera, about a third of the frame height or more, with a few big props, scores 8 to 10; two or more characters of similar medium size side by side, or props piled across the frame, score at most 6.
 - coherent: nothing is broken: warped bodies, duplicated or floating objects (such as two of the same tool, or a tool with no hand), impossible objects. A deliberate camera angle such as top down, close up, high angle or profile is not a flaw.
-Pick the winner: fitsGame decides first, because a thumbnail that misleads players cannot win. Among the thumbnails that fit the game, pick the best on the other four together.
+Pick the winner: fitsGame decides first, because a thumbnail that misleads players cannot win. Among the thumbnails that fit the game, pick the one the most players would click: clickable counts most, then genreLook, clean and coherent. Showing more of the name's items or a busier scene never wins over a bolder thumbnail with one dominant subject.
 Refer to candidates only as "Image" and their number. Write each note and the reason as one or two plain sentences without dashes.
 Reply as JSON: {"scores":[{"image":1,"fitsGame":1,"genreLook":1,"clean":1,"clickable":1,"coherent":1,"note":"..."}],"winner":1,"reason":"..."}`
 
@@ -147,8 +147,8 @@ async function ownGameContext(run, dir, place, thumbnailOf) {
 }
 
 const LOOK_SYSTEM = `You describe the visual look of a Roblox game thumbnail so a judge can match other thumbnails to it.
-In at most 12 words, give its lighting, colors and render style, for example "dark, realistic, cinematic night shot with muted colors" or "bright, saturated, chunky cartoon under a sunny sky".
-Never describe the scene, characters, objects or story. Use no dashes.
+In at most 10 words, give its render style and realism level only, for example "realistic, cinematic 3D render" or "chunky, glossy cartoon 3D render" or "flat 2D drawing".
+Never describe colors, lighting, the scene, characters, objects or story. Use no dashes.
 Reply as JSON: {"look": "..."}`
 
 const LOOK_SCHEMA = { type: 'OBJECT', properties: { look: { type: 'STRING' } }, required: ['look'] }
@@ -212,18 +212,18 @@ export function judgeRequest(gameName, count, context) {
       `Context: the most played Roblox game like the creator's is "${context.name}", with ${context.playing} playing now.${about}`,
       `It is a different game: use it only to understand this kind of game and the look its players click on, not as the creator's game.`
     )
-    if (context.look) lines.push(`The look its thumbnail wins with: ${context.look}. Judge genreLook against that look.`)
+    if (context.look) lines.push(`The render style its thumbnail wins with: ${context.look}. Judge genreLook against that render style.`)
   }
   lines.push(`Candidates: ${Array.from({ length: count }, (_, i) => `Image ${i + 1}`).join(', ')}.`)
   return lines.join('\n\n')
 }
 
-async function judgeOnce(gameName, entries, context, random) {
+async function judgeOnce(gameName, entries, context, random, system) {
   const order = shuffled(entries, random)
   const images = order.map((entry, i) => ({ label: `Image ${i + 1}`, mimeType: entry.mimeType, bytes: entry.bytes, url: entry.sourceUrl }))
   if (context?.image) images.push({ label: "The game's current thumbnail (context, not a candidate)", ...context.image })
   const { value, provider, model } = await askJson(
-    { label: 'Thumbnail judge', system: JUDGE_SYSTEM, user: judgeRequest(gameName, order.length, context), images, schema: JUDGE_SCHEMA },
+    { label: 'Thumbnail judge', system, user: judgeRequest(gameName, order.length, context), images, schema: JUDGE_SCHEMA },
     judgeRoutes()
   )
   const slots = order.map((entry) => entry.slot)
@@ -235,13 +235,13 @@ async function judgeOnce(gameName, entries, context, random) {
  * `context`: from judgeContext, or null. Returns { winnerSlot, reason, scores,
  * votes, passes, maxTotal, provider, model }.
  */
-export async function judgeThumbnails(gameName, entries, { random = Math.random, context = null, passes = PASSES } = {}) {
+export async function judgeThumbnails(gameName, entries, { random = Math.random, context = null, passes = PASSES, system = JUDGE_SYSTEM } = {}) {
   if (entries.length === 1) {
     return { winnerSlot: entries[0].slot, reason: 'The only thumbnail that generated.', scores: [], maxTotal: MAX_TOTAL, provider: null, model: null }
   }
   // Passes start a second apart: fal refuses a burst of image-heavy requests landing at once.
   const settled = await Promise.allSettled(
-    Array.from({ length: passes }, (_, i) => delay(i * PASS_STAGGER_MS).then(() => judgeOnce(gameName, entries, context, random)))
+    Array.from({ length: passes }, (_, i) => delay(i * PASS_STAGGER_MS).then(() => judgeOnce(gameName, entries, context, random, system)))
   )
   const done = settled.flatMap((outcome, i) => {
     if (outcome.status === 'fulfilled') return [outcome.value]
