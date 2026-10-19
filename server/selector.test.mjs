@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { planPickedSlots } from './run.mjs'
-import { ARMS, chooseArm, exampleOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
+import { readFit, hasFeatures } from './fit.mjs'
+import { ARMS, DEFAULT_PARAMS, chooseArm, exampleOf, expectedRegrets, featureOf, loadExamples, matchLevel, nameTokens, promptType, regretsOf } from './selector.mjs'
 
 const fit = (nearestFit, searchFit, nameClarity) => ({ nearestFit, searchFit, nameClarity })
 const regret = (winner, others = 6) => Object.fromEntries(ARMS.map((a) => [a, a === winner ? 0 : others]))
@@ -137,4 +138,55 @@ test('examples drawn with another image model count less than ones drawn with th
   const current = { game: 'Something new', fit: fit(5, 5, 5), refs: {}, model: 'nano-banana-2.1' }
   assert.equal(chooseArm(current, [...pro, ...now]).arm, 'plain')
   assert.equal(chooseArm({ ...current, model: 'nano-banana-pro' }, [...pro, ...now]).arm, 'meta')
+})
+
+test('the model\'s ratings are clamped, the genre is one of the list, and a missing reference rates null', () => {
+  const read = readFit({ fitA: 14, fitB: 'x', nameClarity: 0, genre: 'Tower-Defense', realism: 3.4, abstractness: '7', knownGame: 2, artA: 9, artB: 4, why: 'It fits — well.' }, { nearest: true, search: false })
+  assert.deepEqual(
+    { ...read, why: undefined },
+    { nearestFit: 10, searchFit: null, nameClarity: 1, genre: 'tower_defense', realism: 3, abstractness: 7, knownGame: 2, nearestArt: 9, searchArt: null, why: undefined }
+  )
+  assert.equal(read.why, 'It fits, well.')
+  assert.equal(readFit({ genre: 'cooking' }, { nearest: false, search: false }).genre, 'other')
+  assert.equal(hasFeatures(read), true)
+  assert.equal(hasFeatures({ nearestFit: 5, searchFit: 5, nameClarity: 5 }), false)
+})
+
+test('a feature is read from the rating, a reference\'s art from the reference the strategy starts from', () => {
+  const item = { game: 'Run from a giant rubber duck in a flooded school', fit: { ...fit(4, 8, 9), realism: 6, nearestArt: 3, searchArt: 8, genre: 'horror' } }
+  assert.equal(featureOf(item, 'meta', 'art'), 3)
+  assert.equal(featureOf(item, 'remix', 'art'), 3)
+  assert.equal(featureOf(item, 'search', 'art'), 8)
+  assert.equal(featureOf(item, 'plain', 'art'), 'style')
+  assert.equal(featureOf(item, 'plain', 'realism'), 6)
+  assert.equal(featureOf(item, 'plain', 'genre'), 'horror')
+  assert.equal(featureOf(item, 'plain', 'words'), 7)
+  assert.equal(featureOf({ game: 'x', fit: fit(1, 1, 1) }, 'plain', 'realism'), null)
+})
+
+test('a request feature, when asked for, makes runs like this one in it count more; unrated ones change nothing', () => {
+  const rated = (id, winner, realism) => ({ ...example(id, 'Same name', { ...fit(5, 5, 5), realism }, winner), model: null })
+  const examples = [rated('a', 'template', 9), rated('b', 'template', 9), rated('c', 'plain', 1), rated('d', 'plain', 1)]
+  const current = { game: 'Same name', fit: { ...fit(5, 5, 5), realism: 9 }, refs: {}, refNames: {} }
+  const off = expectedRegrets(current, examples)
+  const on = expectedRegrets(current, examples, { ...DEFAULT_PARAMS, features: ['realism'], featureWeight: 4 })
+  assert.ok(off.template - off.plain < 1e-9 && off.plain - off.template < 1e-9)
+  assert.ok(on.template < on.plain)
+  assert.equal(chooseArm(current, examples, { ...DEFAULT_PARAMS, features: ['realism'], featureWeight: 4 }).arm, 'template')
+  const unrated = { game: 'Same name', fit: fit(5, 5, 5), refs: {}, refNames: {} }
+  assert.deepEqual(expectedRegrets(unrated, examples, { ...DEFAULT_PARAMS, features: ['realism'], featureWeight: 4 }), expectedRegrets(unrated, examples))
+  // Splitting the typed prior by a feature pulls toward the runs on the same side of it.
+  const split = expectedRegrets(current, examples, { ...DEFAULT_PARAMS, split: ['realism'], typeShrink: 0.1, prior: 50 })
+  assert.ok(split.template < split.plain)
+})
+
+test('ratings the shipped seed carries beyond the run\'s own are filled in, the run\'s own kept', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'selector-'))
+  const seed = join(dir, 'seed.json')
+  const id = '2026-10-19T08-00-00-000Z-bbbbbbbb'
+  writeFileSync(seed, JSON.stringify({ examples: [example(id, 'Steal an Egg', { ...fit(1, 1, 1), realism: 7, genre: 'simulator' }, 'meta')] }))
+  mkdirSync(join(dir, 'outputs', id), { recursive: true })
+  writeFileSync(join(dir, 'outputs', id, 'run.json'), JSON.stringify(fullRun([40, 46, 44, 45, 35, 42], { selection: { fit: fit(9, 8, 5) } })))
+  const [loaded] = loadExamples(join(dir, 'outputs'), seed)
+  assert.deepEqual(loaded.fit, { ...fit(9, 8, 5), realism: 7, genre: 'simulator' })
 })

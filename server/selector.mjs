@@ -27,8 +27,34 @@ const FAMILY = { template: 'template', plain: 'plain', remix: 'remix', meta: 'on
 // typed: the prior is the strategy's regret in runs of the same prompt type (typeShrink examples' worth
 // of pull toward the coarser type).
 // otherModel: how much an example drawn with a different image model counts (strategies rank
-// differently per model: plain led under Nano Banana 2.1, meta under Pro).
-export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.25 }
+// differently per model: plain led under Nano Banana 2.1, meta under Pro). 0.25 before the request
+// features were backtested; the leave-one-out mean regret is flat from 0 to 0.1 and worse above, and
+// choosing it inside each fold (nested) beats 0.25 too, so other models now only trace the pull toward a prior.
+// features, featureWeight: the request features fit.mjs rates (FEATURES) that also count toward likeness,
+// each as one more dimension of distance; split: features that also split the typed prior by a low or high
+// half. Both empty by default: the backtest found none that beat the memory without them
+// (debug/strategy-backtest.mjs, "request features").
+export const DEFAULT_PARAMS = { nameWeight: 1, fitWeight: 1, bandwidth: 0.35, prior: 1, refBoost: 4, pool: 'sameRef', slope: false, allFits: true, typed: true, typeShrink: 2, otherModel: 0.1, features: [], featureWeight: 1, split: [] }
+
+/**
+ * The request features fit.mjs rates in its one call: realism, abstractness and knownGame (1 to 10) and genre
+ * describe the creator's words; art is the look of the reference the strategy starts from (1 flat 2D cartoon,
+ * 10 photoreal), and is the same for the two templates, which start from the one bundled style image.
+ * words is plain code, no rating: how many words of the name say what it is (capped at 10).
+ */
+export const FEATURES = ['words', 'realism', 'abstractness', 'knownGame', 'art', 'genre']
+
+/** A feature's value for `arm` in a run `item` ({ fit }): a number, a genre, or null when it was not rated. */
+export function featureOf(item, arm, name) {
+  const fit = item.fit ?? {}
+  if (name === 'words') return Math.min(10, nameTokens(item.game).length)
+  if (name === 'art') return arm === 'search' ? (fit.searchArt ?? null) : arm === 'meta' || arm === 'remix' ? (fit.nearestArt ?? null) : 'style'
+  return fit[name] ?? null
+}
+
+/** A feature split into a low and a high half at 6 (genre keeps its own value), for the typed prior's key. */
+const half = (value) => (typeof value === 'number' ? (value >= 6 ? 'high' : 'low') : String(value))
+
 
 const STOP = new Set(['a', 'an', 'the', 'my', 'of', 'in', 'on', 'with', 'and', 'for', 'to', 'game', 'roblox', 'your', 'me', 'make', 'thumbnail', 'but'])
 
@@ -86,9 +112,10 @@ export function promptType(item) {
 /** What `arm` starts from in a run `item` ({ fit, refs }): the reference game (or 'style') and its rating. */
 function situation(item, arm) {
   const type = promptType(item)
-  if (arm === 'meta' || arm === 'remix') return { ref: item.refs?.nearest ?? null, fit: item.fit?.nearestFit ?? 1, level: matchLevel(item.game, item.refNames?.nearest), type }
-  if (arm === 'search') return { ref: item.refs?.search ?? null, fit: item.fit?.searchFit ?? 1, level: matchLevel(item.game, item.refNames?.search), type }
-  return { ref: 'style', fit: item.fit?.nameClarity ?? 1, level: 'style', type }
+  const feats = Object.fromEntries(FEATURES.map((name) => [name, featureOf(item, arm, name)]))
+  if (arm === 'meta' || arm === 'remix') return { ref: item.refs?.nearest ?? null, fit: item.fit?.nearestFit ?? 1, level: matchLevel(item.game, item.refNames?.nearest), type, feats }
+  if (arm === 'search') return { ref: item.refs?.search ?? null, fit: item.fit?.searchFit ?? 1, level: matchLevel(item.game, item.refNames?.search), type, feats }
+  return { ref: 'style', fit: item.fit?.nameClarity ?? 1, level: 'style', type, feats }
 }
 
 // A thumbnail the creator passed over for their own pick counts at least this far behind it.
@@ -139,7 +166,8 @@ export function exampleOf(run) {
  * The selector's examples: every explore run in outputsDir, read fresh, so a re-judge or the
  * creator's own pick changes what it learns at once; plus the shipped ones (selector-seed.json) for
  * runs this machine does not have. A shipped example whose run is here keeps its reference ratings
- * (runs from before the selector rated none) and takes everything else from the run.
+ * (runs from before the selector rated none) and any rating field the run lacks (the request
+ * features rated after the run), and takes everything else from the run.
  */
 export function loadExamples(outputsDir, seedFile = new URL('./selector-seed.json', import.meta.url)) {
   const seed = seedFile && existsSync(seedFile) ? JSON.parse(readFileSync(seedFile, 'utf8')).examples : []
@@ -151,7 +179,8 @@ export function loadExamples(outputsDir, seedFile = new URL('./selector-seed.jso
       try {
         const run = JSON.parse(readFileSync(file, 'utf8'))
         const shipped = byId.get(name)
-        const example = exampleOf(shipped && !run.selection?.fit ? { ...run, selection: { ...run.selection, fit: shipped.fit } } : run)
+        // The run's own ratings win; fields only the shipped ones carry (the request features) fill in.
+        const example = exampleOf(shipped ? { ...run, selection: { ...run.selection, fit: { ...shipped.fit, ...run.selection?.fit } } } : run)
         if (example) byId.set(name, { ...example, id: name, model: example.model ?? shipped?.model ?? null })
       } catch (err) {
         console.error(`Saved run ${name} could not be read as a selector example:`, err)
@@ -198,7 +227,8 @@ function typedPrior(arm, here, examples, flat, params) {
   const keys = [
     (p) => p.level,
     (p) => `${p.level}|${p.type.match}`,
-    (p) => `${p.level}|${p.type.match}|${p.type.descriptive}`
+    (p) => `${p.level}|${p.type.match}|${p.type.descriptive}`,
+    ...(params.split ?? []).map((_, n, split) => (p) => `${p.level}|${p.type.match}|${p.type.descriptive}|${split.slice(0, n + 1).map((name) => half(p.feats[name])).join('|')}`)
   ]
   let estimate = flat
   for (const key of keys) {
@@ -212,12 +242,21 @@ function typedPrior(arm, here, examples, flat, params) {
 /** An example drawn with the run's own image model counts fully; one from another model counts `otherModel`. */
 const modelWeight = (current, model, params) => (current.model == null || model == null || model === current.model ? 1 : (params.otherModel ?? 1))
 
+/** Mean squared distance over the chosen request features both runs were rated on (0 when none was). */
+function featureDistance(current, point, params) {
+  const parts = (params.features ?? [])
+    .map((name) => [current.feats?.[name], point.feats?.[name]])
+    .filter(([a, b]) => a != null && b != null)
+    .map(([a, b]) => (typeof a === 'number' && typeof b === 'number' ? ((a - b) / 9) ** 2 : a === b ? 0 : 1))
+  return parts.length === 0 ? 0 : parts.reduce((sum, d) => sum + d, 0) / parts.length
+}
+
 function likeness(current, point, params) {
   const nameDistance = 1 - jaccard(current.tokens, point.tokens)
   const fitDistance = params.allFits
     ? Math.hypot(...current.fits.map((v, i) => (v - point.fits[i]) / 9)) / Math.sqrt(3)
     : (current.fit - point.fit) / 9
-  const d2 = params.nameWeight * nameDistance ** 2 + params.fitWeight * fitDistance ** 2
+  const d2 = params.nameWeight * nameDistance ** 2 + params.fitWeight * fitDistance ** 2 + (params.featureWeight ?? 1) * featureDistance(current, point, params)
   const sameRef = current.ref != null && current.ref !== 'style' && current.ref === point.ref
   return Math.exp(-d2 / (2 * params.bandwidth ** 2)) * (sameRef ? params.refBoost : 1) * modelWeight(current, point.model, params)
 }

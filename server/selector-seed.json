@@ -1,5 +1,5 @@
 {
- "about": "Explore runs (every strategy drawn and judged) the strategy selector learns from: each strategy's regret against the run's best thumbnail, out of 50, and the reference ratings from server/fit.mjs. Written by debug/strategy-backtest.mjs --write-seed.",
+ "about": "Explore runs (every strategy drawn and judged) the strategy selector learns from: each strategy's regret against the run's best thumbnail (or the creator's own pick), out of 50, the reference ratings and request features from server/fit.mjs, the reference games and the image model. The app reads saved runs fresh; these fill in runs a machine does not have and carry the features rated after a run was saved. Written by debug/strategy-backtest.mjs --write-seed.",
  "examples": [
   {
    "id": "2026-10-19T06-09-32-785Z-fdc1ba30",
@@ -7,7 +7,13 @@
    "fit": {
     "nearestFit": 6,
     "searchFit": 3,
-    "nameClarity": 5
+    "nameClarity": 5,
+    "genre": "other",
+    "realism": 6,
+    "abstractness": 5,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "7823137182",
@@ -17,13 +23,13 @@
     "nearest": "Hide the body",
     "search": "Hide the Friend"
    },
-   "model": "nano-banana-pro",
+   "model": "nano-banana-2",
    "regret": {
-    "template": 7,
-    "remix": 14.3,
+    "template": 3.7,
+    "remix": 14.7,
     "search": 0,
-    "meta": 5,
-    "plain": 7
+    "meta": 6.4,
+    "plain": 3.7
    }
   },
   {
@@ -32,7 +38,13 @@
    "fit": {
     "nearestFit": 5,
     "searchFit": 6,
-    "nameClarity": 3
+    "nameClarity": 3,
+    "genre": "other",
+    "realism": 2,
+    "abstractness": 9,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "1415710834",
@@ -42,13 +54,13 @@
     "nearest": "[🎃] Banana Eats ",
     "search": "Banana Nextbot 🍌"
    },
-   "model": "nano-banana-pro",
+   "model": "nano-banana-2",
    "regret": {
-    "template": 0,
-    "remix": 3.7,
-    "search": 9.4,
-    "meta": 1.4,
-    "plain": 0.4
+    "template": 0.6,
+    "remix": 7,
+    "search": 13,
+    "meta": 0.3,
+    "plain": 0
    }
   },
   {
@@ -57,7 +69,13 @@
    "fit": {
     "nearestFit": 8,
     "searchFit": 7,
-    "nameClarity": 5
+    "nameClarity": 5,
+    "genre": "tycoon",
+    "realism": 9,
+    "abstractness": 4,
+    "knownGame": 2,
+    "nearestArt": 8,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "4925331346",
@@ -67,13 +85,13 @@
     "nearest": "Giga Mansion Tycoon 🏝️",
     "search": "Mansion Tycoon 🌴🏠"
    },
-   "model": "nano-banana-pro",
+   "model": "nano-banana-2",
    "regret": {
-    "template": 9.7,
-    "remix": 8.7,
+    "template": 2,
+    "remix": 13.3,
     "search": 0,
-    "meta": 9.7,
-    "plain": 18.4
+    "meta": 13.7,
+    "plain": 11.3
    }
   },
   {
@@ -82,7 +100,13 @@
    "fit": {
     "nearestFit": 4,
     "searchFit": 2,
-    "nameClarity": 9
+    "nameClarity": 9,
+    "genre": "simulator",
+    "realism": 8,
+    "abstractness": 2,
+    "knownGame": 2,
+    "nearestArt": 5,
+    "searchArt": 4
    },
    "refs": {
     "nearest": "10767771133",
@@ -92,13 +116,13 @@
     "nearest": "Unbox A Treadmill",
     "search": "The  COOLEST TREADMILL GAME?!!!"
    },
-   "model": "nano-banana-pro",
+   "model": "nano-banana-2",
    "regret": {
     "template": 0,
-    "remix": 8,
-    "search": 25.3,
-    "meta": 3.3,
-    "plain": 7
+    "remix": 9.3,
+    "search": 23.6,
+    "meta": 4,
+    "plain": 5.6
    }
   },
   {
@@ -107,7 +131,13 @@
    "fit": {
     "nearestFit": 8,
     "searchFit": 6,
-    "nameClarity": 5
+    "nameClarity": 5,
+    "genre": "shooter",
+    "realism": 8,
+    "abstractness": 5,
+    "knownGame": 3,
+    "nearestArt": 8,
+    "searchArt": 9
    },
    "refs": {
     "nearest": "9807649116",
@@ -119,11 +149,11 @@
    },
    "model": "nano-banana-2.1",
    "regret": {
-    "template": 4,
-    "remix": 5.4,
-    "search": 7.4,
-    "meta": 0,
-    "plain": 8
+    "template": 0,
+    "remix": 8,
+    "search": 14,
+    "meta": 4.7,
+    "plain": 9
    }
   },
   {
@@ -132,7 +162,13 @@
    "fit": {
     "nearestFit": 8,
     "searchFit": 4,
-    "nameClarity": 6
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 8,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "9472441390",
@@ -144,11 +180,11 @@
    },
    "model": "nano-banana-pro",
    "regret": {
-    "template": 1,
-    "remix": 4,
+    "template": 2,
+    "remix": 4.3,
     "search": 0,
     "meta": 5.3,
-    "plain": 9.3
+    "plain": 8
    }
   },
   {
@@ -157,7 +193,13 @@
    "fit": {
     "nearestFit": 10,
     "searchFit": 4,
-    "nameClarity": 4
+    "nameClarity": 4,
+    "genre": "other",
+    "realism": 3,
+    "abstractness": 7,
+    "knownGame": 8,
+    "nearestArt": 6,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "10769384180",
@@ -169,11 +211,11 @@
    },
    "model": "nano-banana-2",
    "regret": {
-    "template": 22,
-    "remix": 18.3,
-    "search": 14,
+    "template": 22.7,
+    "remix": 18,
+    "search": 17.4,
     "meta": 0,
-    "plain": 15.3
+    "plain": 18.4
    }
   },
   {
@@ -182,7 +224,13 @@
    "fit": {
     "nearestFit": 6,
     "searchFit": 9,
-    "nameClarity": 6
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 8,
+    "abstractness": 5,
+    "knownGame": 4,
+    "nearestArt": 2,
+    "searchArt": 6
    },
    "refs": {
     "nearest": "7383133134",
@@ -194,10 +242,10 @@
    },
    "model": "nano-banana-2",
    "regret": {
-    "template": 7.7,
-    "remix": 12.7,
-    "search": 1,
-    "meta": 7.4,
+    "template": 10,
+    "remix": 16.7,
+    "search": 1.3,
+    "meta": 13.3,
     "plain": 0
    }
   },
@@ -207,7 +255,13 @@
    "fit": {
     "nearestFit": 4,
     "searchFit": 9,
-    "nameClarity": 4
+    "nameClarity": 4,
+    "genre": "tycoon",
+    "realism": 6,
+    "abstractness": 8,
+    "knownGame": 4,
+    "nearestArt": 6,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "10765568909",
@@ -220,10 +274,10 @@
    "model": "nano-banana-2.1",
    "regret": {
     "template": 0,
-    "remix": 9.4,
-    "search": 0.4,
-    "meta": 1,
-    "plain": 8
+    "remix": 7.3,
+    "search": 0,
+    "meta": 0.7,
+    "plain": 3.3
    }
   },
   {
@@ -232,7 +286,13 @@
    "fit": {
     "nearestFit": 4,
     "searchFit": 9,
-    "nameClarity": 4
+    "nameClarity": 4,
+    "genre": "tycoon",
+    "realism": 6,
+    "abstractness": 8,
+    "knownGame": 4,
+    "nearestArt": 6,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "10765568909",
@@ -246,9 +306,9 @@
    "regret": {
     "template": 0,
     "remix": 9,
-    "search": 7,
-    "meta": 6.3,
-    "plain": 6.3
+    "search": 5.4,
+    "meta": 7,
+    "plain": 7
    }
   },
   {
@@ -257,7 +317,13 @@
    "fit": {
     "nearestFit": 4,
     "searchFit": 8,
-    "nameClarity": 4
+    "nameClarity": 4,
+    "genre": "tycoon",
+    "realism": 6,
+    "abstractness": 8,
+    "knownGame": 4,
+    "nearestArt": 6,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "10765568909",
@@ -269,10 +335,10 @@
    },
    "model": "nano-banana-2",
    "regret": {
-    "template": 7.7,
-    "remix": 9.7,
-    "search": 9,
-    "meta": 9,
+    "template": 6,
+    "remix": 7.7,
+    "search": 7.4,
+    "meta": 10,
     "plain": 0
    }
   },
@@ -282,7 +348,13 @@
    "fit": {
     "nearestFit": 6,
     "searchFit": 3,
-    "nameClarity": 5
+    "nameClarity": 5,
+    "genre": "other",
+    "realism": 6,
+    "abstractness": 6,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "7823137182",
@@ -294,11 +366,11 @@
    },
    "model": "nano-banana-pro",
    "regret": {
-    "template": 8.3,
-    "remix": 11.3,
+    "template": 8.6,
+    "remix": 13.3,
     "search": 0,
-    "meta": 6.7,
-    "plain": 4.3
+    "meta": 10.3,
+    "plain": 4.6
    }
   },
   {
@@ -307,7 +379,13 @@
    "fit": {
     "nearestFit": 6,
     "searchFit": 6,
-    "nameClarity": 4
+    "nameClarity": 4,
+    "genre": "other",
+    "realism": 5,
+    "abstractness": 7,
+    "knownGame": 3,
+    "nearestArt": 6,
+    "searchArt": 6
    },
    "refs": {
     "nearest": "9641502068",
@@ -319,11 +397,11 @@
    },
    "model": "nano-banana-pro",
    "regret": {
-    "template": 0,
+    "template": 7.3,
     "remix": 3.7,
-    "search": 0.3,
+    "search": 0,
     "meta": 3.3,
-    "plain": 2.3
+    "plain": 9.7
    }
   },
   {
@@ -332,7 +410,13 @@
    "fit": {
     "nearestFit": 2,
     "searchFit": 5,
-    "nameClarity": 3
+    "nameClarity": 3,
+    "genre": "other",
+    "realism": 5,
+    "abstractness": 7,
+    "knownGame": 2,
+    "nearestArt": 6,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "10769798178",
@@ -344,11 +428,11 @@
    },
    "model": "nano-banana-pro",
    "regret": {
-    "template": 0.7,
-    "remix": 0.7,
-    "search": 6.7,
-    "meta": 0,
-    "plain": 2
+    "template": 0,
+    "remix": 10.3,
+    "search": 3.3,
+    "meta": 10.6,
+    "plain": 1.3
    }
   },
   {
@@ -357,7 +441,13 @@
    "fit": {
     "nearestFit": 4,
     "searchFit": 3,
-    "nameClarity": 2
+    "nameClarity": 2,
+    "genre": "fighting",
+    "realism": 4,
+    "abstractness": 9,
+    "knownGame": 8,
+    "nearestArt": 6,
+    "searchArt": 6
    },
    "refs": {
     "nearest": "9641502068",
@@ -382,7 +472,13 @@
    "fit": {
     "nearestFit": 9,
     "searchFit": 8,
-    "nameClarity": 6
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 3,
+    "abstractness": 4,
+    "knownGame": 7,
+    "nearestArt": 5,
+    "searchArt": 5
    },
    "refs": {
     "nearest": "10563114921",
@@ -394,11 +490,11 @@
    },
    "model": "nano-banana-pro",
    "regret": {
-    "template": 5.3,
-    "remix": 3,
-    "search": 0,
-    "meta": 2.3,
-    "plain": 9.3
+    "template": 7,
+    "remix": 2.4,
+    "search": 5.7,
+    "meta": 0,
+    "plain": 13
    }
   },
   {
@@ -407,7 +503,13 @@
    "fit": {
     "nearestFit": 9,
     "searchFit": 8,
-    "nameClarity": 5
+    "nameClarity": 5,
+    "genre": "other",
+    "realism": 4,
+    "abstractness": 5,
+    "knownGame": 6,
+    "nearestArt": 5,
+    "searchArt": 7
    },
    "refs": {
     "nearest": "10563114921",
@@ -419,11 +521,631 @@
    },
    "model": "nano-banana-pro",
    "regret": {
-    "template": 5.3,
-    "remix": 1.3,
-    "search": 5.3,
+    "template": 9.3,
+    "remix": 1.4,
+    "search": 7.7,
+    "meta": 1.7,
+    "plain": 11
+   }
+  },
+  {
+   "id": "2026-10-19T08-09-42-006Z-6e6de45e",
+   "game": "Grow a Garden",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 6,
+    "nameClarity": 6,
+    "genre": "simulator",
+    "realism": 6,
+    "abstractness": 6,
+    "knownGame": 9,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "7436755782",
+    "search": "10768292556"
+   },
+   "refNames": {
+    "nearest": "[🎃] Grow a Garden 🌶️",
+    "search": "[🌱] Grow a Plant"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 7,
+    "remix": 0,
+    "search": 11.7,
+    "meta": 7,
+    "plain": 8
+   }
+  },
+  {
+   "id": "2026-10-19T08-09-57-005Z-13633f2b",
+   "game": "Blade Ball",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 10,
+    "nameClarity": 5,
+    "genre": "fighting",
+    "realism": 2,
+    "abstractness": 7,
+    "knownGame": 10,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10685282333",
+    "search": "4777817887"
+   },
+   "refNames": {
+    "nearest": "[🎃] Ball VS Ball",
+    "search": "Blade Ball"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 4.3,
+    "remix": 13.7,
+    "search": 0,
+    "meta": 17,
+    "plain": 4
+   }
+  },
+  {
+   "id": "2026-10-19T08-10-33-186Z-e0bc0a59",
+   "game": "Dress to Impress",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 4,
+    "nameClarity": 5,
+    "genre": "roleplay",
+    "realism": 7,
+    "abstractness": 6,
+    "knownGame": 10,
+    "nearestArt": 8,
+    "searchArt": 7
+   },
+   "refs": {
+    "nearest": "5203828273",
+    "search": "10222476236"
+   },
+   "refNames": {
+    "nearest": "[🎃] Dress To Impress",
+    "search": "⭐Catalog Avatar Runway"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 6.4,
+    "remix": 1.9,
+    "search": 10.4,
+    "meta": 5.7,
+    "plain": 9.4
+   }
+  },
+  {
+   "id": "2026-10-19T08-10-45-990Z-ba1d4d04",
+   "game": "Break and Steal a Brainrot",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 8,
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 2,
+    "abstractness": 8,
+    "knownGame": 6,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "7709344486",
+    "search": "9758688665"
+   },
+   "refNames": {
+    "nearest": "[💀] Steal a Brainrot",
+    "search": "Steal The Brainrot Base🧠"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 7.8,
+    "search": 2.3,
+    "meta": 0,
+    "plain": 2.3
+   }
+  },
+  {
+   "id": "2026-10-19T08-11-18-591Z-ab254117",
+   "game": "Escape the Zombie Prison",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 4,
+    "nameClarity": 5,
+    "genre": "survival",
+    "realism": 4,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 7
+   },
+   "refs": {
+    "nearest": "3310460039",
+    "search": "10769401598"
+   },
+   "refNames": {
+    "nearest": "🚨BARRY'S PRISON RUN! (OBBY)",
+    "search": "🔥 LAVA MODE PRISON RUN ESCAPE! (Obby)"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 14.9,
+    "search": 11,
+    "meta": 2.7,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T08-12-08-369Z-b9f4159b",
+   "game": "Pizza Delivery Tycoon",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 4,
+    "nameClarity": 6,
+    "genre": "tycoon",
+    "realism": 8,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 6,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10765541201",
+    "search": "9243632965"
+   },
+   "refNames": {
+    "nearest": "2 Player Pizza Tycoon 🍕",
+    "search": "My Pizza Factory 🍕"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 7.3,
+    "remix": 8.7,
+    "search": 0,
+    "meta": 5.6,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T08-13-00-374Z-267c21c2",
+   "game": "Run from a giant rubber duck in a flooded school",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 8,
+    "nameClarity": 9,
+    "genre": "horror",
+    "realism": 4,
+    "abstractness": 1,
+    "knownGame": 2,
+    "nearestArt": 5,
+    "searchArt": 4
+   },
+   "refs": {
+    "nearest": "323675642",
+    "search": "10766587505"
+   },
+   "refNames": {
+    "nearest": "Flood Escape 2 🌊",
+    "search": "Duck Escape[Horror]"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 5.4,
+    "remix": 12.4,
+    "search": 3.7,
+    "meta": 4.4,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T08-14-05-945Z-1c46ecca",
+   "game": "Toilet Racing",
+   "fit": {
+    "nearestFit": 5,
+    "searchFit": 3,
+    "nameClarity": 4,
+    "genre": "racing",
+    "realism": 3,
+    "abstractness": 4,
+    "knownGame": 3,
+    "nearestArt": 4,
+    "searchArt": 6
+   },
+   "refs": {
+    "nearest": "7332812970",
+    "search": "8599500903"
+   },
+   "refNames": {
+    "nearest": "Motorcycle Racing 🏍️",
+    "search": "Ban Thai Racing 🏍️ "
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 7.6,
+    "search": 4.3,
     "meta": 2.3,
+    "plain": 1.7
+   }
+  },
+  {
+   "id": "2026-10-19T08-14-46-499Z-71bd2484",
+   "game": "A cat that builds rockets to escape the moon",
+   "fit": {
+    "nearestFit": 3,
+    "searchFit": 6,
+    "nameClarity": 7,
+    "genre": "simulator",
+    "realism": 2,
+    "abstractness": 3,
+    "knownGame": 2,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10456511458",
+    "search": "9544512586"
+   },
+   "refNames": {
+    "nearest": "[SATURN! 🪐] Build to the moon!",
+    "search": "[🚀] +1 Rocket Speed Escape"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2.7,
+    "remix": 15.7,
+    "search": 10.4,
+    "meta": 9.4,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T08-15-42-344Z-bad89501",
+   "game": "Tower defense with vending machines that come alive",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 2,
+    "nameClarity": 6,
+    "genre": "tower_defense",
+    "realism": 3,
+    "abstractness": 4,
+    "knownGame": 2,
+    "nearestArt": 4,
+    "searchArt": 6
+   },
+   "refs": {
+    "nearest": "10231502419",
+    "search": "3493529497"
+   },
+   "refNames": {
+    "nearest": "🎃 SNACK Defense! [TD]",
+    "search": "⭐Flavor Frenzy [Tower Defense]"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2.7,
+    "remix": 4.1,
+    "search": 6.7,
+    "meta": 4,
+    "plain": 0
+   }
+  },
+  {
+   "id": "2026-10-19T08-16-22-813Z-f4bf8a25",
+   "game": "Rob a Bank",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 9,
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 8,
+    "abstractness": 4,
+    "knownGame": 5,
+    "nearestArt": 7,
+    "searchArt": 2
+   },
+   "refs": {
+    "nearest": "16680835",
+    "search": "7383133134"
+   },
+   "refNames": {
+    "nearest": "🎃 Notoriety: A PAYDAY® Experience",
+    "search": "💰 Deadly Heist 💰"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 2,
+    "search": 4.3,
+    "meta": 2,
+    "plain": 2
+   }
+  },
+  {
+   "id": "2026-10-19T08-16-53-636Z-85dd6818",
+   "game": "Fake an Egg",
+   "fit": {
+    "nearestFit": 3,
+    "searchFit": 9,
+    "nameClarity": 4,
+    "genre": "other",
+    "realism": 4,
+    "abstractness": 7,
+    "knownGame": 8,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10563114921",
+    "search": "10769384180"
+   },
+   "refNames": {
+    "nearest": "Steal An Egg",
+    "search": "Fake an Egg"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 10.4,
+    "remix": 7.5,
+    "search": 0,
+    "meta": 7.4,
     "plain": 10.7
+   }
+  },
+  {
+   "id": "2026-10-19T08-31-47-160Z-d5711bf0",
+   "game": "Murder Mystery 2",
+   "fit": {
+    "nearestFit": 10,
+    "searchFit": 5,
+    "nameClarity": 4,
+    "genre": "other",
+    "realism": 5,
+    "abstractness": 7,
+    "knownGame": 10,
+    "nearestArt": 5,
+    "searchArt": 8
+   },
+   "refs": {
+    "nearest": "66654135",
+    "search": "10764959046"
+   },
+   "refNames": {
+    "nearest": "Murder Mystery 2",
+    "search": "Locust Murder Mystery"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 3.3,
+    "remix": 8,
+    "search": 4.3,
+    "meta": 0,
+    "plain": 10.3
+   }
+  },
+  {
+   "id": "2026-10-19T08-32-36-793Z-c530873f",
+   "game": "Natural Disaster Survival",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 7,
+    "nameClarity": 5,
+    "genre": "survival",
+    "realism": 6,
+    "abstractness": 5,
+    "knownGame": 10,
+    "nearestArt": 5,
+    "searchArt": 6
+   },
+   "refs": {
+    "nearest": "65241",
+    "search": "10769484703"
+   },
+   "refNames": {
+    "nearest": "Natural Disaster Survival",
+    "search": "What If Disasters"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 8,
+    "remix": 0,
+    "search": 9,
+    "meta": 4.7,
+    "plain": 7.3
+   }
+  },
+  {
+   "id": "2026-10-19T08-34-59-231Z-11710a4b",
+   "game": "Doors",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 6,
+    "nameClarity": 3,
+    "genre": "horror",
+    "realism": 5,
+    "abstractness": 9,
+    "knownGame": 9,
+    "nearestArt": 6,
+    "searchArt": 2
+   },
+   "refs": {
+    "nearest": "2440500124",
+    "search": "7041101865"
+   },
+   "refNames": {
+    "nearest": "DOORS 🚨",
+    "search": "DOORS HARDCORE"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 11.4,
+    "remix": 0,
+    "search": 21.7,
+    "meta": 7.4,
+    "plain": 5
+   }
+  },
+  {
+   "id": "2026-10-19T08-35-42-713Z-f4abcc2c",
+   "game": "Tower of Hell",
+   "fit": {
+    "nearestFit": 4,
+    "searchFit": 8,
+    "nameClarity": 4,
+    "genre": "obby",
+    "realism": 2,
+    "abstractness": 7,
+    "knownGame": 10,
+    "nearestArt": 4,
+    "searchArt": 6
+   },
+   "refs": {
+    "nearest": "703124385",
+    "search": "3264581003"
+   },
+   "refNames": {
+    "nearest": "Tower of Hell",
+    "search": "[🎃] Eternal Towers of Hell"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 2,
+    "search": 2,
+    "meta": 0,
+    "plain": 2
+   }
+  },
+  {
+   "id": "2026-10-19T08-36-25-693Z-03bb53ad",
+   "game": "Steal a Car",
+   "fit": {
+    "nearestFit": 7,
+    "searchFit": 8,
+    "nameClarity": 6,
+    "genre": "other",
+    "realism": 7,
+    "abstractness": 5,
+    "knownGame": 7,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "10765153945",
+    "search": "10761143648"
+   },
+   "refNames": {
+    "nearest": "[🎃] Steal A Car",
+    "search": "Steal all Cars"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 11.3,
+    "remix": 0.8,
+    "search": 5.7,
+    "meta": 12,
+    "plain": 7.7
+   }
+  },
+  {
+   "id": "2026-10-19T08-37-14-547Z-b4e77b2f",
+   "game": "Grow a Giant Pumpkin",
+   "fit": {
+    "nearestFit": 8,
+    "searchFit": 8,
+    "nameClarity": 7,
+    "genre": "simulator",
+    "realism": 6,
+    "abstractness": 4,
+    "knownGame": 7,
+    "nearestArt": 5,
+    "searchArt": 5
+   },
+   "refs": {
+    "nearest": "7436755782",
+    "search": "10768502806"
+   },
+   "refNames": {
+    "nearest": "[🎃] Grow a Garden 🌶️",
+    "search": "[2x🎃] Grow a Giant Pumpkin"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 2,
+    "remix": 0,
+    "search": 2,
+    "meta": 0,
+    "plain": 2
+   }
+  },
+  {
+   "id": "2026-10-19T08-38-02-914Z-bf227c96",
+   "game": "Sell Lemonade",
+   "fit": {
+    "nearestFit": 9,
+    "searchFit": 4,
+    "nameClarity": 6,
+    "genre": "tycoon",
+    "realism": 8,
+    "abstractness": 5,
+    "knownGame": 3,
+    "nearestArt": 5,
+    "searchArt": 4
+   },
+   "refs": {
+    "nearest": "7395930870",
+    "search": "10596137726"
+   },
+   "refNames": {
+    "nearest": " [🎃] Sell Lemons 🍋",
+    "search": "LIT ENERGY LEMONADE TYCOON"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 0,
+    "remix": 8.5,
+    "search": 19.6,
+    "meta": 4.3,
+    "plain": 0.6
+   }
+  },
+  {
+   "id": "2026-10-19T08-38-49-826Z-3d1499bd",
+   "game": "A ninja that only fights with spoons",
+   "fit": {
+    "nearestFit": 6,
+    "searchFit": 6,
+    "nameClarity": 6,
+    "genre": "fighting",
+    "realism": 2,
+    "abstractness": 3,
+    "knownGame": 2,
+    "nearestArt": 3,
+    "searchArt": 4
+   },
+   "refs": {
+    "nearest": "5426911953",
+    "search": "3110388936"
+   },
+   "refNames": {
+    "nearest": "[⚡] Ninja Battlegrounds",
+    "search": "[ World Map + Combat QOL 👊] Ninja Time"
+   },
+   "model": "nano-banana-2.1",
+   "regret": {
+    "template": 3.6,
+    "remix": 6.6,
+    "search": 0,
+    "meta": 2,
+    "plain": 2
    }
   }
  ]
