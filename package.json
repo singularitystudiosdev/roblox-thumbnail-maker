@@ -2,7 +2,7 @@
   "name": "roblox-thumbnail-maker",
   "private": true,
   "version": "0.1.0",
-  "description": "One prompt, five Nano Banana 2 Roblox thumbnails (two templates in the style of your reference image, a novel perspective remix of a popular game like yours, the plain template on its thumbnail and on the top game of a plain Roblox search), and a judge-picked winner",
+  "description": "One prompt, five Nano Banana Pro Roblox thumbnails (two templates in the style of your reference image, a novel perspective remix of a popular game like yours, the plain template on its thumbnail and on the top game of a plain Roblox search), and a judge-picked winner with its 512 by 512 icon",
   "type": "module",
   "engines": {
     "node": ">=20"

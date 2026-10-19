@@ -81,7 +81,7 @@ export interface Run {
   namedBy: 'link' | 'typed'
   link: { placeId: string; title: string; url: string } | null
   style: StyleRef
-  /** The image model every slot used; runs saved before the switch have none and used Nano Banana 2. */
+  /** The image model every slot used; runs saved before it was recorded have none and used Nano Banana 2. */
   imageModel?: { key: string; label: string }
   reference: Reference | null
   /** The search meta's game; runs saved before it have none. */
@@ -104,21 +104,14 @@ export type RunEvent =
   | { type: 'done'; run: Run }
   | { type: 'error'; error: string }
 
-/** One model the image switch offers; falOnly: Google's API has no id for it. */
-export interface ImageModelOption {
-  key: string
-  label: string
-  falOnly: boolean
-}
-
 export interface Status {
   geminiKeys: number
   falKeys: number
   imageProvider: string
   imageModel: string
   falModel: string
-  imageModels: ImageModelOption[]
-  defaultImageModel: string
+  /** "Nano Banana Pro": the one image model. */
+  imageModelLabel: string
   styleReferenceName: string
 }
 
@@ -138,11 +131,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** Starts a run and hands each NDJSON event to `onEvent` as it arrives. */
-async function run(prompt: string, style: StyleUpload | null, imageModel: string, onEvent: (event: RunEvent) => void) {
+async function run(prompt: string, style: StyleUpload | null, onEvent: (event: RunEvent) => void) {
   const res = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, style, imageModel })
+    body: JSON.stringify({ prompt, style })
   })
   if (!res.ok || !res.body) {
     const body = await res.json().catch((err) => {

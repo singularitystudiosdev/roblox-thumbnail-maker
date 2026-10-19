@@ -1,10 +1,8 @@
-// The run's Nano Banana model (imagemodels.mjs: 2 by default, 2.1 or Pro), two
-// routes to the same model: the Gemini API directly, or fal.ai's hosted
-// endpoint when Gemini fails (out of quota or credit, or no image back), or
-// fal.ai alone when Google's API has no id for the model. Each call is one
-// prompt plus one reference image, nothing else. fal output is 1K, the Gemini
-// route's default size (1376x768); at 2K the model drifts from the
-// reference's 3D render into a painterly style.
+// Nano Banana Pro (imagemodels.mjs), two routes to the same model: the Gemini
+// API directly, or fal.ai's hosted endpoint when Gemini fails (out of quota or
+// credit, or no image back). Each call is one prompt plus one reference image,
+// nothing else. fal output is 1K, the Gemini route's default size (1376x768);
+// at 2K the model drifts from the reference's 3D render into a painterly style.
 import { config } from './env.mjs'
 import { falRun } from './fal.mjs'
 import { generateContent, ProviderUnavailable } from './gemini.mjs'
@@ -70,16 +68,12 @@ async function viaFal(prompt, reference, endpoint, aspectRatio) {
 }
 
 /**
- * Sends the exact prompt plus the reference image bytes to `model` (from
- * imageModel(); Nano Banana 2 by default) at `aspectRatio` (16:9 unless told
+ * Sends the exact prompt plus the reference image bytes to `model`
+ * (imageModel(): Nano Banana Pro) at `aspectRatio` (16:9 unless told
  * otherwise); returns the image and which route served it.
  */
 export async function generateImage(prompt, reference, model = imageModel(), { aspectRatio = ASPECT_RATIO } = {}) {
   const mode = config().imageProvider
-  if (!model.gemini) {
-    if (mode === 'gemini') throw new Error(`${model.label} is on fal.ai only, and IMAGE_PROVIDER is set to gemini.`)
-    return viaFal(prompt, reference, model.fal, aspectRatio)
-  }
   if (mode === 'fal') return viaFal(prompt, reference, model.fal, aspectRatio)
   try {
     return await viaGemini(prompt, reference, model.gemini, aspectRatio)

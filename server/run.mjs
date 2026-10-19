@@ -58,7 +58,7 @@ async function nearestOrNull(gameName, extraNames) {
 /**
  * `style`: { bytes, mimeType, name, source: 'bundled' | 'upload' }, the image
  * the two templates are styled after; `model`: the image model every slot uses
- * (imageModel(), Nano Banana 2 by default). Returns the saved run record.
+ * (imageModel(): Nano Banana Pro). Returns the saved run record.
  */
 export async function runThumbnails({ input, style, outputsDir, emit = () => {}, random = Math.random, model = imageModel() }) {
   const started = Date.now()
@@ -242,8 +242,7 @@ export async function rejudgeRun(outputsDir, id, { icon = makeIcon } = {}) {
     })
   if (finished.length === 0) return record
   await judgeInto(record, dir, finished)
-  // Runs saved before the switch used Nano Banana 2.
-  await iconForWinner(record, dir, imageModel(record.imageModel?.key) ?? imageModel(), { icon })
+  await iconForWinner(record, dir, imageModel(), { icon })
   writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))
   return record
 }

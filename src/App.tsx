@@ -9,9 +9,6 @@ import { ThumbnailGrid } from './components/ThumbnailGrid'
 import { WinnerStage, type Phase } from './components/WinnerStage'
 import { api, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
 
-// The image model switch's last pick, kept in this browser.
-const IMAGE_MODEL_KEY = 'roblox-thumbnail-maker.image-model'
-
 const EXAMPLES = [
   'https://www.roblox.com/games/107778070777162/Steal-An-Egg',
   'A axe throwing game with a bacon hair in the thumbnail',
@@ -61,7 +58,6 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<Run[]>([])
   const [status, setStatus] = useState<Status | null>(null)
-  const [imageModel, setImageModel] = useState(() => localStorage.getItem(IMAGE_MODEL_KEY) ?? 'nano-banana-2')
   const exampleIndex = useRef(0)
   const busy = phase === 'running' || phase === 'judging'
   const elapsed = useElapsed(busy)
@@ -74,15 +70,6 @@ export function App() {
     refreshHistory()
     api.status().then(setStatus).catch((err) => console.error('Status load failed', err))
   }, [refreshHistory])
-
-  // A saved pick the server no longer offers falls back to its default.
-  const models = status?.imageModels ?? []
-  const pickedModel = models.some((m) => m.key === imageModel) ? imageModel : (status?.defaultImageModel ?? imageModel)
-  const pickModel = (key: string) => {
-    setImageModel(key)
-    localStorage.setItem(IMAGE_MODEL_KEY, key)
-  }
-
   const start = async (text = prompt) => {
     if (!text.trim()) return
     setPhase('running')
@@ -91,7 +78,7 @@ export function App() {
     setShownSlot(null)
     let finished = false
     try {
-      await api.run(text, styleUpload, pickedModel, (event) => {
+      await api.run(text, styleUpload, (event) => {
         if (event.type === 'error') throw new Error(event.error)
         if (event.type === 'judging') setPhase('judging')
         if (event.type === 'done') finished = true
@@ -154,8 +141,7 @@ export function App() {
         </div>
         {route && (
           <p className="text-caption text-text-secondary">
-            {models.find((m) => m.key === pickedModel)?.label ?? 'Nano Banana 2'} via{' '}
-            {models.find((m) => m.key === pickedModel)?.falOnly ? 'fal.ai' : route}
+            {status?.imageModelLabel} via {route}
           </p>
         )}
       </header>
@@ -164,15 +150,7 @@ export function App() {
         {/* Phones: the left column dissolves so the results sit right under the prompt. */}
         <div className="contents lg:col-span-4 lg:flex lg:min-w-0 lg:flex-col lg:gap-24">
           <div className="order-1 min-w-0 lg:order-none">
-            <PromptBox
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={() => start()}
-              busy={busy}
-              models={models}
-              model={pickedModel}
-              onModelChange={pickModel}
-            />
+            <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => start()} busy={busy} />
           </div>
           <div className="order-3 min-w-0 lg:order-none">
             <StyleCard upload={styleUpload} defaultName={status?.styleReferenceName ?? 'Default reference'} disabled={busy} onUpload={setStyleUpload} />
