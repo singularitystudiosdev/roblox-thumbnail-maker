@@ -185,6 +185,41 @@
    "accept": [
     1
    ]
+  },
+  {
+   "run": "2026-10-19T12-24-26-124Z-2a9cb955",
+   "game": "Rob a Bank (picked, Nano Banana 2.1)",
+   "accept": [
+    1
+   ]
+  },
+  {
+   "run": "2026-10-19T12-24-26-131Z-2ca0c30c",
+   "game": "Whiteout Survival (picked, Nano Banana 2.1)",
+   "accept": [
+    2
+   ]
+  },
+  {
+   "run": "2026-10-19T12-24-26-133Z-c256eb92",
+   "game": "Break and Steal an Egg (picked, Nano Banana 2.1)",
+   "accept": [
+    2
+   ]
+  },
+  {
+   "run": "2026-10-19T12-25-35-798Z-f2de2457",
+   "game": "Killer Clown Escape (picked, Nano Banana 2.1)",
+   "accept": [
+    1
+   ]
+  },
+  {
+   "run": "2026-10-19T12-25-35-801Z-410668f6",
+   "game": "Ragdoll Football (picked, Nano Banana 2.1)",
+   "accept": [
+    2
+   ]
   }
  ]
 }
