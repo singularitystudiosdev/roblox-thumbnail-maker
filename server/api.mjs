@@ -5,6 +5,7 @@ import { basename, extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { generateThumbnail, OUTPUT_RESOLUTION } from './imagegen.mjs'
 import { buildPrompt, extractGameName } from './prompt.mjs'
+import { downloadThumbnail, findReference, isAllowedReferenceUrl } from './roblox.mjs'
 
 const MAX_BODY = 64 * 1024
 const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' }
@@ -32,11 +33,41 @@ async function readJson(req) {
   }
 }
 
-/** The fixed style reference every thumbnail is generated from. */
+/** The bundled reference, used when Roblox search finds nothing usable. */
 function referenceFile(root) {
   const file = join(root, config().referenceImage)
   if (!existsSync(file)) throw new Error(`Reference image not found at ${config().referenceImage}. Set REFERENCE_IMAGE in .env.`)
   return { file, mimeType: MIME[extname(file).toLowerCase()] ?? 'image/png' }
+}
+
+const fallbackReference = () => ({ source: 'fallback', name: config().referenceName, thumbnailUrl: '/api/reference' })
+
+/** The most-played Roblox game near the name, or the bundled reference when search fails or finds nothing. */
+async function referenceFor(gameName) {
+  try {
+    const found = await findReference(gameName)
+    if (found) {
+      const { game, nearCount } = found
+      return { source: 'roblox', nearCount, ...game }
+    }
+    console.warn(`No Roblox game found for "${gameName}", using the bundled reference.`)
+  } catch (err) {
+    console.error(`Roblox reference lookup for "${gameName}" failed, using the bundled reference:`, err)
+  }
+  return fallbackReference()
+}
+
+async function referenceImage(root, reference) {
+  if (reference.source === 'roblox') return downloadThumbnail(reference.thumbnailUrl)
+  const { file, mimeType } = referenceFile(root)
+  return { bytes: readFileSync(file), mimeType }
+}
+
+/** A reference the page sends back is reused only when it is a Roblox CDN thumbnail; anything else is looked up again. */
+function trustedReference(value) {
+  if (value?.source !== 'roblox' || !isAllowedReferenceUrl(value.thumbnailUrl)) return null
+  const { universeId, placeId, name, playing, url, thumbnailUrl, nearCount } = value
+  return { source: 'roblox', universeId, placeId, name: String(name ?? ''), playing: Number(playing) || 0, url, thumbnailUrl, nearCount }
 }
 
 function listHistory(outputsDir, limit = 40) {
@@ -48,12 +79,13 @@ function listHistory(outputsDir, limit = 40) {
 }
 
 async function handleGenerate(req, root, outputsDir) {
-  const { gameName } = await readJson(req)
+  const body = await readJson(req)
+  const { gameName } = body
   if (typeof gameName !== 'string' || !gameName.trim()) throw new BadRequest('Give the game a name first.')
   const prompt = buildPrompt(gameName)
-  const { file, mimeType } = referenceFile(root)
+  const reference = body.reference?.source === 'fallback' ? fallbackReference() : trustedReference(body.reference) ?? (await referenceFor(gameName))
   const started = Date.now()
-  const result = await generateThumbnail(prompt, { bytes: readFileSync(file), mimeType })
+  const result = await generateThumbnail(prompt, await referenceImage(root, reference))
   const id = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`
   const ext = result.mimeType === 'image/jpeg' ? 'jpg' : 'png'
   writeFileSync(join(outputsDir, `${id}.${ext}`), result.bytes)
@@ -64,7 +96,7 @@ async function handleGenerate(req, root, outputsDir) {
     gameName: gameName.trim(),
     prompt,
     resolution: OUTPUT_RESOLUTION,
-    reference: { name: config().referenceName, file: config().referenceImage },
+    reference,
     provider: result.provider,
     model: result.model,
     ms: Date.now() - started
@@ -99,7 +131,7 @@ export function createApi(root) {
         const { prompt } = await readJson(req)
         if (typeof prompt !== 'string' || !prompt.trim()) throw new BadRequest('Type your game name first.')
         const gameName = extractGameName(prompt)
-        return sendJson(res, 200, { gameName, prompt: buildPrompt(gameName) })
+        return sendJson(res, 200, { gameName, prompt: buildPrompt(gameName), reference: await referenceFor(gameName) })
       }
       if (route === 'POST /api/generate') return sendJson(res, 200, await handleGenerate(req, root, outputsDir))
       if (route === 'GET /api/reference') {
@@ -115,8 +147,7 @@ export function createApi(root) {
           imageProvider: c.imageProvider,
           imageModel: c.imageModel,
           falModel: c.falModel,
-          referenceName: c.referenceName,
-          referenceUrl: '/api/reference'
+          fallbackReferenceName: c.referenceName
         })
       }
       return sendJson(res, 404, { error: `No route ${route}` })

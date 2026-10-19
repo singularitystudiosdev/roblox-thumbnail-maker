@@ -6,7 +6,7 @@ import { PromptBox } from './components/PromptBox'
 import { PromptPanel } from './components/PromptPanel'
 import { ReferenceCard } from './components/ReferenceCard'
 import { ResultStage, type Phase } from './components/ResultStage'
-import { api, modelLabel, providerLabel, type Generation, type Status } from './lib/api'
+import { api, modelLabel, providerLabel, referenceOf, type Generation, type Reference, type Status } from './lib/api'
 
 const EXAMPLES = ['Rob a Bank', 'Make me a roblox thumbnail for my game Lava Leap', 'Grow a Garden']
 const MODEL_NAME = 'Nano Banana 2'
@@ -30,6 +30,8 @@ function slugify(name: string) {
 export function App() {
   const [prompt, setPrompt] = useState('')
   const [gameName, setGameName] = useState('')
+  // The reference and the name it was looked up for: a changed name needs a fresh lookup.
+  const [reference, setReference] = useState<{ forName: string; ref: Reference } | null>(null)
   const [result, setResult] = useState<Generation | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -48,11 +50,11 @@ export function App() {
     api.status().then(setStatus).catch((err) => console.error('Status load failed', err))
   }, [refreshHistory])
 
-  const generate = async (name: string) => {
+  const generate = async (name: string, ref: Reference) => {
     setPhase('generating')
     setError(null)
     try {
-      const generation = await api.generate({ gameName: name })
+      const generation = await api.generate({ gameName: name, reference: ref })
       setResult(generation)
       setPhase('done')
       refreshHistory()
@@ -69,9 +71,10 @@ export function App() {
     try {
       const plan = await api.plan(text)
       setGameName(plan.gameName)
-      await generate(plan.gameName)
+      setReference({ forName: plan.gameName, ref: plan.reference })
+      await generate(plan.gameName, plan.reference)
     } catch (err) {
-      console.error('Naming failed', err)
+      console.error('Reference lookup failed', err)
       setError((err as Error).message)
       setPhase('error')
     }
@@ -83,11 +86,16 @@ export function App() {
     void run(text)
   }
 
-  const retry = () => (gameName.trim() ? generate(gameName) : run())
+  const retry = () => {
+    const name = gameName.trim()
+    if (!name) return run()
+    return reference?.forName === name ? generate(name, reference.ref) : run(name)
+  }
 
   const openHistory = (item: Generation) => {
     setResult(item)
     setGameName(item.gameName)
+    setReference({ forName: item.gameName, ref: referenceOf(item) })
     setPhase('done')
   }
 
@@ -109,7 +117,7 @@ export function App() {
       <main className="mx-auto grid max-w-7xl grid-cols-1 gap-24 px-16 py-24 sm:px-24 lg:grid-cols-12 lg:px-32">
         <div className="flex min-w-0 flex-col gap-24 lg:col-span-4">
           <PromptBox value={prompt} onChange={setPrompt} onSubmit={() => run()} busy={busy} />
-          {status && <ReferenceCard name={status.referenceName} url={status.referenceUrl} />}
+          <ReferenceCard reference={reference?.ref ?? null} gameName={reference?.forName ?? ''} loading={phase === 'planning'} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-24 lg:col-span-8">

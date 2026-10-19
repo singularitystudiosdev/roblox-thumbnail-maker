@@ -1,6 +1,19 @@
+/** The style reference: the most-played Roblox game near the name, or the bundled image when none is found. */
+export interface Reference {
+  source: 'roblox' | 'fallback'
+  name: string
+  thumbnailUrl: string
+  universeId?: number
+  placeId?: number
+  playing?: number
+  url?: string
+  nearCount?: number
+}
+
 export interface Plan {
   gameName: string
   prompt: string
+  reference: Reference
 }
 
 export interface Generation {
@@ -10,7 +23,7 @@ export interface Generation {
   gameName: string
   prompt: string
   resolution: string
-  reference: { name: string }
+  reference: Partial<Reference> & { name: string }
   provider: 'gemini' | 'fal'
   model: string
   ms: number
@@ -22,8 +35,7 @@ export interface Status {
   imageProvider: string
   imageModel: string
   falModel: string
-  referenceName: string
-  referenceUrl: string
+  fallbackReferenceName: string
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -38,11 +50,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   plan: (prompt: string) => request<Plan>('/api/plan', { method: 'POST', body: JSON.stringify({ prompt }) }),
-  generate: (input: { gameName: string }) =>
+  generate: (input: { gameName: string; reference: Reference }) =>
     request<Generation>('/api/generate', { method: 'POST', body: JSON.stringify(input) }),
   history: () => request<{ items: Generation[] }>('/api/history'),
   status: () => request<Status>('/api/status')
 }
+
+/** Saved results predate the per-game lookup too: those used the bundled image or carried no `source`. */
+export function referenceOf(item: Generation): Reference {
+  const ref = item.reference
+  if (ref.thumbnailUrl?.startsWith('https://')) return { ...ref, source: 'roblox', thumbnailUrl: ref.thumbnailUrl }
+  return { source: 'fallback', name: ref.name, thumbnailUrl: '/api/reference' }
+}
+
+const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })
+export const formatCount = (n: number) => compact.format(n)
 
 const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 export function formatAgo(iso: string) {
