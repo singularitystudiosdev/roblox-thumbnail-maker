@@ -13,6 +13,7 @@ import { resolveGameName } from './gamename.mjs'
 import { imageMimeType } from './mime.mjs'
 import { generateThumbnail } from './imagegen.mjs'
 import { imageModel } from './imagemodels.mjs'
+import { makeIcon } from './icon.mjs'
 import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
 import { buildPrompt, PLAIN_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
@@ -103,9 +104,23 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
       return { ...base, error: err.message, ms: Date.now() - t0 }
     }
   }
+  // Each landed thumbnail's square Roblox icon, drawn while the other slots and the judge run; the run waits for them before it saves.
+  const icons = []
+  const startIcon = (thumbnail, image) => {
+    icons.push(
+      makeIcon(image, model)
+        .then((icon) => {
+          thumbnail.iconUrl = save(`icon-${thumbnail.slot}`, icon)
+          thumbnail.iconRedrawn = icon.redrawn
+          emit({ type: 'icon', slot: thumbnail.slot, iconUrl: thumbnail.iconUrl, iconRedrawn: icon.redrawn })
+        })
+        .catch((err) => console.error(`Icon for thumbnail ${thumbnail.slot} failed:`, err))
+    )
+  }
   const report = (thumbnail) => {
     record.thumbnails.push(thumbnail)
     emit({ type: 'thumbnail', thumbnail })
+    if (images.has(thumbnail.slot)) startIcon(thumbnail, images.get(thumbnail.slot))
     return thumbnail
   }
 
@@ -181,6 +196,7 @@ export async function runThumbnails({ input, style, outputsDir, emit = () => {},
     await judgeInto(record, dir, finished, random)
     emit({ type: 'judge', judge: record.judge })
   }
+  await Promise.all(icons)
   record.winnerSlot ??= null
   record.ms = Date.now() - started
   writeFileSync(join(dir, 'run.json'), JSON.stringify(record, null, 2))

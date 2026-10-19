@@ -11,6 +11,11 @@ export const PROMPT_TEMPLATE =
 export const PLAIN_TEMPLATE = 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
 
 export const REMIX_PROMPT = 'Make this thumbnail but from a novel perspective. No text.'
+
+// Each finished thumbnail, redrawn by the same model as a square Roblox icon (icon.mjs). Without the
+// "continuing the same scene" sentence the model once filled the new height with a repeated strip.
+export const ICON_PROMPT =
+  'Resize this image to a 1:1 square. Keep everything in it fully in frame and unchanged: every character and object whole, nothing cut off. Fill the new space by continuing the same scene, never by repeating or tiling any part of the image. No text.'
 export const REMIX_COUNT = 1
 
 export const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()

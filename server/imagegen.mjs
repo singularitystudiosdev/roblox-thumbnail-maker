@@ -23,19 +23,19 @@ async function download(url) {
 }
 
 /** fal request body: the prompt, one image, the reference as a data URL. */
-export function falInput(prompt, reference) {
+export function falInput(prompt, reference, aspectRatio = ASPECT_RATIO) {
   return {
     prompt,
     num_images: 1,
-    aspect_ratio: ASPECT_RATIO,
+    aspect_ratio: aspectRatio,
     output_format: 'png',
     resolution: OUTPUT_RESOLUTION,
     image_urls: [`data:${reference.mimeType};base64,${reference.bytes.toString('base64')}`]
   }
 }
 
-/** Gemini request body: prompt then reference image, image output only, 16:9. */
-export function geminiInput(prompt, reference) {
+/** Gemini request body: prompt then reference image, image output only, 16:9 unless told otherwise. */
+export function geminiInput(prompt, reference, aspectRatio = ASPECT_RATIO) {
   return {
     contents: [
       {
@@ -43,12 +43,12 @@ export function geminiInput(prompt, reference) {
         parts: [{ text: prompt }, { inlineData: { mimeType: reference.mimeType, data: reference.bytes.toString('base64') } }]
       }
     ],
-    generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: ASPECT_RATIO } }
+    generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio } }
   }
 }
 
-async function viaGemini(prompt, reference, modelId) {
-  const body = await generateContent(modelId, geminiInput(prompt, reference), 240000)
+async function viaGemini(prompt, reference, modelId, aspectRatio) {
+  const body = await generateContent(modelId, geminiInput(prompt, reference, aspectRatio), 240000)
   const parts = body?.candidates?.[0]?.content?.parts ?? []
   const image = parts.filter((p) => p.inlineData && !p.thought).at(-1)
   if (!image) throw new Error(`${modelId} returned no image (finish: ${body?.candidates?.[0]?.finishReason ?? 'unknown'})`)
@@ -60,8 +60,8 @@ async function viaGemini(prompt, reference, modelId) {
   }
 }
 
-async function viaFal(prompt, reference, endpoint) {
-  const body = await falRun(endpoint, falInput(prompt, reference))
+async function viaFal(prompt, reference, endpoint, aspectRatio) {
+  const body = await falRun(endpoint, falInput(prompt, reference, aspectRatio))
   const url = body?.images?.[0]?.url
   if (!url) throw new Error('fal returned no image')
   const image = await download(url)
@@ -71,21 +71,25 @@ async function viaFal(prompt, reference, endpoint) {
 
 /**
  * Sends the exact prompt plus the reference image bytes to `model` (from
- * imageModel(); Nano Banana 2 by default); returns the image and which route served it.
+ * imageModel(); Nano Banana 2 by default) at `aspectRatio` (16:9 unless told
+ * otherwise); returns the image and which route served it.
  */
-export async function generateThumbnail(prompt, reference, model = imageModel()) {
+export async function generateImage(prompt, reference, model = imageModel(), { aspectRatio = ASPECT_RATIO } = {}) {
   const mode = config().imageProvider
   if (!model.gemini) {
     if (mode === 'gemini') throw new Error(`${model.label} is on fal.ai only, and IMAGE_PROVIDER is set to gemini.`)
-    return viaFal(prompt, reference, model.fal)
+    return viaFal(prompt, reference, model.fal, aspectRatio)
   }
-  if (mode === 'fal') return viaFal(prompt, reference, model.fal)
+  if (mode === 'fal') return viaFal(prompt, reference, model.fal, aspectRatio)
   try {
-    return await viaGemini(prompt, reference, model.gemini)
+    return await viaGemini(prompt, reference, model.gemini, aspectRatio)
   } catch (err) {
     if (mode === 'gemini' || config().falKeys.length === 0) throw err
     if (err instanceof ProviderUnavailable) console.warn(`${err.message}. Falling back to fal.ai.`)
     else console.error(`${model.label} via Gemini failed, retrying on fal.ai:`, err)
-    return viaFal(prompt, reference, model.fal)
+    return viaFal(prompt, reference, model.fal, aspectRatio)
   }
 }
+
+/** A 16:9 thumbnail from the exact prompt and the reference image. */
+export const generateThumbnail = (prompt, reference, model) => generateImage(prompt, reference, model)

@@ -38,6 +38,10 @@ export interface Slot {
 export interface Thumbnail extends Slot {
   referenceName: string
   imageUrl?: string
+  /** The 512 by 512 Roblox icon made from it; runs saved before icons have none. */
+  iconUrl?: string
+  /** True when the image model redrew it square; false when the thumbnail was fitted whole. */
+  iconRedrawn?: boolean
   provider?: 'gemini' | 'fal'
   model?: string
   ms: number
@@ -94,6 +98,7 @@ export type RunEvent =
   | { type: 'reference'; reference: Reference }
   | { type: 'searchReference'; searchReference: Reference }
   | { type: 'thumbnail'; thumbnail: Thumbnail }
+  | { type: 'icon'; slot: number; iconUrl: string; iconRedrawn: boolean }
   | { type: 'judging' }
   | { type: 'judge'; judge: Judge }
   | { type: 'done'; run: Run }

@@ -78,6 +78,36 @@ function Tile({ run, slot, busy, shown, onShow }: { run: Run; slot: Slot; busy: 
         <p className="text-caption text-text-secondary">
           Reference: {thumbnail?.referenceName ?? pendingReference(slot, run)}
         </p>
+        {thumbnail?.imageUrl && !thumbnail.iconUrl && busy && (
+          <div className="flex items-center gap-8">
+            <div aria-hidden="true" className="size-48 shrink-0 rounded-8 bg-border-default motion-safe:animate-pulse" />
+            <span className="text-caption text-text-secondary">Making the 512 × 512 icon</span>
+          </div>
+        )}
+        {thumbnail?.iconUrl && (
+          <div className="flex items-center gap-8">
+            <img
+              src={thumbnail.iconUrl}
+              alt={`Icon from thumbnail ${slot.slot}`}
+              width={512}
+              height={512}
+              loading="lazy"
+              className="size-48 shrink-0 rounded-8 object-cover"
+            />
+            <span className="min-w-0 flex-1 text-caption text-text-secondary">
+              {thumbnail.iconRedrawn === false ? '512 × 512 icon, the thumbnail fitted whole' : '512 × 512 icon, redrawn square'}
+            </span>
+            <a
+              href={thumbnail.iconUrl}
+              download={`${slugify(run.gameName)}-icon-${slot.slot}.png`}
+              aria-label={`Download icon ${slot.slot}`}
+              className={buttonClasses('quiet', 'sm', 'shrink-0 pointer-coarse:min-h-48')}
+            >
+              <Download className="size-16" aria-hidden="true" />
+              Icon
+            </a>
+          </div>
+        )}
         {thumbnail?.provider && (
           <p className="text-caption text-text-secondary">
             {runModelLabel(run)} on {providerLabel(thumbnail.provider)} in {Math.round(thumbnail.ms / 1000)}s

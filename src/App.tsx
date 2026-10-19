@@ -7,7 +7,7 @@ import { ReferenceCard } from './components/ReferenceCard'
 import { StyleCard } from './components/StyleCard'
 import { ThumbnailGrid } from './components/ThumbnailGrid'
 import { WinnerStage, type Phase } from './components/WinnerStage'
-import { api, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload } from './lib/api'
+import { api, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
 
 // The image model switch's last pick, kept in this browser.
 const IMAGE_MODEL_KEY = 'roblox-thumbnail-maker.image-model'
@@ -44,6 +44,10 @@ function applyEvent(run: Run | null, event: RunEvent): Run | null {
   if (event.type === 'reference') return { ...run, reference: event.reference }
   if (event.type === 'searchReference') return { ...run, searchReference: event.searchReference }
   if (event.type === 'thumbnail') return { ...run, thumbnails: [...run.thumbnails.filter((t) => t.slot !== event.thumbnail.slot), event.thumbnail] }
+  if (event.type === 'icon') {
+    const withIcon = (t: Thumbnail) => (t.slot === event.slot ? { ...t, iconUrl: event.iconUrl, iconRedrawn: event.iconRedrawn } : t)
+    return { ...run, thumbnails: run.thumbnails.map(withIcon) }
+  }
   if (event.type === 'judge') return { ...run, judge: event.judge, winnerSlot: event.judge.winnerSlot }
   return run
 }
@@ -205,6 +209,12 @@ export function App() {
                     <a href={winner.imageUrl} download={`${slugify(run.gameName)}-winner.png`} className={buttonClasses('normal', 'md')}>
                       <Download className="size-16" aria-hidden="true" />
                       Download winner
+                    </a>
+                  )}
+                  {winner?.iconUrl && (
+                    <a href={winner.iconUrl} download={`${slugify(run.gameName)}-winner-icon.png`} className={buttonClasses('normal', 'md')}>
+                      <Download className="size-16" aria-hidden="true" />
+                      Download icon
                     </a>
                   )}
                   {run.thumbnails.filter((t) => t.imageUrl).length > 1 && (
