@@ -5,11 +5,11 @@ import { buildPrompt, extractGameName, PROMPT_TEMPLATE } from './prompt.mjs'
 test('prompt is the fixed text with only the quoted GAME_NAME substituted', () => {
   assert.equal(
     PROMPT_TEMPLATE,
-    'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a Roblox thumbnail for my game "GAME_NAME" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
   assert.equal(
-    buildPrompt('  Bake a Cake '),
-    'Make me a thumbnail for my game "Bake a Cake" in the style of my reference image different characters. No text. 16:9 Ratio.'
+    buildPrompt('  Break and Steal an Egg '),
+    'Make me a Roblox thumbnail for my game "Break and Steal an Egg" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
 })
 
@@ -31,7 +31,7 @@ test('a request wrapper is stripped down to the name', () => {
   assert.equal(extractGameName('Make me a roblox thumbnail for my game Rob a Bank'), 'Rob a Bank')
   assert.equal(
     buildPrompt(extractGameName('Make me a roblox thumbnail for my game Rob a Bank')),
-    'Make me a thumbnail for my game "Rob a Bank" in the style of my reference image different characters. No text. 16:9 Ratio.'
+    'Make me a Roblox thumbnail for my game "Rob a Bank" in the style of my reference image different characters. No text. 16:9 Ratio.'
   )
   assert.equal(extractGameName('make a thumbnail for my game called Grow a Garden.'), 'Grow a Garden')
   assert.equal(extractGameName('Can you create a thumbnail for Pet Sim 99'), 'Pet Sim 99')
@@ -55,4 +55,5 @@ test('a quoted name or a pasted full prompt yields just the name', () => {
     extractGameName('Make me a thumbnail for my game Rob a Bank in the style of my reference image. No text. 16:9 Ratio.'),
     'Rob a Bank'
   )
+  assert.equal(extractGameName(buildPrompt('Break and Steal an Egg')), 'Break and Steal an Egg')
 })
