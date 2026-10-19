@@ -86,7 +86,7 @@ export interface Run {
   style: StyleRef
   /**
    * standard: the five thumbnails; attached: two from the image attached in the prompt box;
-   * linked: the five prompts, all from the linked game's own thumbnail. Older runs have none.
+   * linked: five novel perspective remixes of the linked game's own thumbnail. Older runs have none.
    */
   mode?: 'standard' | 'attached' | 'linked'
   /** The image attached in the prompt box; used: the prompt asked to use it as the reference. */

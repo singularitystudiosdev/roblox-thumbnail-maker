@@ -39,8 +39,8 @@ test('a run is the template, one novel perspective remix, the search meta, the m
   assert.deepEqual(slots.filter((s) => ON_STYLE_REFERENCE.has(s.strategy)).map((s) => s.slot), [1, 5])
 })
 
-test('a linked run sends the same five prompts, every one with the linked game, the plain-template slots all plain', () => {
-  const linked = planLinkedSlots('KAT')
-  assert.deepEqual(linked.map((s) => [s.slot, s.strategy]), [[1, 'template'], [2, 'remix'], [3, 'plain'], [4, 'plain'], [5, 'plain']])
-  assert.deepEqual(linked.map((s) => s.prompt), planSlots('KAT').map((s) => s.prompt))
+test('a linked run is five novel perspective remixes, word for word', () => {
+  const linked = planLinkedSlots()
+  assert.deepEqual(linked.map((s) => [s.slot, s.strategy]), [[1, 'remix'], [2, 'remix'], [3, 'remix'], [4, 'remix'], [5, 'remix']])
+  for (const slot of linked) assert.equal(slot.prompt, 'Make this thumbnail but from a novel perspective. No text.')
 })
