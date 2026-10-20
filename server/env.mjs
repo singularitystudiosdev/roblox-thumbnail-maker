@@ -58,13 +58,7 @@ export function config() {
     falTextModel: process.env.FAL_TEXT_MODEL || 'anthropic/claude-haiku-5.5',
     falJudgeModel: process.env.FAL_JUDGE_MODEL || 'anthropic/claude-sonnet-5.5',
     styleReference: process.env.STYLE_REFERENCE || 'reference/day-67-prison-dig.png',
-    styleReferenceName: process.env.STYLE_REFERENCE_NAME || 'DAY #67 prison dig',
-    // The share of typed-name runs that draw all seven strategies so the selector keeps learning. Off by
-    // default: an explore run costs seven images instead of two, so it runs only when asked
-    // ("Try all 7 strategies" in the app, debug/explore.mjs) or when this is set.
-    selectorExploreRate: Number(process.env.SELECTOR_EXPLORE_RATE ?? 0),
-    // A picked run whose two thumbnails both score under this (of 50) draws two more from the runner-up; 0 turns it off.
-    topUpBelow: Number(process.env.TOP_UP_BELOW ?? 40)
+    styleReferenceName: process.env.STYLE_REFERENCE_NAME || 'DAY #67 prison dig'
   }
   return cached
 }

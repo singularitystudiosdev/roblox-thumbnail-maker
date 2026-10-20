@@ -3,32 +3,33 @@ import { formatCount, onRobloxReference, slotsLabel, type Reference, type Run, t
 
 interface ReferenceCardProps {
   reference: Reference | null
-  /** The search meta's game; runs saved before it have none. */
-  searchReference: Reference | null
-  /** The run's slots, to say which start from each game; a picked run has none until its pick lands. */
+  /** The run's slots, to say which start from the game. */
   slots: Slot[]
-  /** The creator's attached image, when the run used it as the reference instead of a Roblox game. */
+  /** The creator's attached image, when the run used it as the reference for their typed prompt. */
   attached: Run['attachment'] | null
   /** The run links the creator's game, so the card shows that game rather than a nearest one. */
   linked: boolean
   loading: boolean
 }
 
-function AttachedCard({ attached }: { attached: NonNullable<Run['attachment']> }) {
+function AttachedCard({ attached, slots }: { attached: NonNullable<Run['attachment']>; slots: Slot[] }) {
+  const typed = slots.filter((s) => s.strategy === 'typed').map((s) => s.slot)
   return (
-    <section aria-labelledby="reference-title" className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
-      <h2 id="reference-title" className="text-title font-semibold">Your attached image</h2>
+    <section aria-labelledby="attached-title" className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
+      <h2 id="attached-title" className="text-title font-semibold">Your attached image</h2>
       <img src={attached.imageUrl} alt={`Attached reference: ${attached.name}`} width={768} height={432} className="aspect-video w-full rounded-8 object-contain" />
       <span className="truncate text-body font-medium">{attached.name}</span>
       <p className="text-caption text-text-secondary">
-        Both thumbnails start from it: thumbnail 1 sends your prompt exactly as typed, thumbnail 2 the plain template. No Roblox game is looked up.
+        {typed.length > 0
+          ? `${slotsLabel(typed)} sends your prompt exactly as typed with it.`
+          : 'Both thumbnails started from it: your prompt exactly as typed, then the plain template.'}
       </p>
     </section>
   )
 }
 
 function caption(reference: Reference) {
-  if (reference.source === 'style') return 'No popular Roblox game is like this one right now, so the remixes start from your reference image.'
+  if (reference.source === 'style') return 'No popular Roblox game is like this one right now, so the meta starts from your style image and the exact template stands in for the remix.'
   const pool = reference.candidateCount
     ? `${reference.candidateCount} of the games Roblox search returned are popular: over 300 playing, or over 10M visits with 100 playing.`
     : ''
@@ -40,24 +41,22 @@ function thumbnailCaption({ index, count, why }: NonNullable<Reference['thumbnai
   return `Thumbnail ${index} of ${count} on its page, the cleanest with the least text. ${why}`
 }
 
-/** Which thumbnails start from a game, or that none do this run (it was only rated for the pick). */
-function drawnLine(slots: Slot[], drawn: Slot[], what: string) {
-  if (slots.length === 0) return ''
-  if (drawn.length === 0) return `No thumbnail starts from ${what} this run: it was rated for the pick only.`
+/** Which thumbnails start from a game; empty when none do. */
+function drawnLine(drawn: Slot[], what: string) {
+  if (drawn.length === 0) return ''
   return `${slotsLabel(drawn.map((s) => s.slot))} start${drawn.length === 1 ? 's' : ''} from ${what}.`
 }
 
-/** The search meta's game in one line: which thumbnails start from it, and why it is the one. */
-function searchLine(search: Reference, slots: Slot[]) {
-  if (search.source === 'style') return 'No other game in a plain Roblox search.'
-  const playing = search.playing != null ? ` (${formatCount(search.playing)} playing)` : ''
-  const drawn = drawnLine(slots, slots.filter((s) => s.strategy === 'search'), 'it')
-  return `Top search game: ${search.name}${playing}. ${drawn} ${search.why ?? ''}`.replace(/\s+/g, ' ').trim()
-}
-
-export function ReferenceCard({ reference, searchReference, slots, attached, linked, loading }: ReferenceCardProps) {
-  if (attached) return <AttachedCard attached={attached} />
+export function ReferenceCard({ reference, slots, attached, linked, loading }: ReferenceCardProps) {
+  // Attached runs saved before the meta looked up no Roblox game: the attached image is their only reference.
+  if (attached && !reference && !loading) return <AttachedCard attached={attached} slots={slots} />
   return (
+    <>
+    {attached && (
+      <div className="pb-24">
+        <AttachedCard attached={attached} slots={slots} />
+      </div>
+    )}
     <section aria-labelledby="reference-title" aria-busy={loading || undefined} className="flex flex-col gap-12 rounded-16 border border-border-default bg-bg-surface p-16">
       <h2 id="reference-title" className="text-title font-semibold">
         {linked ? 'Your linked game' : 'Nearest popular game'}
@@ -73,7 +72,7 @@ export function ReferenceCard({ reference, searchReference, slots, attached, lin
 
       {!loading && !reference && (
         <p className="text-label text-text-secondary">
-          Before any thumbnail is drawn, the nearest popular Roblox game and the top game of a plain Roblox search are looked up and rated against yours to pick the strategy.
+          Before any thumbnail is drawn, the nearest popular Roblox game is looked up: the meta and the remix both start from its thumbnail.
         </p>
       )}
 
@@ -110,12 +109,12 @@ export function ReferenceCard({ reference, searchReference, slots, attached, lin
           </div>
           <p className="text-caption text-text-secondary">{caption(reference)}</p>
           {reference.thumbnail && <p className="text-caption text-text-secondary">{thumbnailCaption(reference.thumbnail)}</p>}
-          {!linked && reference.source === 'roblox' && slots.length > 0 && (
-            <p className="text-caption text-text-secondary">{drawnLine(slots, slots.filter(onRobloxReference), reference.name)}</p>
+          {!linked && reference.source === 'roblox' && drawnLine(slots.filter(onRobloxReference), reference.name) && (
+            <p className="text-caption text-text-secondary">{drawnLine(slots.filter(onRobloxReference), reference.name)}</p>
           )}
-          {searchReference && <p className="text-caption text-text-secondary">{searchLine(searchReference, slots)}</p>}
         </>
       )}
     </section>
+    </>
   )
 }

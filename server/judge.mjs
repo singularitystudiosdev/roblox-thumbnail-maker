@@ -11,7 +11,31 @@ import sharp from 'sharp'
 import { askJson, judgeRoutes, withoutDashes } from './llm.mjs'
 import { imageMimeType } from './mime.mjs'
 import { downloadThumbnail, gameDetails, gameFromPlace, gameThumbnails } from './roblox.mjs'
-import { matchLevel } from './selector.mjs'
+
+const NAME_FILLER = new Set(['a', 'an', 'the', 'my', 'of', 'in', 'on', 'with', 'and', 'for', 'to', 'game', 'roblox', 'your', 'me', 'make', 'thumbnail', 'but'])
+
+/** The words of a game name that say what it is: lowercase, no tags, emoji, plurals or filler. */
+function nameWords(name) {
+  return String(name ?? '')
+    .toLowerCase()
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => t.replace(/s$/, ''))
+    .filter((t) => !NAME_FILLER.has(t))
+}
+
+/** How closely a game's name matches the creator's: exact (the same words), near (some shared) or none. */
+export function matchLevel(gameName, refName) {
+  if (!refName) return 'none'
+  const a = new Set(nameWords(gameName))
+  const b = new Set(nameWords(refName))
+  if (a.size === 0 && b.size === 0) return 'exact'
+  const shared = [...a].filter((t) => b.has(t)).length
+  const j = shared / (a.size + b.size - shared)
+  return j >= 0.75 ? 'exact' : j >= 0.2 ? 'near' : 'none'
+}
 
 export const CRITERIA = ['fitsGame', 'genreLook', 'clean', 'clickable', 'coherent']
 export const MAX_TOTAL = CRITERIA.length * 10

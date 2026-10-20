@@ -45,10 +45,10 @@ test('without a model, words that name the image or a reference decide', async (
   assert.equal((await readAttachedIntent('Bake a Cake, use the attached picture', { ask: down })).gameText, 'Bake a Cake, use the attached picture')
 })
 
-test('the reference mode sends the prompt exactly as typed, then the plain template', () => {
+test('the reference mode sends the meta, then the prompt exactly as typed', () => {
   const typed = 'Make a thumbnail for Rob Grandmas House like this image, grandma chasing the robber'
   assert.deepEqual(planAttachedSlots(typed, 'Rob Grandmas House'), [
-    { slot: 1, strategy: 'typed', prompt: typed },
-    { slot: 2, strategy: 'plain-attached', prompt: 'Make me a thumbnail for my game "Rob Grandmas House" in the style of my reference image. No text. 16:9 Ratio.' }
+    { slot: 1, strategy: 'meta', prompt: 'Make me a thumbnail for my game "Rob Grandmas House" in the style of my reference image. No text. 16:9 Ratio.' },
+    { slot: 2, strategy: 'typed', prompt: typed }
   ])
 })

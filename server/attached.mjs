@@ -1,11 +1,11 @@
 // The attached-reference mode. When the creator attaches an image in the
 // prompt box and their prompt uses it (says to use it as the reference, or
-// talks about what is in it: "make him have a gun"), a run makes two
-// thumbnails from that image instead of the usual seven: their
-// prompt exactly as typed, and the plain template with the game name. A text
-// model reads the intent and hands back the prompt with only the words about
-// the image removed, word for word, to name the game. An attached image the
-// prompt does not ask for is not used.
+// talks about what is in it: "make him have a gun"), a run makes the meta (the
+// plain template with the nearest popular Roblox game's thumbnail, as every
+// run does) and then their prompt exactly as typed, sent with that image. A
+// text model reads the intent and hands back the prompt with only the words
+// about the image removed, word for word, to name the game. An attached image
+// the prompt does not ask for is not used.
 import { askJson, textRoutes } from './llm.mjs'
 import { buildPrompt, PLAIN_TEMPLATE } from './prompt.mjs'
 
@@ -65,10 +65,10 @@ export async function readAttachedIntent(prompt, { ask = askJson } = {}) {
   }
 }
 
-/** The two thumbnails of an attached-reference run, both sent with the attached image. */
+/** The two thumbnails of an attached-reference run: the meta on the Roblox reference, then the prompt as typed with the attached image. */
 export function planAttachedSlots(prompt, gameName) {
   return [
-    { slot: 1, strategy: 'typed', prompt },
-    { slot: 2, strategy: 'plain-attached', prompt: buildPrompt(gameName, PLAIN_TEMPLATE) }
+    { slot: 1, strategy: 'meta', prompt: buildPrompt(gameName, PLAIN_TEMPLATE) },
+    { slot: 2, strategy: 'typed', prompt }
   ]
 }

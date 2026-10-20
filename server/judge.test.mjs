@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import sharp from 'sharp'
-import { combinePasses, JUDGE_SYSTEM, judgeContext, judgeRequest, judgeThumbnails, MAX_TOTAL, NAMED_MIN_PLAYING, pickLibrary, readVerdict, renumber, shuffled, similarPicks } from './judge.mjs'
+import { combinePasses, JUDGE_SYSTEM, judgeContext, judgeRequest, judgeThumbnails, matchLevel, MAX_TOTAL, NAMED_MIN_PLAYING, pickLibrary, readVerdict, renumber, shuffled, similarPicks } from './judge.mjs'
 
 const row = (image, n, note = 'fine') => ({ image, fitsGame: n, genreLook: n, clean: n, clickable: n, coherent: n, note })
 
@@ -206,4 +206,12 @@ test("the creator's earlier picks become worked examples: similar games first, n
   // Without examples the request is the plain one.
   assert.doesNotMatch(judgeRequest('Rob a Bank', 3, null), /pairs/)
   assert.equal(await judgeContext({ ...run, link: null, reference: null }, join(outputs, '2026-10-19T05-e'), { library, examples: 0 }), null)
+})
+
+test("a reference game has the creator's very name only when its words are the same: tags, emoji, plurals and filler aside", () => {
+  assert.equal(matchLevel('Steal an Egg', 'Steal An Egg'), 'exact')
+  assert.equal(matchLevel('Bake a Cake', '[UPD🍓] Bake Cakes!'), 'exact')
+  assert.equal(matchLevel('Break and Steal an Egg', 'Steal An Egg'), 'near')
+  assert.equal(matchLevel('Rob a Bank', '💰 Deadly Heist 💰'), 'none')
+  assert.equal(matchLevel('Rob a Bank', null), 'none')
 })

@@ -1,4 +1,4 @@
-import { armsLabel, drawnArms, formatAgo, pickedSlots, slotsPhrase, type Run } from '../lib/api'
+import { formatAgo, pickedSlots, slotsPhrase, type Run } from '../lib/api'
 
 interface HistoryListProps {
   items: Run[]
@@ -40,11 +40,7 @@ export function HistoryList({ items, currentId, onOpen }: HistoryListProps) {
                     : item.winnerSlot
                       ? `Winner: thumbnail ${item.winnerSlot}`
                       : 'No winner picked'}
-                  {item.selection && !item.selection.explore
-                    ? `, ${armsLabel(drawnArms(item.selection))}`
-                    : item.reference?.source === 'roblox'
-                      ? `, remixed from ${item.reference.name}`
-                      : ''}
+                  {item.reference?.source === 'roblox' ? `, from ${item.reference.name}` : ''}
                 </span>
                 <time dateTime={item.createdAt} className="text-caption text-text-secondary">
                   {formatAgo(item.createdAt)}

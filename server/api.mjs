@@ -4,7 +4,7 @@ import { extname, join } from 'node:path'
 import { config } from './env.mjs'
 import { imageMimeType } from './mime.mjs'
 import { IMAGE_MODEL_LABEL } from './imagemodels.mjs'
-import { PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
+import { PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_PROMPT } from './prompt.mjs'
 import { GameNotFound } from './roblox.mjs'
 import { listRuns, rejudgeRun, RUN_ID, runThumbnails, pickWinner } from './run.mjs'
 
@@ -66,7 +66,7 @@ function styleFor(root, upload) {
 /** The image attached in the prompt box, or null. */
 const attachmentFor = (upload) => (upload == null ? null : decodeImage(upload, 'attached image', 'Your attached image'))
 
-/** Streams the run as NDJSON events: plan, reference, searchReference, thumbnail (one per slot), judging, judge, icon, done; or error. */
+/** Streams the run as NDJSON events: plan, reference, slots (when no Roblox game turns the remix into the template), thumbnail (one per slot), judging, judge, icon, done; or error. */
 async function handleRun(req, res, root, outputsDir) {
   const body = await readJson(req)
   if (typeof body.prompt !== 'string' || !body.prompt.trim()) throw new BadRequest('Type your game name, a description or its Roblox link first.')
@@ -83,7 +83,7 @@ async function handleRun(req, res, root, outputsDir) {
     if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`)
   }
   try {
-    await runThumbnails({ input: body.prompt.trim(), style, attachment, outputsDir, emit, exploreAll: body.explore === true ? true : null })
+    await runThumbnails({ input: body.prompt.trim(), style, attachment, outputsDir, emit })
   } catch (err) {
     if (!(err instanceof GameNotFound)) console.error('Run failed:', err)
     emit({ type: 'error', error: err.message })
@@ -150,8 +150,7 @@ export function createApi(root) {
           styleReferenceName: c.styleReferenceName,
           template: PROMPT_TEMPLATE,
           plainTemplate: PLAIN_TEMPLATE,
-          remixPrompt: REMIX_PROMPT,
-          remixCount: REMIX_COUNT
+          remixPrompt: REMIX_PROMPT
         })
       }
       return sendJson(res, 404, { error: `No route ${route}` })

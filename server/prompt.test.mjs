@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildPrompt, extractGameName, PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_COUNT, REMIX_PROMPT } from './prompt.mjs'
+import { buildPrompt, extractGameName, PLAIN_TEMPLATE, PROMPT_TEMPLATE, REMIX_PROMPT } from './prompt.mjs'
+import { planSlots } from './run.mjs'
 
 test('the template is the exact text, only GAME_NAME substituted', () => {
   assert.equal(PROMPT_TEMPLATE, 'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.')
@@ -38,8 +39,11 @@ test('the remix prompt is novel perspective, word for word; every other angle is
   assert.equal(REMIX_PROMPT, 'Make this thumbnail but from a novel perspective. No text.')
 })
 
-test('a run draws the novel perspective remix three times', () => {
-  assert.equal(REMIX_COUNT, 3)
+test('a run draws the novel perspective remix once, after the meta', () => {
+  assert.deepEqual(
+    planSlots('Bake a Cake').filter((s) => s.prompt === REMIX_PROMPT).map((s) => s.slot),
+    [2]
+  )
 })
 
 test('a description is the game name, word for word', () => {

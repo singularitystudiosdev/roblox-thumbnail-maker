@@ -59,8 +59,25 @@ async function viaGemini(prompt, reference, modelId, aspectRatio) {
   }
 }
 
+// A fal image lands in 15 to 30 s; a request still open after IMAGE_TIMEOUT_MS is stuck on fal's side (one held a
+// meta slot for the whole 240 s once), and a fresh request usually lands, so an image is asked for twice at most.
+export const IMAGE_TIMEOUT_MS = 120000
+export const IMAGE_ATTEMPTS = 2
+
+/** fal's answer for one image request, asked again after a timeout; any other failure is thrown at once. `run` is swappable in tests. */
+export async function requestFalImage(endpoint, input, { run = falRun, timeoutMs = IMAGE_TIMEOUT_MS, attempts = IMAGE_ATTEMPTS } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run(endpoint, input, timeoutMs)
+    } catch (err) {
+      if (err?.name !== 'TimeoutError' || attempt >= attempts) throw err
+      console.warn(`fal ${endpoint} had no image after ${timeoutMs / 1000} s; asking again (${attempt + 1} of ${attempts}).`)
+    }
+  }
+}
+
 async function viaFal(prompt, reference, endpoint, aspectRatio) {
-  const body = await falRun(endpoint, falInput(prompt, reference, aspectRatio))
+  const body = await requestFalImage(endpoint, falInput(prompt, reference, aspectRatio))
   const url = body?.images?.[0]?.url
   if (!url) throw new Error('fal returned no image')
   const image = await download(url)

@@ -1,12 +1,9 @@
-// The prompts the image model receives, word for word. Thumbnail 1 is the
-// template with only GAME_NAME substituted (inside the quotes); thumbnail 2
-// sends the remix prompt with the Roblox reference; thumbnail 3, the search
-// meta, sends the plain template with the top game of a plain Roblox search
-// (searchtop.mjs); thumbnail 4, the meta, sends the plain template with the
-// same Roblox reference as thumbnail 2; thumbnail 5 sends the plain template
-// with the style reference of thumbnail 1; thumbnails 6 and 7 send the remix
-// prompt again with the same Roblox reference as thumbnail 2. The template no
-// longer asks for "different characters": the creator dropped that wording.
+// The prompts the image model receives, word for word, only GAME_NAME
+// substituted (inside the quotes). Thumbnail 1, the meta, sends the plain
+// template with the nearest popular Roblox game's thumbnail; thumbnail 2 sends
+// the remix prompt with that same thumbnail (run.mjs). The exact template
+// stands in for the remix, on the style image, when no Roblox game was found.
+// It no longer asks for "different characters": the creator dropped that wording.
 export const PROMPT_TEMPLATE = 'Make me a thumbnail for my roblox game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
 
 export const PLAIN_TEMPLATE = 'Make me a thumbnail for my game "GAME_NAME" in the style of my reference image. No text. 16:9 Ratio.'
@@ -17,7 +14,6 @@ export const REMIX_PROMPT = 'Make this thumbnail but from a novel perspective. N
 // "continuing the same scene" sentence the model once filled the new height with a repeated strip.
 export const ICON_PROMPT =
   'Resize this image to a 1:1 square. Keep everything in it fully in frame and unchanged: every character and object whole, nothing cut off. Fill the new space by continuing the same scene, never by repeating or tiling any part of the image. No text.'
-export const REMIX_COUNT = 3
 
 export const stripQuotes = (value) => value.trim().replace(/^["“”']+|["“”']+$/g, '').trim()
 

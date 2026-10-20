@@ -4,9 +4,8 @@ import { cn } from '../lib/cn'
 
 /** The reference a slot will start from, before its thumbnail lands. */
 function pendingReference(slot: Slot, run: Run) {
+  if (slot.strategy === 'typed') return run.attachment?.name ?? 'your attached image'
   if (run.mode === 'linked') return run.reference?.name ?? 'your linked game'
-  if (slot.strategy === 'typed' || slot.strategy === 'plain-attached') return run.attachment?.name ?? 'your attached image'
-  if (slot.strategy === 'search') return run.searchReference?.name ?? 'searching Roblox'
   if (onRobloxReference(slot)) return run.reference?.name ?? 'finding it'
   return run.style.name
 }
@@ -19,7 +18,7 @@ interface ThumbnailGridProps {
   busy: boolean
   shownSlot: number | null
   onShow: (slot: number) => void
-  /** Saves every thumbnail the creator takes as the winner (empty clears it); the strategy picker learns from them. */
+  /** Saves every thumbnail the creator takes as the winner (empty clears it); the judge sees them as worked examples. */
   onPick: (slots: number[]) => void
 }
 
@@ -102,6 +101,7 @@ function Tile({ run, slot, busy, shown, onShow, onPick }: TileProps) {
         <p className="text-caption text-text-secondary">
           Reference: {thumbnail?.referenceName ?? pendingReference(slot, run)}
         </p>
+        {slot.fallback && <p className="text-caption text-text-secondary">{slot.fallback}</p>}
         {thumbnail?.imageUrl && !thumbnail.iconUrl && busy && run.winnerSlot === slot.slot && (
           <div className="flex items-center gap-8">
             <div aria-hidden="true" className="size-48 shrink-0 rounded-8 bg-border-default motion-safe:animate-pulse" />

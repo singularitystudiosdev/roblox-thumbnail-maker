@@ -1,14 +1,13 @@
-import { Banana, Download, LayoutGrid, RefreshCw, Scale, Trophy } from 'lucide-react'
+import { Banana, Download, RefreshCw, Scale, Trophy } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { buttonClasses, Button } from './components/Button'
 import { HistoryList } from './components/HistoryList'
 import { PromptBox } from './components/PromptBox'
 import { ReferenceCard } from './components/ReferenceCard'
-import { SelectionCard } from './components/SelectionCard'
 import { StyleCard } from './components/StyleCard'
 import { ThumbnailGrid } from './components/ThumbnailGrid'
 import { WinnerStage, type Phase } from './components/WinnerStage'
-import { api, drawnArms, isPicked, pickedSlots, slotsPhrase, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
+import { api, onStyleReference, pickedSlots, slotsLabel, slotsPhrase, slugify, strategyLabel, type Run, type RunEvent, type Status, type StyleUpload, type Thumbnail } from './lib/api'
 
 const EXAMPLES = [
   'https://www.roblox.com/games/107778070777162/Steal-An-Egg',
@@ -37,15 +36,14 @@ function votesLine(run: Run) {
 
 /** Which of the shown run's thumbnails use the style image, or why none did. */
 function styleCaption(run: Run | null) {
-  if (run?.mode === 'linked') return 'Not used for this run: every thumbnail started from your linked game.'
-  if (run?.mode === 'attached') return 'Not used for this run: both thumbnails started from your attached image.'
-  if (!run) return 'The exact and plain templates are made in the style of this image, when the pick is one of them.'
-  if (!isPicked(run)) return 'Thumbnails 1 and 5 are made in the style of this image.'
-  if (!run.selection) return 'Used only for the exact or plain template, when the pick includes one.'
-  const styled = drawnArms(run.selection).flatMap((arm, i) => (arm === 'template' || arm === 'plain' ? [i + 1] : []))
-  if (styled.length === 2) return 'Both thumbnails are made in the style of this image.'
-  if (styled.length === 1) return `Thumbnail ${styled[0]} is made in the style of this image.`
-  return 'Not used for this run: the picked strategies start from a Roblox game.'
+  if (!run || (!run.reference && run.mode !== 'linked')) return 'Used only when no popular Roblox game is like yours: then the thumbnails start from this image instead.'
+  const styled = run.slots.filter((slot) => onStyleReference(slot, run.reference)).map((slot) => slot.slot)
+  if (styled.length > 0) {
+    const why = run.reference?.source === 'style' ? ': no popular Roblox game is like yours' : ''
+    return `${slotsLabel(styled)} ${styled.length === 1 ? 'is' : 'are'} made in the style of this image${why}.`
+  }
+  if (run.mode === 'linked') return 'Not used for this run: both thumbnails started from your linked game.'
+  return `Not used for this run: the thumbnails started from ${run.reference?.name ?? 'a popular Roblox game'}.`
 }
 
 /** The run with one streamed event folded in. */
@@ -53,8 +51,7 @@ function applyEvent(run: Run | null, event: RunEvent): Run | null {
   if (event.type === 'plan' || event.type === 'done') return event.run
   if (!run) return run
   if (event.type === 'reference') return { ...run, reference: event.reference }
-  if (event.type === 'searchReference') return { ...run, searchReference: event.searchReference }
-  if (event.type === 'selection') return { ...run, selection: event.selection, slots: event.slots }
+  if (event.type === 'slots') return { ...run, slots: event.slots }
   if (event.type === 'thumbnail') return { ...run, thumbnails: [...run.thumbnails.filter((t) => t.slot !== event.thumbnail.slot), event.thumbnail] }
   if (event.type === 'icon') {
     const withIcon = (t: Thumbnail) => (t.slot === event.slot ? { ...t, iconUrl: event.iconUrl, iconRedrawn: event.iconRedrawn } : t)
@@ -86,7 +83,7 @@ export function App() {
     refreshHistory()
     api.status().then(setStatus).catch((err) => console.error('Status load failed', err))
   }, [refreshHistory])
-  const start = async (text = prompt, explore = false) => {
+  const start = async (text = prompt) => {
     if (!text.trim()) return
     setPhase('running')
     setError(null)
@@ -97,11 +94,9 @@ export function App() {
       await api.run(text, styleUpload, attachment, (event) => {
         if (event.type === 'error') throw new Error(event.error)
         if (event.type === 'judging') setPhase('judging')
-        // A top-up round draws again after the first verdict.
-        if (event.type === 'selection' && event.selection.topUp) setPhase('running')
         if (event.type === 'done') finished = true
         setRun((current) => applyEvent(current, event))
-      }, explore)
+      })
       if (!finished) throw new Error('The run stopped before it finished. Check the server terminal.')
       setPhase('done')
       refreshHistory()
@@ -126,7 +121,7 @@ export function App() {
     setPhase('done')
   }
 
-  // The creator's own winners, saved with the run: the strategy picker learns from them on its next run.
+  // The creator's own winners, saved with the run: the judge sees them as worked examples on later runs.
   const pickWinner = async (id: string, slots: number[]) => {
     const previous = run
     const userPick = slots.length === 0 ? null : { slot: slots[0], ...(slots.length > 1 ? { accept: slots } : {}), at: new Date().toISOString() }
@@ -163,8 +158,6 @@ export function App() {
   const stageSlot = shownSlot ?? winnerSlot ?? firstImage
   const winner = run?.thumbnails.find((t) => t.slot === winnerSlot && t.imageUrl)
   const route = status ? (status.imageProvider === 'fal' ? 'fal.ai' : status.falKeys > 0 ? 'Gemini API, fal.ai fallback' : 'Gemini API') : null
-  // A typed-name run: the selector's pick applies to it, and it can explore every strategy.
-  const standard = run != null && (run.mode ?? 'standard') === 'standard'
 
   return (
     <div className="min-h-dvh">
@@ -193,11 +186,6 @@ export function App() {
               </p>
             )}
           </div>
-          {standard && (
-            <div className="order-3 min-w-0 lg:order-none">
-              <SelectionCard selection={run.selection ?? null} loading={busy && isPicked(run)} />
-            </div>
-          )}
           <div className="order-4 min-w-0 lg:order-none">
             <StyleCard
               upload={styleUpload}
@@ -210,11 +198,10 @@ export function App() {
           <div className="order-5 min-w-0 lg:order-none">
             <ReferenceCard
               reference={run?.reference ?? null}
-              searchReference={run?.searchReference ?? null}
               slots={run?.slots ?? []}
               attached={run?.mode === 'attached' ? (run.attachment ?? null) : null}
               linked={run?.mode === 'linked'}
-              loading={busy && !run?.reference && run?.mode !== 'attached'}
+              loading={busy && !run?.reference}
             />
           </div>
         </div>
@@ -236,7 +223,7 @@ export function App() {
                         {pickedSlots(run).length > 1
                           ? `Your picks: ${slotsPhrase(pickedSlots(run))}.`
                           : `Your pick: thumbnail ${winner.slot} (${strategyLabel(winner)}).`}{' '}
-                        The judge picked thumbnail {run.judge?.winnerSlot}; the strategy pick learns from yours.
+                        The judge picked thumbnail {run.judge?.winnerSlot}; it sees yours as an example on later runs.
                       </span>
                     </p>
                   ) : (
@@ -277,12 +264,6 @@ export function App() {
                     <RefreshCw className="size-16" aria-hidden="true" />
                     Make more
                   </Button>
-                  {standard && (
-                    <Button onClick={() => start(prompt || run.input, true)}>
-                      <LayoutGrid className="size-16" aria-hidden="true" />
-                      Try all 7 strategies
-                    </Button>
-                  )}
                 </div>
               </div>
             )}
