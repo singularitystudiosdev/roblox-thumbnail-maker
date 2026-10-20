@@ -1,8 +1,9 @@
 // One run: the game name, then two thumbnails with Nano Banana 2.1, the judge,
 // told what the game is (judgeContext), and the winner's icon. Thumbnail 1, the
-// meta, sends the plain template with the cleanest thumbnail of the nearest
-// popular Roblox game; thumbnail 2 sends the novel perspective remix prompt
-// with that same thumbnail. When the prompt links the creator's own game, that
+// meta, sends the plain template with a random one of the nearest popular
+// Roblox game's thumbnails (randomthumb.mjs: the same game, a new starting point
+// each run); thumbnail 2 sends the novel perspective remix prompt with that
+// same thumbnail. When the prompt links the creator's own game, that
 // game's thumbnail is the reference for both, with no Roblox searches. When the
 // creator attaches an image and the prompt asks to use it as the reference
 // (attached.mjs), thumbnail 2 is their prompt exactly as typed, sent with that
@@ -22,7 +23,7 @@ import { makeIcon } from './icon.mjs'
 import { judgeContext, judgeThumbnails } from './judge.mjs'
 import { findNearestPopular } from './nearest.mjs'
 import { buildPrompt, PLAIN_TEMPLATE, REMIX_PROMPT } from './prompt.mjs'
-import { pickCleanestThumbnail } from './cleanest.mjs'
+import { pickRandomThumbnail } from './randomthumb.mjs'
 import { gameFromPlace, withThumbnails } from './roblox.mjs'
 
 const EXT = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }
@@ -56,11 +57,11 @@ export function slotsForReference(slots, gameName, hasRobloxImage) {
   return slots.map((slot) => (slot.strategy === 'remix' ? { slot: slot.slot, strategy: 'template', prompt: buildPrompt(gameName), fallback: NO_ROBLOX_FALLBACK } : slot))
 }
 
-/** The linked game's details and its cleanest thumbnail, the reference for both slots of a linked run. */
-async function linkedReference(link, gameName) {
+/** The linked game's details and a random one of its thumbnails, the reference for both slots of a linked run. */
+async function linkedReference(link, random) {
   const game = await gameFromPlace(link.placeId)
   const [withThumbnail] = await withThumbnails([game])
-  return { game, picked: await pickCleanestThumbnail(withThumbnail ?? game, gameName) }
+  return { game, picked: await pickRandomThumbnail(withThumbnail ?? game, { random }) }
 }
 
 async function nearestOrNull(gameName, extraNames) {
@@ -72,13 +73,13 @@ async function nearestOrNull(gameName, extraNames) {
   }
 }
 
-/** The nearest popular game's cleanest thumbnail, saved as record.reference; null when there is none (the style reference stands in). */
-async function nearestReferenceInto({ record, gameName, link, style, styleRef, save, emit }) {
+/** A random one of the nearest popular game's thumbnails, saved as record.reference; null when there is none (the style reference stands in). */
+async function nearestReferenceInto({ record, gameName, link, style, styleRef, save, emit, random }) {
   const nearest = await nearestOrNull(gameName, link ? [link.title] : [])
   let image = null
   if (nearest) {
     try {
-      image = await pickCleanestThumbnail(nearest, gameName)
+      image = await pickRandomThumbnail(nearest, { random })
       record.reference = {
         source: 'roblox',
         ...nearest,
@@ -96,10 +97,10 @@ async function nearestReferenceInto({ record, gameName, link, style, styleRef, s
 }
 
 /** The linked game's own thumbnail, saved as record.reference; a failure ends the run (see below). */
-async function linkedReferenceInto({ record, gameName, link, save, emit }) {
+async function linkedReferenceInto({ record, gameName, link, save, emit, random }) {
   let linkedGame
   try {
-    linkedGame = await linkedReference(link, gameName)
+    linkedGame = await linkedReference(link, random)
   } catch (err) {
     // The remix names no game, so the style reference in its place would remake someone else's thumbnail.
     console.error(`The linked game's thumbnail for "${gameName}" failed:`, err)
@@ -197,7 +198,7 @@ export async function runThumbnails({
       return thumbnail
     })
 
-  const ctx = { record, gameName, link, style, styleRef, save, emit }
+  const ctx = { record, gameName, link, style, styleRef, save, emit, random }
   // The creator's own image needs no lookup, so their typed prompt starts at once.
   const typed = record.slots.filter((slot) => slot.strategy === 'typed').map((slot) => draw(slot, attachment, attachment.name))
   const robloxImage = await (linked ? linkedReferenceInto(ctx) : nearestReferenceInto(ctx))

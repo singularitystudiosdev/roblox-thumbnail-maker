@@ -18,7 +18,7 @@ export interface Reference {
   candidateCount?: number
   pickedBy?: string
   why?: string
-  /** Which of the game page's thumbnails was picked as the cleanest, and why. */
+  /** Which of the game page's thumbnails the run started from: picked at random ('random'), or by a vision model as the cleanest on older runs. */
   thumbnail?: { index: number; count: number; why: string; pickedBy: string | null }
   /** The creator's own linked game, the reference for both slots. */
   linked?: boolean

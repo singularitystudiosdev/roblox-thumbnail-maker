@@ -36,8 +36,10 @@ function caption(reference: Reference) {
   return [reference.why, pool].filter(Boolean).join(' ')
 }
 
-function thumbnailCaption({ index, count, why }: NonNullable<Reference['thumbnail']>) {
+function thumbnailCaption({ index, count, why, pickedBy }: NonNullable<Reference['thumbnail']>) {
   if (count <= 1) return 'Its only thumbnail.'
+  if (pickedBy === 'random') return `Thumbnail ${index} of ${count} on its page, picked at random: another run starts from another one.`
+  // Runs saved before the random pick had a vision model choose the cleanest.
   return `Thumbnail ${index} of ${count} on its page, the cleanest with the least text. ${why}`
 }
 
